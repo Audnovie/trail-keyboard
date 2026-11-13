@@ -73,7 +73,7 @@ Restart the PC after the installers finish.
 
 1. **Trust the developer:** Settings → General → VPN & Device Management → under *Developer
    App*, tap the spare Apple ID's email → **Trust** → **Trust**.
-2. **Developer Mode** (needed since iOS 16 for apps installed this way): Settings → Privacy &
+2. **Developer Mode** (iOS 16 and later need it for apps installed this way): Settings → Privacy &
    Security → Developer Mode (near the bottom) → turn it on → **Restart**. After the restart,
    unlock and tap **Turn On**, then enter your passcode.
 3. **Turn on the keyboard:** Settings → General → Keyboard → Keyboards → Add New Keyboard… →
