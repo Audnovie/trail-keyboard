@@ -15,8 +15,9 @@
 //
 // What can't be told apart: an app that's slow to show the keyboard's own last edit, and the
 // app putting the text back exactly as it was before that edit (an Undo) within the same
-// 0.35 s. A key pressed in that moment acts on the keyboard's picture; the second look after
-// 0.4 s catches it.
+// 0.35 s. A key pressed in that moment acts on the keyboard's picture; after it, the next key
+// finds the change (or iOS's notice does, with a second look 0.4 s later). In an app that never
+// shows its text, a tap within 0.35 s of the keyboard's last edit is likewise missed.
 
 import Foundation
 
@@ -164,7 +165,10 @@ public final class ProxyTarget: TextTarget {
             // An app that doesn't show its text: iOS saying something changed is believed,
             // unless it comes right after the keyboard's own edit.
             if notified && now() - lastEdit >= ProxyTarget.lagWindow {
-                sync()
+                // The word in progress is dropped; the old picture stays as the best guess
+                // of what's before the cursor (spaces and capitals for the next word).
+                composing = nil
+                recent = []
                 return true
             }
             return false
