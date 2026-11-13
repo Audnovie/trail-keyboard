@@ -15,6 +15,10 @@ final class FakeDocument: TextDocument {
     var beforeLimit: Int?
     /// Show the state from before the last edit (an app that updates what it shows late).
     var lagging = false
+    /// Show only the current paragraph around the cursor (as some apps do).
+    var paragraphOnly = false
+    /// A one-line field: Return does the field's action and adds nothing.
+    var singleLine = false
     private var lagged: String?
     var edits = 0
 
@@ -24,16 +28,26 @@ final class FakeDocument: TextDocument {
 
     var textBeforeCursor: String? {
         var s = lagging ? (lagged ?? realBefore) : realBefore
+        if paragraphOnly, let nl = s.lastIndex(of: "\n") { s = String(s[s.index(after: nl)...]) }
         if let lim = beforeLimit { s = String(s.suffix(lim)) }
         return s.isEmpty ? nil : s
     }
 
     var textAfterCursor: String? {
-        let s = String(decoding: units[cursor...], as: UTF16.self)
+        var s = String(decoding: units[cursor...], as: UTF16.self)
+        if paragraphOnly, let nl = s.firstIndex(of: "\n") { s = String(s[..<nl]) }
         return s.isEmpty ? nil : s
     }
 
+    /// The app changes the text itself (Undo, a Send button clearing the box).
+    func appSets(_ t: String, cursor c: Int? = nil) {
+        lagged = nil
+        units = Array(t.utf16)
+        cursor = c ?? units.count
+    }
+
     func insertText(_ t: String) {
+        if singleLine && t.contains("\n") { return }
         lagged = realBefore
         edits += 1
         let s = smartQuotes ? t.replacingOccurrences(of: "'", with: "’") : t
@@ -72,7 +86,7 @@ final class ProxyTargetTests: XCTestCase {
     }
 
     /// Replays every recorded session through ProxyTarget and a FakeDocument.
-    private func replay(smartQuotes: Bool = false, beforeLimit: Int? = nil, lagging: Bool = false,
+    private func replay(smartQuotes: Bool = false, beforeLimit: Int? = nil, lagging: Bool = false, paragraphOnly: Bool = false,
                         file: StaticString = #filePath, line: UInt = #line) {
         let f = TestData.fixture("sessions.json")
         let geo = geometry(f)
@@ -85,7 +99,9 @@ final class ProxyTargetTests: XCTestCase {
             doc.smartQuotes = smartQuotes
             doc.beforeLimit = beforeLimit
             doc.lagging = lagging
-            let target = ProxyTarget { doc }
+            doc.paragraphOnly = paragraphOnly
+            var seconds = 100.0
+            let target = ProxyTarget(proxy: { doc }, now: { seconds })
             let view = RecordingSurface()
             var clock = 1000.0
             let engine = InputEngine(target: target, view: view, lex: lex, now: { clock })
@@ -120,10 +136,13 @@ final class ProxyTargetTests: XCTestCase {
                 case "start":
                     target.sync()
                     engine.start(settings)
-                case "wait": clock += e["ms"].double
+                case "wait":
+                    clock += e["ms"].double
+                    seconds += e["ms"].double / 1000
                 default: XCTFail("unknown event")
                 }
                 clock += 1
+                seconds += 0.05
                 // What iOS does after an edit: tell the keyboard the text changed. With a
                 // lagging app, it still shows the old text at that moment.
                 if target.checkExternal() { engine.onExternalChange() }
@@ -157,6 +176,139 @@ final class ProxyTargetTests: XCTestCase {
 
     func testSessionsWhenTheAppShowsChangesLate() {
         replay(lagging: true)
+    }
+
+    func testSessionsWhenTheAppShowsOnlyTheCurrentParagraph() {
+        replay(paragraphOnly: true)
+    }
+
+    /// A keyboard on a stand-in field, with a clock the test moves: `wait` lets time pass,
+    /// `tick` lets time pass and then has iOS tell the keyboard the text changed.
+    private func rig(_ start: String = "") -> (doc: FakeDocument, engine: InputEngine, tick: () -> Void, wait: () -> Void) {
+        let doc = FakeDocument()
+        doc.appSets(start)
+        var seconds = 100.0
+        let target = ProxyTarget(proxy: { doc }, now: { seconds })
+        let lex = TestData.lexicon(["en"], users: TestData.fresh)
+        let view = RecordingSurface()
+        var ms = 1000.0
+        let engine = InputEngine(target: target, view: view, lex: lex, now: { ms })
+        let geo = geometry(TestData.fixture("sessions.json"))
+        engine.onGeometry(geo.cx, geo.cy, geo.kw)
+        target.onExternalChange = { engine.onExternalChange() }
+        target.sync()
+        engine.start(TypingSettings())
+        let wait: () -> Void = {
+            seconds += 1.5
+            ms += 1500
+        }
+        let tick: () -> Void = {
+            wait()
+            if target.checkExternal() { engine.onExternalChange() }
+        }
+        // (The engine holds the view weakly; these tests only look at the text.)
+        _ = view
+        return (doc, engine, tick, wait)
+    }
+
+    private func type(_ engine: InputEngine, _ s: String) {
+        for c in s { engine.onKey(c == " " ? KeyCode.space : Int(c.unicodeScalars.first!.value)) }
+    }
+
+    /// Undo in the app after a word: the keyboard must notice, and not delete real text.
+    func testUndoInTheAppIsNoticed() {
+        let (doc, engine, tick, _) = rig("I like ")
+        type(engine, "pizza")
+        XCTAssertEqual(doc.text, "I like pizza")
+        doc.appSets("I like ")
+        tick()
+        engine.onDelete()
+        XCTAssertEqual(doc.text, "I like", "only the space before the cursor goes")
+    }
+
+    /// The same Undo when iOS doesn't tell the keyboard: checked before deleting anything.
+    func testWordThatVanishedWithoutNoticeIsLeftAlone() {
+        let (doc, engine, _, wait) = rig("I like ")
+        type(engine, "pizza")
+        doc.appSets("I like ")
+        // No notice from iOS, but the keyboard's last edit was a while ago.
+        wait()
+        engine.onDelete()
+        XCTAssertEqual(doc.text, "I like ", "nothing real deleted")
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        engine.onDelete()
+        XCTAssertEqual(doc.text, "I like")
+    }
+
+    /// A Send button clears the box: the next word starts afresh.
+    func testClearedFieldStartsAfresh() {
+        let (doc, engine, tick, _) = rig()
+        type(engine, "ok")
+        XCTAssertEqual(doc.text, "Ok")
+        doc.appSets("")
+        tick()
+        type(engine, "x")
+        XCTAssertEqual(doc.text, "X")
+        XCTAssertEqual(engine.typed, "X")
+    }
+
+    /// A one-line field (a search box) swallows Return: the keyboard's picture catches up.
+    func testOneLineFieldThatSwallowsReturn() {
+        let (doc, engine, tick, _) = rig()
+        doc.singleLine = true
+        type(engine, "pizza")
+        engine.onKey(KeyCode.enter)
+        XCTAssertEqual(doc.text, "Pizza")
+        tick()
+        type(engine, "near")
+        XCTAssertEqual(doc.text, "Pizzanear", "no capital: it isn't a new line")
+    }
+
+    /// A clean swipe through a word's letters: the key centres, with points in between.
+    private func swipe(_ engine: InputEngine, _ word: String) {
+        let geo = geometry(TestData.fixture("sessions.json"))
+        let keys = word.unicodeScalars.map { Int($0.value) - 97 }
+        var xs = [Double](), ys = [Double]()
+        for (n, k) in keys.enumerated() {
+            if n > 0 {
+                let p = keys[n - 1]
+                for step in 1..<7 {
+                    let f = Double(step) / 7
+                    xs.append(geo.cx[p] + (geo.cx[k] - geo.cx[p]) * f)
+                    ys.append(geo.cy[p] + (geo.cy[k] - geo.cy[p]) * f)
+                }
+            }
+            xs.append(geo.cx[k])
+            ys.append(geo.cy[k])
+        }
+        engine.onSwipe(xs, ys, xs.count)
+    }
+
+    /// Delete right after a swipe, when the app changed the text without telling the keyboard:
+    /// nothing real is deleted, not even the space where the word was. Typing goes on normally.
+    func testDeletingASwipeAfterAnUnnoticedChangeLeavesTheTextAlone() {
+        let (doc, engine, _, wait) = rig("I like")
+        swipe(engine, "pizza")
+        XCTAssertTrue(doc.text.hasPrefix("I like ") && doc.text.count > 7, doc.text)
+        doc.appSets("We ")
+        wait()
+        engine.onDelete()
+        XCTAssertEqual(doc.text, "We ", "nothing real deleted")
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        type(engine, "ok")
+        XCTAssertEqual(doc.text, "We ok")
+    }
+
+    /// Undoing an automatic fix (don't → dont) after the app changed the text without telling
+    /// the keyboard: nothing is deleted and nothing typed.
+    func testUndoingAFixAfterAnUnnoticedChangeLeavesTheTextAlone() {
+        let (doc, engine, _, wait) = rig()
+        type(engine, "dont ")
+        XCTAssertEqual(doc.text, "Don't ")
+        doc.appSets("I like ")
+        wait()
+        engine.onDelete()
+        XCTAssertEqual(doc.text, "I like ", "nothing deleted, nothing typed")
     }
 
     /// After the cursor moves elsewhere, nothing that wasn't typed by the keyboard is deleted.

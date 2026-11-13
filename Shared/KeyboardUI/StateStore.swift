@@ -205,8 +205,19 @@ final class StateStore {
         (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
     }
 
-    /// Deletes everything saved.
+    /// Earlier saved files that couldn't be read and were set aside rather than overwritten.
+    var setAside: [URL] {
+        let dir = url.deletingLastPathComponent()
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
+        return names.filter { $0.hasPrefix("state-unreadable-") && $0.hasSuffix(".json") }.sorted().map { dir.appendingPathComponent($0) }
+    }
+
+    /// Deletes everything saved, set-aside copies included. Saving works again afterwards.
     func eraseAll() {
-        try? FileManager.default.removeItem(at: url)
+        let fm = FileManager.default
+        try? fm.removeItem(at: url)
+        for u in setAside { try? fm.removeItem(at: u) }
+        canSave = true
+        problem = nil
     }
 }

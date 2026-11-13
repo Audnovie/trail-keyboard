@@ -200,6 +200,15 @@ final class Training {
         pos = 0
     }
 
+    /// Forgets this sitting: what Undo would restore, the last swipe, and the scores.
+    func reset() {
+        history = []
+        last = nil
+        sessions = [:]
+        firstDone = []
+        note = nil
+    }
+
     /// Languages were switched on or off: if the one being trained went away, go back to English.
     func rebuild() {
         let code = language().code

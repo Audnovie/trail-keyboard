@@ -45,6 +45,8 @@ final class KeyboardViewController: UIInputViewController {
         let lexicon = Bundle.main.path(forResource: "Lexicon", ofType: nil)
         controller = KeyboardController(view: kbView, target: target, store: StateStore(fileName: "state.json"), lexiconDir: lexicon)
         controller.onHeightChange = { [weak self] in self?.updateHeight() }
+        // The app changed the text after all (seen on a second look, or before an edit).
+        target.onExternalChange = { [weak self] in self?.controller.externalChange() }
         kbView.globeButton.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
     }
 
@@ -125,19 +127,60 @@ final class KeyboardViewController: UIInputViewController {
         }
     }
 
+    /// Field kinds that get no suggestions (and so no learning).
+    private static let noSuggestTypes: Set<UITextContentType> = {
+        var s: Set<UITextContentType> = [.password, .newPassword, .oneTimeCode, .creditCardNumber]
+        if #available(iOS 17.0, *) {
+            s.formUnion([.creditCardSecurityCode, .creditCardExpiration, .creditCardExpirationMonth,
+                          .creditCardExpirationYear, .creditCardType])
+        }
+        if #available(iOS 17.4, *) { s.formUnion([.cellularEID, .cellularIMEI]) }
+        return s
+    }()
+
+    /// Field kinds where suggestions are fine but nothing is learned.
+    private static let noLearnTypes: Set<UITextContentType> = {
+        var s: Set<UITextContentType> = [.username, .emailAddress, .URL, .telephoneNumber, .fullStreetAddress,
+                                         .streetAddressLine1, .streetAddressLine2, .addressCity, .addressState,
+                                         .addressCityAndState, .sublocality, .countryName, .postalCode, .location,
+                                         .flightNumber, .shipmentTrackingNumber]
+        if #available(iOS 17.0, *) {
+            s.formUnion([.birthdate, .birthdateDay, .birthdateMonth, .birthdateYear, .creditCardName,
+                         .creditCardGivenName, .creditCardMiddleName, .creditCardFamilyName])
+        }
+        return s
+    }()
+
+    /// For kinds newer than these lists: the type's name, lower case, letters only.
+    private static func looseName(_ t: UITextContentType) -> String {
+        String(t.rawValue.lowercased().filter { $0.isLetter })
+    }
+
+    static func contentRules(_ type: UITextContentType?) -> (suggest: Bool, learn: Bool) {
+        guard let type = type else { return (true, true) }
+        if noSuggestTypes.contains(type) { return (false, false) }
+        if noLearnTypes.contains(type) { return (true, false) }
+        let n = looseName(type)
+        if ["password", "onetimecode", "creditcard", "cellular", "securitycode"].contains(where: { n.contains($0) }) || n.hasPrefix("cc") {
+            return (false, false)
+        }
+        if ["username", "email", "url", "tel", "address", "postal", "location", "birth", "bday", "flight",
+            "shipment", "country", "sublocality"].contains(where: { n.contains($0) }) {
+            return (true, false)
+        }
+        return (true, true)
+    }
+
     /// What kind of field this is, from the text traits the app gives it.
     private func currentTraits() -> FieldTraits {
         let p = textDocumentProxy
         var t = FieldTraits()
         let kt = p.keyboardType ?? .default
-        let content = (p.textContentType ?? nil)?.rawValue.lowercased() ?? ""
+        let rules = KeyboardViewController.contentRules(p.textContentType ?? nil)
         let secure = p.isSecureTextEntry ?? false
         let numeric: [UIKeyboardType] = [.numberPad, .phonePad, .namePhonePad, .decimalPad, .asciiCapableNumberPad, .numbersAndPunctuation]
-        let noSuggest = ["password", "onetimecode", "creditcard", "cellular"]
-        let noLearn = noSuggest + ["username", "email", "url", "telephone", "address", "postalcode", "location", "birthdate",
-                                   "flightnumber", "shipmenttracking", "sublocality", "countryname"]
-        t.suggest = !(secure || kt == .emailAddress || kt == .URL || numeric.contains(kt) || noSuggest.contains { content.contains($0) })
-        t.learn = t.suggest && !noLearn.contains { content.contains($0) } && (p.autocorrectionType ?? .default) != .no
+        t.suggest = !(secure || kt == .emailAddress || kt == .URL || numeric.contains(kt) || !rules.suggest)
+        t.learn = t.suggest && rules.learn && (p.autocorrectionType ?? .default) != .no
         switch p.autocapitalizationType ?? .sentences {
         case .none:
             t.sentenceCaps = false

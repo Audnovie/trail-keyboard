@@ -193,7 +193,7 @@ enum PanelPages {
         if !all.isEmpty {
             let what = multi ? "\(L.name) words" : "words"
             sections.append(PanelSection(title: nil, rows: [
-                confirming(c, id: "words.clear", title: "Clear learned \(what)", confirm: "Tap again: delete all \(all.count) learned \(what)") { L.user.clearLearned() },
+                confirming(c, id: "words.clear.\(code)", title: "Clear learned \(what)", confirm: "Tap again: delete all \(all.count) learned \(what)") { L.user.clearLearned() },
                 .text(id: nil, multi ? "Your \(L.name) never-suggest list stays." : "Your never-suggest list stays."),
             ]))
         }
@@ -254,8 +254,14 @@ enum PanelPages {
     private static func privacy(_ c: KeyboardController) -> PanelContent {
         let size = c.store.fileSize
         let kb = size > 0 ? String(format: "%.1f KB", Double(size) / 1024) : "nothing saved yet"
+        var aside = [PanelRow]()
+        let copies = c.store.setAside
+        if !copies.isEmpty {
+            let names = copies.map { $0.lastPathComponent }.joined(separator: ", ")
+            aside.append(.text(id: "privacy.aside", "Also kept: \(copies.count == 1 ? "an earlier saved file" : "\(copies.count) earlier saved files") that couldn’t be read (\(names)), set aside instead of being written over. Erasing everything deletes \(copies.count == 1 ? "it" : "them") too."))
+        }
         return PanelContent(title: "What the keyboard keeps", sections: [
-            PanelSection(title: nil, rows: [
+            PanelSection(title: nil, rows: aside + [
                 .text(id: "privacy.where", "Everything Trail learns stays inside the keyboard on this iPhone: the single words you use and how often, words you rejected or blocked, your swipe profile (running averages, never the swipes themselves), training results and these settings. All of it is on these pages, and you can delete any of it."),
                 .text(id: "privacy.network", "Trail can’t connect to anything: Full Access is off, so iOS gives it no network access. Nothing is sent anywhere."),
                 .text(id: "privacy.text", "It doesn’t keep what you write: no sentences, no history, no swipes. It only counts single words, and only in ordinary text fields. In email, web address, username, code, phone, address and card fields it doesn’t learn at all, and password fields always use Apple’s keyboard."),

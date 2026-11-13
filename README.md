@@ -25,13 +25,14 @@ Get-AppxPackage *AppleInc.iCloud* | Remove-AppxPackage
 
 ```powershell
 # Download the installers and the keyboard into your Downloads folder
+# (-UseBasicParsing avoids the security question Windows PowerShell asks since its December 2025 update)
 $ProgressPreference = 'SilentlyContinue'
 $d = "$env:USERPROFILE\Downloads"
-Invoke-WebRequest https://www.apple.com/itunes/download/win64 -OutFile "$d\iTunes64Setup.exe"
-Invoke-WebRequest https://updates.cdn-apple.com/2020/windows/001-39935-20200911-1A70AA56-F448-11EA-8CC0-99D41950005E/iCloudSetup.exe -OutFile "$d\iCloudSetup.exe"
-Invoke-WebRequest https://sideloadly.io/SideloadlySetup64.exe -OutFile "$d\SideloadlySetup64.exe"
-Invoke-WebRequest https://github.com/Audnovie/trail-keyboard/releases/latest/download/Trail.ipa -OutFile "$d\Trail.ipa"
-Invoke-WebRequest https://github.com/Audnovie/trail-keyboard/releases/latest/download/Trail.ipa.sha256 -OutFile "$d\Trail.ipa.sha256"
+Invoke-WebRequest -UseBasicParsing https://www.apple.com/itunes/download/win64 -OutFile "$d\iTunes64Setup.exe"
+Invoke-WebRequest -UseBasicParsing https://updates.cdn-apple.com/2020/windows/001-39935-20200911-1A70AA56-F448-11EA-8CC0-99D41950005E/iCloudSetup.exe -OutFile "$d\iCloudSetup.exe"
+Invoke-WebRequest -UseBasicParsing https://sideloadly.io/SideloadlySetup64.exe -OutFile "$d\SideloadlySetup64.exe"
+Invoke-WebRequest -UseBasicParsing https://github.com/Audnovie/trail-keyboard/releases/latest/download/Trail.ipa -OutFile "$d\Trail.ipa"
+Invoke-WebRequest -UseBasicParsing https://github.com/Audnovie/trail-keyboard/releases/latest/download/Trail.ipa.sha256 -OutFile "$d\Trail.ipa.sha256"
 ```
 
 ```powershell

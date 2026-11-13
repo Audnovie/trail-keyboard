@@ -148,7 +148,7 @@ final class KeyboardController: KeyboardViewDelegate {
         for L in lex.langs { L.enabled = settings.languages.contains(L.code) }
         if settings.typingLang != "auto" && !settings.languages.contains(settings.typingLang) { settings.typingLang = "auto" }
         engine.applySettings(settings.typing)
-        view.swipeEnabled = mode == .training || settings.swipe
+        updateSwipeEnabled()
         view.spaceHold = multilingual()
         if !multilingual() { view.clearMenu() }
         updateLangLabel()
@@ -213,7 +213,7 @@ final class KeyboardController: KeyboardViewDelegate {
     func setSetting(_ apply: (inout AppSettings) -> Void) {
         apply(&settings)
         engine.applySettings(settings.typing)
-        view.swipeEnabled = mode == .training || settings.swipe
+        updateSwipeEnabled()
         applyProfile()
         changed()
     }
@@ -239,6 +239,7 @@ final class KeyboardController: KeyboardViewDelegate {
         profiles[profileKey()] = SwipeProfile()
         tests.rounds = 0
         tests.round = TestStats.Round()
+        training.reset()
         applyProfile()
         changed()
     }
@@ -260,9 +261,15 @@ final class KeyboardController: KeyboardViewDelegate {
         engine.setField(suggest: t.suggest, sentenceCaps: t.sentenceCaps || t.wordCaps, allCaps: t.allCaps, learn: t.learn)
         if mode == .type && input == nil {
             engine.start(settings.typing)
-            view.swipeEnabled = settings.swipe
         }
+        updateSwipeEnabled()
         updateLangLabel()
+    }
+
+    /// Swiping is on in training, and otherwise when it's switched on and the field takes words
+    /// (in email, web address and code fields a long press just types its key).
+    private func updateSwipeEnabled() {
+        view.swipeEnabled = mode == .training || (settings.swipe && traits.suggest)
     }
 
     /// The text or cursor moved without the keyboard (a tap in the text, or the app).
@@ -276,7 +283,9 @@ final class KeyboardController: KeyboardViewDelegate {
 
     /// The keyboard is going away: keep the word in progress as it is (learning it) and save.
     func willHide() {
-        if mode == .type && input == nil {
+        if let inp = input { finishInput(inp, commit: false) }
+        closePanel()
+        if mode == .type {
             target.beginBatchEdit()
             engine.finishAsIs()
             target.endBatchEdit()
@@ -285,6 +294,8 @@ final class KeyboardController: KeyboardViewDelegate {
     }
 
     private func onCorrection(_ c: Correction) {
+        // Like learning: not when it's switched off, nor in fields that aren't learned from.
+        guard engine.learning() else { return }
         tests.fixes += 1
         tests.recent.insert(TestStats.Miss(w: c.picked, g: c.guess, r: rankOf(c.results, c.picked), m: "f", l: c.pickedLang), at: 0)
         if tests.recent.count > 40 { tests.recent.removeLast(tests.recent.count - 40) }
@@ -294,7 +305,8 @@ final class KeyboardController: KeyboardViewDelegate {
     // ---- height ----
 
     var headerHeight: CGFloat {
-        if panel != nil { return Metrics.panelExtra }
+        if panel != nil && input == nil { return Metrics.panelExtra }
+        if input != nil { return 0 }
         return mode == .training ? Metrics.trainingHeaderH : 0
     }
 
@@ -329,7 +341,14 @@ final class KeyboardController: KeyboardViewDelegate {
     }
 
     func kbLongPress(_ key: Key) {
-        guard mode == .type, input == nil else { return }
+        if let inp = input {
+            if let ch = key.alts?.first {
+                inp.type(ch)
+                renderInput()
+            }
+            return
+        }
+        guard mode == .type else { return }
         if key.code == KeyCode.space {
             openLangMenu()
         } else if let ch = key.alts?.first {
@@ -492,7 +511,7 @@ final class KeyboardController: KeyboardViewDelegate {
         trainingHeader = nil
         view.setHeaderHeight(0)
         view.holdsEnabled = true
-        view.swipeEnabled = settings.swipe
+        updateSwipeEnabled()
         view.clearStrip()
         engine.updateShift()
         updateLangLabel()
@@ -545,6 +564,7 @@ final class KeyboardController: KeyboardViewDelegate {
     // ---- panels ----
 
     func openPanel(_ page: PanelPage) {
+        pendingConfirm = nil
         if panel == nil {
             target.beginBatchEdit()
             engine.dismissPrompt()
@@ -562,6 +582,7 @@ final class KeyboardController: KeyboardViewDelegate {
     }
 
     func closePanel() {
+        pendingConfirm = nil
         guard let p = panel else { return }
         p.removeFromSuperview()
         panel = nil
@@ -573,6 +594,7 @@ final class KeyboardController: KeyboardViewDelegate {
     }
 
     private func panelBack() {
+        pendingConfirm = nil
         _ = panelStack.popLast()
         if panelStack.isEmpty { closePanel() } else { renderPanel() }
     }
@@ -637,6 +659,7 @@ final class KeyboardController: KeyboardViewDelegate {
         applyProfile()
         store.eraseAll()
         changedSinceSave = false
+        training.reset()
         training.build()
         pendingConfirm = nil
         renderPanel()
