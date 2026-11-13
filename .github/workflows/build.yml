@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   engine:
@@ -72,16 +72,7 @@ jobs:
       - name: Generate the Xcode project
         run: xcodegen generate 2>&1 | tee logs/xcodegen.log
 
-      - name: Build for the simulator
-        run: |
-          set -o pipefail
-          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
-          xcodebuild build-for-testing -project Trail.xcodeproj -scheme Trail \
-            -destination "generic/platform=iOS Simulator" -derivedDataPath build/sim \
-            ONLY_ACTIVE_ARCH=YES ARCHS=arm64 SWIFT_COMPILATION_MODE=wholemodule \
-            2>&1 | tee logs/sim-build-full.log | grep -E "error:|warning: .*/(Shared|Keyboard|App|UITests|Tests)/|BUILD|\*\* " | tee logs/sim-build.log
-
-      - name: Pick a simulator
+      - name: Pick and start a simulator
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c '
           import json, sys
@@ -97,8 +88,20 @@ jobs:
           sys.stderr.write("simulator: %s iOS %s\n" % (best[2], ".".join(map(str, best[0]))))
           ')
           echo "SIM=$UDID" >> "$GITHUB_ENV"
+          # Boots while the app builds.
           xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b | tail -1
+
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+          xcodebuild build-for-testing -project Trail.xcodeproj -scheme Trail \
+            -destination "generic/platform=iOS Simulator" -derivedDataPath build/sim \
+            ONLY_ACTIVE_ARCH=YES ARCHS=arm64 SWIFT_COMPILATION_MODE=wholemodule \
+            2>&1 | tee logs/sim-build-full.log | grep -E "error:|warning: .*/(Shared|Keyboard|App|UITests|Tests)/|BUILD|\*\* " | tee logs/sim-build.log
+
+      - name: Wait for the simulator
+        run: xcrun simctl bootstatus "$SIM" -b | tail -1
 
       - name: Test on the simulator
         run: |

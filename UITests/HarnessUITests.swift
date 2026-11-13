@@ -41,11 +41,25 @@ final class HarnessUITests: XCTestCase {
         print("HARNESS memory \(what): \(app.staticTexts["harness.memory"].label)")
     }
 
+    /// Saves a screenshot next to the repository (CI keeps it with the logs).
+    private func shot(_ name: String) {
+        let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("logs/shots", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let png = XCUIScreen.main.screenshot().pngRepresentation
+        try? png.write(to: dir.appendingPathComponent(name + ".png"))
+        let a = XCTAttachment(data: png, uniformTypeIdentifier: "public.png")
+        a.name = name
+        a.lifetime = .keepAlways
+        add(a)
+    }
+
     func testTappingWordsWithSmartFixes() {
         let app = launch()
         for k in ["d", "o", "n", "t", "space", "i", "space", "k", "n", "o", "w"] { key(app, k).tap() }
         key(app, "period").tap()
         XCTAssertEqual(text(app), "Don't I know.")
+        shot("typing")
         memory(app, "after typing")
     }
 
@@ -53,6 +67,7 @@ final class HarnessUITests: XCTestCase {
         let app = launch("swipe:hello;swipe:world;tap:.;swipe:thanks")
         run(app)
         XCTAssertEqual(text(app), "Hello world. Thanks")
+        shot("swiped")
         memory(app, "after swiping")
     }
 
@@ -91,6 +106,7 @@ final class HarnessUITests: XCTestCase {
         run(app)
         let start = app.cells["train.start"]
         XCTAssertTrue(start.waitForExistence(timeout: 5), "settings didn't open")
+        shot("settings")
         start.tap()
         XCTAssertTrue(app.staticTexts["training.word"].waitForExistence(timeout: 5), "training didn't start")
         run(app)
@@ -98,6 +114,7 @@ final class HarnessUITests: XCTestCase {
         XCTAssertTrue(result.contains("right first time") || result.contains("came out as"), result)
         let profile = app.staticTexts["training.profile"].label
         XCTAssertTrue(profile.contains("3 of 20"), profile)
+        shot("training")
         // Nothing reached the text box while training.
         XCTAssertEqual(text(app), "")
         app.buttons["training.done"].tap()
@@ -114,6 +131,7 @@ final class HarnessUITests: XCTestCase {
         link.tap()
         let row = app.cells["word.hello"]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "hello isn't in the learned words")
+        shot("learned-words")
         app.buttons["word.hello.button"].tap()
         XCTAssertFalse(app.cells["word.hello"].waitForExistence(timeout: 1))
         XCTAssertTrue(app.cells["word.there"].exists)
@@ -130,6 +148,7 @@ final class HarnessUITests: XCTestCase {
         let strip = app.descendants(matching: .any)["trail.strip"]
         let value = strip.value as? String ?? ""
         XCTAssertTrue(value.hasPrefix("Never suggest"), value)
+        shot("block-prompt")
         // Block.
         kb.coordinate(withNormalizedOffset: CGVector(dx: (f.width - 1.5 * 84) / f.width, dy: 22 / f.height)).tap()
         let after = strip.value as? String ?? ""
@@ -141,6 +160,7 @@ final class HarnessUITests: XCTestCase {
         key(app, "emoji").tap()
         let grid = app.collectionViews["trail.emoji"]
         XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        shot("emoji")
         grid.cells.element(boundBy: 0).tap()
         XCTAssertEqual(text(app), "😀")
         app.buttons["ABC"].tap()

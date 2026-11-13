@@ -88,8 +88,8 @@ what it keeps.
   Sideloadly's daemon refreshes them when the PC is on and the iPhone is plugged in or on the same
   Wi-Fi (it waits and tries again if the phone locks or drops off). Your learned words are kept
   across refreshes.
-- A free Apple ID can have **3** sideloaded apps on a device at once, and register **10** app IDs a
-  week. Trail uses **2** of those (the app and its keyboard).
+- Apps installed with a free Apple ID are limited to **3** active on a device, and **10** new app IDs
+  a week. Trail is one app but registers **2** app IDs (the app and its keyboard).
 - If it has expired, plug the iPhone in and press Start in Sideloadly again with the same file.
 
 ## Using it
@@ -136,6 +136,12 @@ summary shows how many it got right with your profile and without it.
 - `Keyboard`: the keyboard extension. `App`: the companion app and the UI-test harness.
 - `Tests/EngineTests`: replays fixtures recorded from the JavaScript engine
   (`tools/fixtures/gen.js`) and checks the Swift engine gives the same answers.
+- `Tests/EngineTests/ProxyTargetTests.swift`: the same sessions through the iPhone's way of
+  editing text (insert and delete-backwards only) against a stand-in app field, including smart
+  quotes, short context and an app that reports changes late.
+- `UITests`: the keyboard hosted in the app (`-UITestHarness`), driven with real taps and drags
+  plus scripted swipes; and a best-effort test of the real keyboard extension in the Simulator.
 - CI (`.github/workflows/build.yml`) runs the engine tests on a Mac, builds the app and runs unit
   and UI tests on the iPhone Simulator, then builds the unsigned `Trail.ipa` and publishes it as
-  the `latest` release.
+  the `latest` release. Logs and screenshots go to the `ci-logs-engine` and `ci-logs-ios`
+  branches.
