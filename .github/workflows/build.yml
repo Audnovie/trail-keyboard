@@ -1,0 +1,56 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  engine:
+    name: Engine tests (Mac)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools on this runner
+        run: |
+          mkdir -p logs
+          {
+            sw_vers
+            xcodebuild -version
+            swift --version
+            node --version
+            python3 --version
+            xcrun simctl list runtimes
+            xcrun simctl list devicetypes | grep -i iphone | head -20
+          } 2>&1 | tee logs/versions.log
+
+      - name: Generated files are up to date
+        run: |
+          python3 tools/build_lexicon.py --check 2>&1 | tee logs/generated.log
+          node tools/fixtures/gen.js --check 2>&1 | tee -a logs/generated.log
+
+      - name: swift test
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee logs/engine-test.log
+
+      - name: Save logs to the ci-logs-engine branch
+        if: always()
+        run: |
+          cd logs
+          echo "commit ${{ github.sha }} run ${{ github.run_id }} attempt ${{ github.run_attempt }} status ${{ job.status }}" > STATUS
+          git init -q -b logs
+          git config user.name "ci"
+          git config user.email "ci@users.noreply.github.com"
+          git add -A
+          git commit -qm "engine logs for ${{ github.sha }}"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" logs:ci-logs-engine
