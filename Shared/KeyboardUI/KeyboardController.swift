@@ -342,10 +342,7 @@ final class KeyboardController: KeyboardViewDelegate {
 
     func kbLongPress(_ key: Key) {
         if let inp = input {
-            if let ch = key.alts?.first {
-                inp.type(ch)
-                renderInput()
-            }
+            if let ch = key.alts?.first { typeIntoInput(inp, ch) }
             return
         }
         guard mode == .type else { return }
@@ -360,8 +357,7 @@ final class KeyboardController: KeyboardViewDelegate {
     func kbAlt(_ ch: String) {
         view.clearMenu()
         if let inp = input {
-            inp.type(ch)
-            renderInput()
+            typeIntoInput(inp, ch)
             return
         }
         guard mode == .type else { return }
@@ -626,6 +622,16 @@ final class KeyboardController: KeyboardViewDelegate {
         view.setLayout(.letters)
         view.setShift(false, false)
         view.holdsEnabled = true
+        renderInput()
+    }
+
+    /// A held-key choice typed into a panel's text box: like a key, it takes one-shot capitals.
+    private func typeIntoInput(_ inp: PanelInput, _ s: String) {
+        inp.type(s)
+        if inp.caps {
+            inp.caps = false
+            view.setShift(false, false)
+        }
         renderInput()
     }
 

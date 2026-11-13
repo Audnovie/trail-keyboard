@@ -3,10 +3,15 @@
 // word in progress is ordinary text in the field; replacing it means deleting what this
 // keyboard put there (and only that) and typing the new word.
 //
-// The rule that matters most: never delete anything unless the word in progress is still
-// where the keyboard left it. Apps can change the text themselves (Undo, a Send button that
-// clears the box, a one-line field that swallows Return), and some show the keyboard its own
-// edits a moment late, so the keyboard keeps its own picture of the text and checks it.
+// The rule that matters most: never delete or replace anything on the strength of an old
+// picture of the text. Apps can change the text themselves (Undo, a Send button that clears
+// the box, a one-line field that swallows Return, a tap elsewhere that iOS doesn't pass on),
+// and some show the keyboard its own edits a moment late. So the keyboard keeps its own
+// picture of the text, and before acting on each key it compares that picture with what the
+// app shows. If they differ, other than by the app being a moment behind, it takes the app's
+// text as it is and the typing logic starts afresh before the key is handled: the key then
+// does what it would do at that spot (a backspace deletes one character, a letter starts a
+// new word), and nothing the keyboard thought it had typed is deleted or replaced.
 
 import Foundation
 
@@ -16,6 +21,9 @@ public protocol TextDocument: AnyObject {
     var textBeforeCursor: String? { get }
     /// Some of the text after the cursor.
     var textAfterCursor: String? { get }
+    /// Whether the field has any text at all: tells an empty field from one whose text the app
+    /// doesn't show.
+    var hasText: Bool { get }
     func insertText(_ text: String)
     /// Deletes one character (an emoji or accented letter counts as one).
     func deleteBackward()
@@ -24,10 +32,10 @@ public protocol TextDocument: AnyObject {
 }
 
 public final class ProxyTarget: TextTarget {
-    /// How long an app may take to show the keyboard its own last edit, in seconds.
+    /// How far behind the keyboard's own edits an app may show the text, in seconds.
     public static let lagWindow = 0.35
-    /// After this long without an edit, the app's text is taken as settled, in seconds.
-    public static let settleTime = 1.0
+    /// How many of its own recent edits the keyboard remembers the starting points of.
+    static let recentLimit = 40
 
     private let proxyGetter: () -> TextDocument
     private var proxy: TextDocument { proxyGetter() }
@@ -39,17 +47,13 @@ public final class ProxyTarget: TextTarget {
     private var model = ""
     /// The text after the cursor, likewise.
     private var after = ""
-    /// The states this keyboard's own last few edits passed through.
-    private var recent = [(before: String, after: String)]()
-    /// When this keyboard last changed the text.
-    private var lastEdit = -1e9
+    /// Where the keyboard's own recent edits started from (just the ends next to the cursor)
+    /// and when each was made: an app that's behind shows one of these.
+    private var recent = [(before: String, after: String, time: Double)]()
     private var recheckPending = false
     private var batchDepth = 0
-    /// Set when the text turned out not to be as the keyboard left it: the rest of that key's
-    /// edits are dropped, and the typing logic starts afresh straight after.
-    private var halted = false
-    /// Called when the app turns out to have changed the text after all (seen on a second look,
-    /// or before an edit): the typing logic should start afresh.
+    /// Called when the app turns out to have changed the text: the typing logic should start
+    /// afresh. When a key finds it out, this is called before the key is handled.
     public var onExternalChange: (() -> Void)?
     /// Capitals at the start of every word, not just sentences.
     public var wordCaps = false
@@ -60,11 +64,12 @@ public final class ProxyTarget: TextTarget {
         self.now = now
     }
 
-    /// Takes the app's view of the text as the starting point.
+    /// Takes the app's view of the text as the starting point (no word in progress).
     public func sync() {
         model = proxy.textBeforeCursor ?? ""
         after = proxy.textAfterCursor ?? ""
         recent = []
+        composing = nil
     }
 
     // ---- comparing the app's text with the keyboard's picture of it ----
@@ -105,22 +110,42 @@ public final class ProxyTarget: TextTarget {
         return a.prefix(n) == m.prefix(n)
     }
 
-    /// Whether the text or cursor changed other than by this keyboard (then it re-syncs).
-    /// Right after an edit, a state the keyboard's own edits just passed through is taken as
-    /// the app being slow, and looked at again shortly.
-    public func checkExternal() -> Bool {
+    enum Fit { case same, behind, unknown, changed }
+
+    /// How what the app shows fits the keyboard's picture: the same, a moment behind the
+    /// keyboard's own last edits, impossible to tell (the app shows nothing), or changed.
+    func fit() -> Fit {
         let b = proxy.textBeforeCursor ?? ""
         let a = proxy.textAfterCursor ?? ""
-        if ProxyTarget.beforeAgrees(b, model) && ProxyTarget.afterAgrees(a, after) { return false }
-        if now() - lastEdit < ProxyTarget.lagWindow
-            && recent.contains(where: { ProxyTarget.beforeAgrees(b, $0.before) && ProxyTarget.afterAgrees(a, $0.after) }) {
+        let matches: (String, String) -> Bool
+        if b.isEmpty && a.isEmpty {
+            // The field is empty, or the app doesn't show its text.
+            if proxy.hasText { return .unknown }
+            matches = { mb, ma in mb.isEmpty && ma.isEmpty }
+        } else {
+            matches = { mb, ma in ProxyTarget.beforeAgrees(b, mb) && ProxyTarget.afterAgrees(a, ma) }
+        }
+        if matches(model, after) { return .same }
+        let t = now()
+        if recent.contains(where: { t - $0.time < ProxyTarget.lagWindow && matches($0.before, $0.after) }) {
+            return .behind
+        }
+        return .changed
+    }
+
+    /// Whether the text or cursor changed other than by this keyboard (then it re-syncs, and
+    /// the word in progress is dropped). An app that's a moment behind is looked at again shortly.
+    public func checkExternal() -> Bool {
+        switch fit() {
+        case .same, .unknown:
+            return false
+        case .behind:
             scheduleRecheck()
             return false
+        case .changed:
+            sync()
+            return true
         }
-        model = b
-        after = a
-        recent = []
-        return true
     }
 
     private func scheduleRecheck() {
@@ -133,20 +158,9 @@ public final class ProxyTarget: TextTarget {
         }
     }
 
-    /// Before deleting: whether the text around the cursor is still as the keyboard left it.
-    /// While the app may still be catching up with the last edit, or where it shows nothing,
-    /// the keyboard's own picture is trusted.
-    private func stillInPlace() -> Bool {
-        if now() - lastEdit < ProxyTarget.settleTime { return true }
-        if let b = proxy.textBeforeCursor, !b.isEmpty, !ProxyTarget.beforeAgrees(b, model) { return false }
-        if let a = proxy.textAfterCursor, !a.isEmpty, !ProxyTarget.afterAgrees(a, after) { return false }
-        return true
-    }
-
     private func noteState() {
-        recent.append((model, after))
-        if recent.count > 8 { recent.removeFirst(recent.count - 8) }
-        lastEdit = now()
+        recent.append((String(model.suffix(32)), String(after.prefix(32)), now()))
+        if recent.count > ProxyTarget.recentLimit { recent.removeFirst(recent.count - ProxyTarget.recentLimit) }
     }
 
     private func trimModel() {
@@ -156,29 +170,42 @@ public final class ProxyTarget: TextTarget {
 
     // ---- TextTarget ----
 
+    /// A key's edits come as one batch. Before the first, the app's text is compared with the
+    /// keyboard's picture; if the app changed it, the typing logic starts afresh first.
     public func beginBatchEdit() {
         batchDepth += 1
+        if batchDepth == 1 && fit() == .changed {
+            sync()
+            onExternalChange?()
+        }
     }
 
     public func endBatchEdit() {
         batchDepth = max(0, batchDepth - 1)
-        if batchDepth == 0 { halted = false }
+    }
+
+    /// An edit made outside a batch is checked the same way.
+    private func edit(_ body: () -> Void) {
+        beginBatchEdit()
+        defer { endBatchEdit() }
+        body()
     }
 
     public func commitText(_ t: String) {
-        if composing != nil {
-            _ = replaceComposing(with: t)
-        } else if !t.isEmpty {
-            insert(t)
+        edit {
+            if composing != nil {
+                replaceComposing(with: t)
+            } else if !t.isEmpty {
+                insert(t)
+            }
+            composing = nil
         }
-        composing = nil
     }
 
     public func setComposingText(_ t: String) {
-        if replaceComposing(with: t) {
+        edit {
+            replaceComposing(with: t)
             composing = t.isEmpty ? nil : t
-        } else {
-            composing = nil
         }
     }
 
@@ -186,17 +213,7 @@ public final class ProxyTarget: TextTarget {
         composing = nil
     }
 
-    /// The text isn't as the keyboard left it: take the app's text as it is, make no more changes
-    /// for this key, and have the typing logic start afresh once it's done with the key.
-    private func lostTrack() {
-        sync()
-        composing = nil
-        if batchDepth > 0 { halted = true }
-        DispatchQueue.main.async { [weak self] in self?.onExternalChange?() }
-    }
-
     private func insert(_ t: String) {
-        if halted { return }
         noteState()
         proxy.insertText(t)
         model += t
@@ -206,11 +223,7 @@ public final class ProxyTarget: TextTarget {
     }
 
     private func deleteBackward(_ count: Int) {
-        if halted || count <= 0 { return }
-        if !stillInPlace() {
-            lostTrack()
-            return
-        }
+        guard count > 0 else { return }
         for _ in 0..<count {
             noteState()
             proxy.deleteBackward()
@@ -218,45 +231,34 @@ public final class ProxyTarget: TextTarget {
         }
     }
 
-    /// Swaps the word in progress for t, keeping what they start with in common. If the word
-    /// isn't where the keyboard left it any more, nothing is deleted: only further letters
-    /// typed onto it are added, and it returns false.
-    private func replaceComposing(with t: String) -> Bool {
-        if halted { return false }
+    /// Swaps the word in progress for t, keeping what they start with in common.
+    private func replaceComposing(with t: String) {
         let old = Array(composing ?? "")
         let new = Array(t)
         var p = 0
         while p < old.count && p < new.count && old[p] == new[p] { p += 1 }
-        if !old.isEmpty && !stillInPlace() {
-            let typedOn = p == old.count && p < new.count ? String(new[p...]) : nil
-            lostTrack()
-            if let s = typedOn {
-                halted = false
-                insert(s)
-                if batchDepth > 0 { halted = true }
-            }
-            return false
-        }
         deleteBackward(old.count - p)
         if p < new.count { insert(String(new[p...])) }
-        return true
     }
 
     public func deleteBefore(utf16 n: Int) {
-        // Count whole characters: the app deletes one character (an emoji, an accented letter) at a time.
-        var units = 0
-        var chars = 0
-        for c in model.reversed() {
-            if units >= n { break }
-            units += String(c).utf16.count
-            chars += 1
+        edit {
+            // Count whole characters: the app deletes one character (an emoji, an accented
+            // letter) at a time.
+            var units = 0
+            var chars = 0
+            for c in model.reversed() {
+                if units >= n { break }
+                units += String(c).utf16.count
+                chars += 1
+            }
+            if units < n { chars += n - units }
+            deleteBackward(chars)
         }
-        if units < n { chars += n - units }
-        deleteBackward(chars)
     }
 
     public func deleteLastCharacter() {
-        deleteBackward(1)
+        edit { deleteBackward(1) }
     }
 
     public func textBefore(utf16 n: Int) -> String {
@@ -284,33 +286,34 @@ public final class ProxyTarget: TextTarget {
     /// Moves the cursor by whole characters, and moves them across in the keyboard's picture
     /// of the text too (the app may show the move a moment late).
     public func moveCursor(_ chars: Int) {
-        if after.isEmpty { after = proxy.textAfterCursor ?? "" }
-        noteState()
-        var offset = 0
-        if chars < 0 {
-            var moved = ""
-            var n = 0
-            while n < -chars, let c = model.last {
-                model.removeLast()
-                moved = String(c) + moved
-                offset -= String(c).utf16.count
-                n += 1
+        edit {
+            noteState()
+            var offset = 0
+            if chars < 0 {
+                var moved = ""
+                var n = 0
+                while n < -chars, let c = model.last {
+                    model.removeLast()
+                    moved = String(c) + moved
+                    offset -= String(c).utf16.count
+                    n += 1
+                }
+                after = moved + after
+            } else {
+                var rest = Substring(after)
+                var moved = ""
+                var n = 0
+                while n < chars, let c = rest.first {
+                    rest = rest.dropFirst()
+                    moved.append(c)
+                    offset += String(c).utf16.count
+                    n += 1
+                }
+                after = String(rest)
+                model += moved
             }
-            after = moved + after
-        } else {
-            var rest = Substring(after)
-            var moved = ""
-            var n = 0
-            while n < chars, let c = rest.first {
-                rest = rest.dropFirst()
-                moved.append(c)
-                offset += String(c).utf16.count
-                n += 1
-            }
-            after = String(rest)
-            model += moved
+            trimModel()
+            if offset != 0 { proxy.adjustTextPosition(byCharacterOffset: offset) }
         }
-        trimModel()
-        if offset != 0 { proxy.adjustTextPosition(byCharacterOffset: offset) }
     }
 }

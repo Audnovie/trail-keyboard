@@ -140,7 +140,9 @@ summary shows how many it got right with your profile and without it.
   (`tools/fixtures/gen.js`) and checks the Swift engine gives the same answers.
 - `Tests/EngineTests/ProxyTargetTests.swift`: the same sessions through the iPhone's way of
   editing text (insert and delete-backwards only) against a stand-in app field, including smart
-  quotes, short context and an app that reports changes late.
+  quotes, short context, only the current paragraph, and an app that reports changes late; plus
+  the app changing the text behind the keyboard's back (Undo, a cleared box, a moved cursor),
+  where the keyboard must never delete or replace anything it didn't just type.
 - `UITests`: the keyboard hosted in the app (`-UITestHarness`), driven with real taps and drags
   plus scripted swipes; and a best-effort test of the real keyboard extension in the Simulator.
 - CI (`.github/workflows/build.yml`) runs the engine tests on a Mac, builds the app and runs unit

@@ -181,10 +181,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete latest --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest dist/Trail.ipa dist/Trail.ipa.sha256 \
-            --title "Trail (latest build)" --target "$GITHUB_SHA" \
-            --notes "Unsigned build of ${GITHUB_SHA::7}. Install it with Sideloadly; see README.md." 2>&1 | tee logs/release.log
+          set -o pipefail
+          printf 'Built from commit %s on %s\n' "$GITHUB_SHA" "$(date -u '+%Y-%m-%d %H:%M UTC')" > dist/build-info.txt
+          if gh release view latest >/dev/null 2>&1; then
+            # Replace the files in place, so the download links keep working.
+            gh release upload latest dist/Trail.ipa dist/Trail.ipa.sha256 dist/build-info.txt --clobber 2>&1 | tee logs/release.log
+          else
+            gh release create latest dist/Trail.ipa dist/Trail.ipa.sha256 dist/build-info.txt \
+              --title "Trail (latest build)" --target "$GITHUB_SHA" \
+              --notes "Unsigned build for Sideloadly (see README.md). build-info.txt says which commit it was built from." 2>&1 | tee logs/release.log
+          fi
 
       - name: Save logs to the ci-logs-ios branch
         if: always()

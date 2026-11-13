@@ -366,10 +366,11 @@ public final class InputEngine {
     public func onSwipe(_ xs: [Double], _ ys: [Double], _ count: Int) {
         dismissPrompt()
         if !canSwipe || !decoder.ready { return }
-        guard let ctx = contextLang() else { return }
-        let res = decoder.decode(xs, ys, count, sources(ctx), max: 8)
+        // The batch starts first: the text before the cursor decides the language.
         ic.beginBatchEdit()
         defer { ic.endBatchEdit() }
+        guard let ctx = contextLang() else { return }
+        let res = decoder.decode(xs, ys, count, sources(ctx), max: 8)
         swipeInner(res, ctx)
     }
 
@@ -542,6 +543,8 @@ public final class InputEngine {
     }
 
     private func answerPrompt(_ yes: Bool) {
+        ic.beginBatchEdit()
+        defer { ic.endBatchEdit() }
         let word = blockCandidate
         let code = blockLang
         blockCandidate = nil

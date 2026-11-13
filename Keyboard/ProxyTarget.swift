@@ -13,6 +13,7 @@ final class ProxyDocument: TextDocument {
 
     var textBeforeCursor: String? { proxy().documentContextBeforeInput }
     var textAfterCursor: String? { proxy().documentContextAfterInput }
+    var hasText: Bool { proxy().hasText }
     func insertText(_ text: String) { proxy().insertText(text) }
     func deleteBackward() { proxy().deleteBackward() }
     func adjustTextPosition(byCharacterOffset offset: Int) { proxy().adjustTextPosition(byCharacterOffset: offset) }
