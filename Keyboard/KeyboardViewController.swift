@@ -54,7 +54,7 @@ final class KeyboardViewController: UIInputViewController {
         super.viewWillAppear(animated)
         kbView.setGlobe(needsInputModeSwitchKey)
         updateHeight()
-        target.sync()
+        target.sync(newField: true)
         lastDocument = textDocumentProxy.documentIdentifier
         controller.fieldChanged(currentTraits())
     }
@@ -100,7 +100,7 @@ final class KeyboardViewController: UIInputViewController {
         if doc != lastDocument {
             // Another text field.
             lastDocument = doc
-            target.sync()
+            target.sync(newField: true)
             controller.fieldChanged(currentTraits())
             return
         }

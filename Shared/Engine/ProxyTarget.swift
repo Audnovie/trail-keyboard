@@ -12,6 +12,11 @@
 // text as it is and the typing logic starts afresh before the key is handled: the key then
 // does what it would do at that spot (a backspace deletes one character, a letter starts a
 // new word), and nothing the keyboard thought it had typed is deleted or replaced.
+//
+// What can't be told apart: an app that's slow to show the keyboard's own last edit, and the
+// app putting the text back exactly as it was before that edit (an Undo) within the same
+// 0.35 s. A key pressed in that moment acts on the keyboard's picture; the second look after
+// 0.4 s catches it.
 
 import Foundation
 
@@ -52,8 +57,14 @@ public final class ProxyTarget: TextTarget {
     private var recent = [(before: String, after: String, time: Double)]()
     private var recheckPending = false
     private var batchDepth = 0
-    /// Called when the app turns out to have changed the text: the typing logic should start
-    /// afresh. When a key finds it out, this is called before the key is handled.
+    /// When this keyboard last changed the text.
+    private var lastEdit = -1e9
+    /// Whether this field has shown the keyboard any text. If it has, seeing nothing means an
+    /// empty line; if not, the app is one that doesn't show its text.
+    private var seenText = false
+    /// Called when the app turns out to have changed the text: the typing logic must start
+    /// afresh (this has to be set). When a key finds it out, it's called before the key is
+    /// handled.
     public var onExternalChange: (() -> Void)?
     /// Capitals at the start of every word, not just sentences.
     public var wordCaps = false
@@ -65,11 +76,14 @@ public final class ProxyTarget: TextTarget {
     }
 
     /// Takes the app's view of the text as the starting point (no word in progress).
-    public func sync() {
+    /// - Parameter newField: the keyboard has just come up, or moved to another text field.
+    public func sync(newField: Bool = false) {
         model = proxy.textBeforeCursor ?? ""
         after = proxy.textAfterCursor ?? ""
         recent = []
         composing = nil
+        if newField { seenText = false }
+        if !model.isEmpty || !after.isEmpty { seenText = true }
     }
 
     // ---- comparing the app's text with the keyboard's picture of it ----
@@ -113,16 +127,21 @@ public final class ProxyTarget: TextTarget {
     enum Fit { case same, behind, unknown, changed }
 
     /// How what the app shows fits the keyboard's picture: the same, a moment behind the
-    /// keyboard's own last edits, impossible to tell (the app shows nothing), or changed.
+    /// keyboard's own last edits, impossible to tell (an app that never shows its text), or
+    /// changed.
     func fit() -> Fit {
         let b = proxy.textBeforeCursor ?? ""
         let a = proxy.textAfterCursor ?? ""
         let matches: (String, String) -> Bool
-        if b.isEmpty && a.isEmpty {
-            // The field is empty, or the app doesn't show its text.
-            if proxy.hasText { return .unknown }
+        if b.isEmpty && a.isEmpty && !proxy.hasText {
+            // An empty field.
             matches = { mb, ma in mb.isEmpty && ma.isEmpty }
+        } else if b.isEmpty && a.isEmpty && !seenText {
+            // An app that hasn't shown this field's text: nothing to compare.
+            return .unknown
         } else {
+            // (Seeing nothing in a field that has shown text means an empty line.)
+            if !b.isEmpty || !a.isEmpty { seenText = true }
             matches = { mb, ma in ProxyTarget.beforeAgrees(b, mb) && ProxyTarget.afterAgrees(a, ma) }
         }
         if matches(model, after) { return .same }
@@ -135,9 +154,19 @@ public final class ProxyTarget: TextTarget {
 
     /// Whether the text or cursor changed other than by this keyboard (then it re-syncs, and
     /// the word in progress is dropped). An app that's a moment behind is looked at again shortly.
-    public func checkExternal() -> Bool {
+    /// - Parameter notified: iOS said the text or selection changed (rather than the keyboard
+    ///   looking again by itself).
+    public func checkExternal(notified: Bool = true) -> Bool {
         switch fit() {
-        case .same, .unknown:
+        case .same:
+            return false
+        case .unknown:
+            // An app that doesn't show its text: iOS saying something changed is believed,
+            // unless it comes right after the keyboard's own edit.
+            if notified && now() - lastEdit >= ProxyTarget.lagWindow {
+                sync()
+                return true
+            }
             return false
         case .behind:
             scheduleRecheck()
@@ -154,12 +183,13 @@ public final class ProxyTarget: TextTarget {
         DispatchQueue.main.asyncAfter(deadline: .now() + ProxyTarget.lagWindow + 0.05) { [weak self] in
             guard let self = self else { return }
             self.recheckPending = false
-            if self.checkExternal() { self.onExternalChange?() }
+            if self.checkExternal(notified: false) { self.onExternalChange?() }
         }
     }
 
     private func noteState() {
-        recent.append((String(model.suffix(32)), String(after.prefix(32)), now()))
+        lastEdit = now()
+        recent.append((String(model.suffix(32)), String(after.prefix(32)), lastEdit))
         if recent.count > ProxyTarget.recentLimit { recent.removeFirst(recent.count - ProxyTarget.recentLimit) }
     }
 

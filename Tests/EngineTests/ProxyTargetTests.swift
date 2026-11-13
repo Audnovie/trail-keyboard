@@ -398,9 +398,36 @@ final class ProxyTargetTests: XCTestCase {
         r.doc.hidesText = true
         swipe(r.engine, "hello")
         XCTAssertFalse(r.doc.text.isEmpty)
-        r.tick()
+        r.advance(1.5)
         r.engine.onDelete()
         XCTAssertEqual(r.doc.text, "")
+    }
+
+    /// The same app, when iOS says the text or cursor changed (not right after the keyboard's
+    /// own edit): that's believed, so delete then removes one character, not the swiped word.
+    func testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged() {
+        let r = rig()
+        r.doc.hidesText = true
+        swipe(r.engine, "hello")
+        let full = r.doc.text
+        r.tick()
+        r.engine.onDelete()
+        XCTAssertEqual(r.doc.text, String(full.dropLast()))
+    }
+
+    /// An app that shows only the current paragraph, with the cursor tapped onto an empty line
+    /// after a swipe: seeing nothing there is real (this field has shown text), so delete
+    /// removes one character at the empty line, not the swiped word's length.
+    func testEmptyLineInAnAppThatShowsOneParagraph() {
+        let r = rig("Dear Sam,\n\nThanks")
+        r.doc.paragraphOnly = true
+        swipe(r.engine, "again")
+        let full = r.doc.text
+        XCTAssertTrue(full.hasPrefix("Dear Sam,\n\nThanks ") && full.count > 18, full)
+        r.doc.place(10)
+        r.tick()
+        r.engine.onDelete()
+        XCTAssertEqual(r.doc.text, String(full.prefix(9)) + String(full.dropFirst(10)))
     }
 
     /// The four ways what the app shows can fit the keyboard's picture.
@@ -418,11 +445,16 @@ final class ProxyTargetTests: XCTestCase {
         XCTAssertEqual(target.fit(), .changed, "too long ago to be the app being slow")
         doc.settle()
         XCTAssertEqual(target.fit(), .same)
-        doc.hidesText = true
-        XCTAssertEqual(target.fit(), .unknown)
-        doc.hidesText = false
         doc.appSets("")
         XCTAssertEqual(target.fit(), .changed, "the box was emptied")
+
+        // An app that has never shown the keyboard this field's text.
+        let hidden = FakeDocument()
+        hidden.appSets("Secret")
+        hidden.hidesText = true
+        let blind = ProxyTarget(proxy: { hidden }, now: { t })
+        blind.sync(newField: true)
+        XCTAssertEqual(blind.fit(), .unknown)
     }
 
     /// After the cursor moves elsewhere, nothing that wasn't typed by the keyboard is deleted.

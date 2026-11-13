@@ -443,6 +443,10 @@ public final class InputEngine {
     /// changed the text): the word in progress stays as it is, and nothing tied to the old
     /// spot carries over.
     public func onExternalChange() {
+        // Nothing tied to the old spot carries over: no double-space period, no "deleted a
+        // swipe, then swiped again". (iPhone only: the JavaScript version has no such call.)
+        lastSpaceTime = -1e9
+        deletedGestureWord = nil
         if composing() {
             ic.finishComposingText()
             resetComposing()
