@@ -1,0 +1,143 @@
+# The iPhone app and keyboard. Generate the Xcode project with XcodeGen:
+#     xcodegen generate
+# CI does this on GitHub's Mac runners (.github/workflows/build.yml).
+name: Trail
+options:
+  bundleIdPrefix: io.github.audnovie
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_IDENTITY: ""
+    "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    SWIFT_STRICT_CONCURRENCY: minimal
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  TrailEngine:
+    type: library.static
+    platform: iOS
+    sources:
+      - path: Shared/Engine
+    settings:
+      base:
+        PRODUCT_NAME: TrailEngine
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+
+  Trail:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared/KeyboardUI
+      - path: Resources/Lexicon
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: TrailEngine
+      - target: TrailKeyboard
+        embed: true
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Trail
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.audnovie.trail
+        PRODUCT_NAME: Trail
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: NO
+
+  TrailKeyboard:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Keyboard
+      - path: Shared/KeyboardUI
+      - path: Resources/Lexicon
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: TrailEngine
+    info:
+      path: Keyboard/Info.plist
+      properties:
+        CFBundleDisplayName: Trail
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.keyboard-service
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).KeyboardViewController
+          NSExtensionAttributes:
+            IsASCIICapable: true
+            PrefersRightToLeft: false
+            PrimaryLanguage: en-US
+            RequestsOpenAccess: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.audnovie.trail.keyboard
+        PRODUCT_NAME: TrailKeyboard
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+
+  TrailEngineTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/EngineTests
+        excludes:
+          - "Fixtures/**"
+    dependencies:
+      - target: TrailEngine
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.audnovie.trail.enginetests
+        GENERATE_INFOPLIST_FILE: YES
+
+  TrailUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Trail
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.audnovie.trail.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Trail
+
+schemes:
+  Trail:
+    build:
+      targets:
+        Trail: all
+        TrailEngineTests: [test]
+        TrailUITests: [test]
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - TrailEngineTests
+        - TrailUITests

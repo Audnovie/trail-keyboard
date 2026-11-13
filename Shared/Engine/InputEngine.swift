@@ -761,6 +761,29 @@ public final class InputEngine {
         }
     }
 
+    /// The keyboard is closing: keep the word in progress exactly as shown, learning it.
+    public func finishAsIs() {
+        dismissPrompt()
+        if gestureWord != nil { finalizeGesture() }
+        if !typed.isEmpty {
+            let literal = typed
+            let ctx = contextLang()
+            typed = ""
+            ic.finishComposingText()
+            if learning() {
+                let lang = langOfTyped(literal, ctx)
+                let base = learnForm(literal, typedFirstAutoCap, lang)
+                if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) { recordUse(base, 1, lang) }
+            }
+            revertFrom = nil
+            revertTo = nil
+        }
+        afterGesture = false
+        spaceAfterPick = false
+        stripKind = .none
+        view?.clearStrip()
+    }
+
     private func finalizeGesture() {
         ic.finishComposingText()
         if learning(), let base = gestureBase {
