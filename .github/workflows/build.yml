@@ -38,10 +38,10 @@ jobs:
           python3 tools/build_lexicon.py --check 2>&1 | tee logs/generated.log
           node tools/fixtures/gen.js --check 2>&1 | tee -a logs/generated.log
 
-      - name: swift test
+      - name: swift test (optimised, as on the phone)
         run: |
           set -o pipefail
-          swift test 2>&1 | tee logs/engine-test.log
+          swift test -c release -Xswiftc -enable-testing 2>&1 | tee logs/engine-test.log
 
       - name: Save logs to the ci-logs-engine branch
         if: always()

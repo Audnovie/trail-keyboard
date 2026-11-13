@@ -60,12 +60,20 @@ final class BudgetTests: XCTestCase {
             worstType = max(worstType, Date().timeIntervalSince(t0) * 1000)
         }
         let after = footprintMB()
+        #if DEBUG
+        print("BUDGET (debug build: times are much slower than on a phone)")
+        #else
+        print("BUDGET (optimised build)")
+        #endif
         print(String(format: "BUDGET swipe: %.1f ms average, %.1f ms worst over %d swipes", totalSwipe / Double(cases.count), worstSwipe, cases.count))
         print(String(format: "BUDGET typing suggestions: %.1f ms worst", worstType))
         print(String(format: "BUDGET memory: %.1f MB before loading, %.1f MB after (phys_footprint of the test process)", before, after))
         // Generous limits: CI machines vary, and these are about catching a big regression.
-        XCTAssertLessThan(worstSwipe, 250, "a swipe took too long to read")
-        XCTAssertLessThan(worstType, 150, "suggestions took too long")
+        // Only for optimised builds; a debug build is many times slower.
+        #if !DEBUG
+        XCTAssertLessThan(worstSwipe, 120, "a swipe took too long to read")
+        XCTAssertLessThan(worstType, 60, "suggestions took too long")
+        #endif
         if before > 0 && after > 0 {
             XCTAssertLessThan(after - before, 25, "the engine grew memory by more than 25 MB")
         }
@@ -88,6 +96,8 @@ final class BudgetTests: XCTestCase {
         _ = sug.suggest("th", [Source(words: W, user: L.user, bias: 0, lang: "en")], max: 6)
         let ms = Date().timeIntervalSince(t0) * 1000
         print(String(format: "BUDGET suggestions with 3000 learned words: %.1f ms (includes building the lookup)", ms))
-        XCTAssertLessThan(ms, 300)
+        #if !DEBUG
+        XCTAssertLessThan(ms, 100)
+        #endif
     }
 }

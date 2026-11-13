@@ -243,7 +243,9 @@ final class SuggestParityTests: XCTestCase {
             }
         }
         for p in f["editCost"].array {
-            XCTAssertTrue(close(sug.editCost(p[0].string!, p[1].string!, 99), p[2].double), "editCost \(p[0].string!) \(p[1].string!)")
+            // JSON has no Infinity: the JavaScript writes it as null.
+            let want = p[2].isNull ? Double.infinity : p[2].double
+            XCTAssertTrue(close(sug.editCost(p[0].string!, p[1].string!, 99), want), "editCost \(p[0].string!) \(p[1].string!)")
         }
     }
 }
