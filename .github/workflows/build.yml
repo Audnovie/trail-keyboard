@@ -105,6 +105,41 @@ jobs:
           xcrun xcresulttool get test-results summary --path build/Tests.xcresult 2>&1 | tee logs/ios-test-summary.json | head -80 || true
           xcrun xcresulttool get test-results tests --path build/Tests.xcresult > logs/ios-tests.json 2>&1 || true
 
+      - name: The real keyboard extension in the simulator (best effort)
+        if: always()
+        continue-on-error: true
+        run: |
+          set -x
+          BUNDLE=io.github.audnovie.trail.keyboard
+          xcrun simctl spawn "$SIM" defaults read .GlobalPreferences AppleKeyboards > logs/real-keyboards-before.txt 2>&1 || true
+          xcrun simctl spawn "$SIM" defaults write .GlobalPreferences AppleKeyboards -array "$BUNDLE" "en_US@sw=QWERTY;hw=Automatic" "emoji@sw=Emoji"
+          xcrun simctl spawn "$SIM" defaults write .GlobalPreferences AppleKeyboardsExpanded -int 1
+          xcrun simctl spawn "$SIM" defaults write com.apple.Preferences KeyboardsCurrentAndNext -array "$BUNDLE" "en_US@sw=QWERTY;hw=Automatic"
+          xcrun simctl spawn "$SIM" defaults read .GlobalPreferences AppleKeyboards > logs/real-keyboards-after.txt 2>&1 || true
+          xcrun simctl shutdown "$SIM"
+          xcrun simctl boot "$SIM"
+          xcrun simctl bootstatus "$SIM" -b | tail -1
+          mkdir -p logs/real
+          (
+            for i in $(seq 1 40); do
+              PID=$(pgrep -f "TrailKeyboard.appex/TrailKeyboard" | head -1)
+              if [ -n "$PID" ]; then
+                { date; ps -o pid,rss,vsz,command -p "$PID"; footprint "$PID" 2>&1 | head -40; } >> logs/real/footprint.txt
+                xcrun simctl io "$SIM" screenshot "logs/real/screen-$i.png" >/dev/null 2>&1
+              else
+                echo "$(date) no TrailKeyboard process" >> logs/real/footprint.txt
+                [ $((i % 6)) -eq 0 ] && xcrun simctl io "$SIM" screenshot "logs/real/screen-$i.png" >/dev/null 2>&1
+              fi
+              sleep 4
+            done
+          ) &
+          SAMPLER=$!
+          TEST_RUNNER_TRAIL_REAL_KEYBOARD=1 xcodebuild test-without-building -project Trail.xcodeproj -scheme Trail \
+            -destination "platform=iOS Simulator,id=$SIM" -derivedDataPath build/sim \
+            -only-testing:TrailUITests/RealKeyboardUITests 2>&1 | tee logs/real/test-full.log | grep -E "REAL|error|Test Case|Executed" | tee logs/real/test.log
+          kill $SAMPLER 2>/dev/null || true
+          ls logs/real | head -50
+
       - name: Build the unsigned .ipa
         run: |
           set -o pipefail

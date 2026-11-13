@@ -16,6 +16,9 @@ final class ProxyTarget: TextTarget {
     private var model = ""
     /// The text after the cursor when last checked.
     private var after: String?
+    /// The last few states this keyboard's own edits passed through (some apps report the text
+    /// a moment late, mid-edit; that's not someone else changing it).
+    private var recentTails = [String]()
     /// Capitals at the start of every word, not just sentences.
     var wordCaps = false
 
@@ -26,19 +29,29 @@ final class ProxyTarget: TextTarget {
     /// Takes the app's view of the text as the starting point.
     func sync() {
         model = proxy.documentContextBeforeInput ?? ""
-        after = proxy.documentContextAfterInput
+        after = proxy.documentContextAfterInput ?? ""
+        recentTails = []
     }
 
     /// Whether the text or cursor changed other than by this keyboard (then it re-syncs).
+    /// Moving the cursor changes the text after it, so that's checked strictly; the text before
+    /// it may lag behind this keyboard's own edits in some apps.
     func checkExternal() -> Bool {
         let now = proxy.documentContextBeforeInput ?? ""
-        let a = proxy.documentContextAfterInput
-        let changed = ProxyTarget.tail(now) != ProxyTarget.tail(model) || (a ?? "") != (after ?? "")
+        let a = proxy.documentContextAfterInput ?? ""
+        let t = ProxyTarget.tail(now)
+        let changed = a != (after ?? "") || (t != ProxyTarget.tail(model) && !recentTails.contains(t))
         if changed {
             model = now
             after = a
+            recentTails = []
         }
         return changed
+    }
+
+    private func noteState() {
+        recentTails.append(ProxyTarget.tail(model))
+        if recentTails.count > 6 { recentTails.removeFirst(recentTails.count - 6) }
     }
 
     /// The last 24 characters, with curly quotes made straight (apps with smart punctuation
@@ -77,6 +90,7 @@ final class ProxyTarget: TextTarget {
     }
 
     private func insert(_ t: String) {
+        noteState()
         proxy.insertText(t)
         model += t
         trimModel()
@@ -84,6 +98,7 @@ final class ProxyTarget: TextTarget {
 
     private func deleteBackward(_ count: Int) {
         for _ in 0..<count {
+            noteState()
             proxy.deleteBackward()
             if !model.isEmpty { model.removeLast() }
         }

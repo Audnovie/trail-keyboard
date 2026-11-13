@@ -130,7 +130,8 @@ enum PanelPages {
             },
         ]
         if c.multilingual() {
-            let options = [("auto", "Auto")] + c.lex.enabled().map { ($0.code, $0.name) }
+            var options: [(value: String, label: String)] = [(value: "auto", label: "Auto")]
+            for L in c.lex.enabled() { options.append((value: L.code, label: L.name)) }
             langRows.append(.choice(id: "opt.typingLang", title: "Writing in", options: options, selected: s.typingLang) { v in c.setTypingLang(v) })
             langRows.append(.text(id: nil, "Auto picks the language from the words before the cursor. Hold the space bar to switch."))
         }
@@ -501,7 +502,8 @@ final class TrainingHeaderView: UIView {
 
     private func setLangs(_ langs: [(String, String)], _ current: String, _ t: Theme) {
         for b in langButtons { b.removeFromSuperview() }
-        langButtons = langs.map { code, short in
+        langButtons = langs.map { pair -> UIButton in
+            let (code, short) = pair
             let b = UIButton(type: .system)
             b.setTitle(short, for: .normal)
             b.titleLabel?.font = .systemFont(ofSize: 12, weight: code == current ? .bold : .regular)

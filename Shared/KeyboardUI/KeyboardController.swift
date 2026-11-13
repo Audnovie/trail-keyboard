@@ -173,12 +173,16 @@ final class KeyboardController: KeyboardViewDelegate {
     }
 
     private func langItems() -> [(value: String, label: String)] {
-        [("auto", "Auto")] + lex.enabled().map { ($0.code, $0.name) }
+        var items: [(value: String, label: String)] = [(value: "auto", label: "Auto")]
+        for L in lex.enabled() { items.append((value: L.code, label: L.name)) }
+        return items
     }
 
     private func openLangMenu() {
         guard multilingual(), mode == .type else { return }
-        view.setMenu("Language", langItems().map { ($0.label, $0.value == settings.typingLang) })
+        var items = [(label: String, on: Bool)]()
+        for it in langItems() { items.append((label: it.label, on: it.value == settings.typingLang)) }
+        view.setMenu("Language", items)
     }
 
     private func pickMenu(_ i: Int) {
@@ -299,7 +303,19 @@ final class KeyboardController: KeyboardViewDelegate {
     func kbKey(_ key: Key) {
         view.clearMenu()
         if let inp = input {
-            inp.key(key.code)
+            if key.code == KeyCode.shift {
+                inp.caps.toggle()
+                view.setShift(inp.caps, false)
+            } else if key.code == KeyCode.enter {
+                finishInput(inp, commit: true)
+                return
+            } else {
+                inp.key(key.code)
+                if inp.caps {
+                    inp.caps = false
+                    view.setShift(false, false)
+                }
+            }
             renderInput()
             return
         }
@@ -500,7 +516,8 @@ final class KeyboardController: KeyboardViewDelegate {
         } else {
             profileLine = "Swipe profile on · learned from \(S.total) swipes"
         }
-        let langs = multilingual() ? lex.enabled().map { ($0.code, $0.short) } : []
+        var langs = [(String, String)]()
+        if multilingual() { for L in lex.enabled() { langs.append((L.code, L.short)) } }
         if done {
             var lines = [String]()
             if R.ab >= 5 { lines.append("With your swipe profile \(R.on) of \(R.ab) were right first time; without it, \(R.off) would have been.") }
@@ -637,6 +654,8 @@ final class PanelInput {
     let label: String
     private(set) var text = ""
     let commit: (String) -> Void
+    /// The next letter in capitals (shift).
+    var caps = false
 
     init(label: String, commit: @escaping (String) -> Void) {
         self.label = label
@@ -649,7 +668,7 @@ final class PanelInput {
     }
 
     func type(_ s: String) {
-        if text.count < 30 { text += s }
+        if text.count < 30 { text += caps ? s.uppercased() : s }
     }
 
     func delete() {
