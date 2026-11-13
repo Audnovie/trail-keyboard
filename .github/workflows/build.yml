@@ -3,6 +3,8 @@ name: Build and test
 on:
   push:
     branches: [main]
+    # Notes alone don't change the app: no rebuild (and no new release) for them.
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 permissions:

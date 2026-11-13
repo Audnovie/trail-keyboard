@@ -62,9 +62,10 @@ Restart the PC after the installers finish.
 1. Open **Sideloadly**. Your iPhone should show under *iDevice*.
 2. Type the spare Apple ID's email in *Apple account*.
 3. Drag `Trail.ipa` from your Downloads folder onto the IPA box.
-4. Leave the other options as they are. Automatic refresh is on by default: once the install
-   succeeds, Sideloadly's background daemon (it starts with Windows) re-signs the app before it
-   expires.
+4. Leave the other options as they are. In particular, don't tick **Remove Extensions** under
+   Advanced options: the keyboard *is* the app's extension. Automatic refresh is on by default:
+   once the install succeeds, Sideloadly's background daemon (it starts with Windows) re-signs
+   the app before it expires.
 5. Click **Start**, enter the Apple ID's password (and the two-factor code if asked), and wait
    for **Done.**
 
