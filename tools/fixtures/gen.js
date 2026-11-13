@@ -119,8 +119,8 @@ function swipeFor(word, style) {
       const t2 = t * t;
       const t3 = t2 * t;
       const f = (a, b, c, d) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-      xs.push(r3(f(p0[0], p1[0], p2[0], p3[0]) + gauss() * 0.6));
-      ys.push(r3(f(p0[1], p1[1], p2[1], p3[1]) + gauss() * 0.6));
+      xs.push(r3(f(p0[0], p1[0], p2[0], p3[0]) + gauss() * 0.5));
+      ys.push(r3(f(p0[1], p1[1], p2[1], p3[1]) + gauss() * 0.5));
     }
   }
   xs.push(r3(pts[n - 1][0]));
@@ -132,7 +132,7 @@ function swipeFor(word, style) {
 
 function userStates() {
   const en = new T.UserWords(T.LANG_INFO.en.starters);
-  en.recordUse('haha', 6, true);
+  en.recordUse('haha', 7, true);
   en.recordUse('sense', 3, true);
   en.recordUse('swipe', 4, true);
   en.recordUse('clear', 2, true);
@@ -235,7 +235,7 @@ function capsOf(s) {
   const both = lex.enabled();
   const texts = ['', 'hello how are you', 'hola como estas', 'yo', 'Yo', 'yo quiero', 'I think yo', 'que tal amigo',
     'the quick brown fox', 'es muy bueno', 'Me llamo Terry', 'see you mañana', 'line one\nhola amigo', 'hola\nhi there',
-    'jaja', 'haha', 'tambien', 'también', 'chido', 'Terry', '123 456', 'ok', 'no', 'a la casa', 'in the house',
+    'jaja', 'haha', 'tambien', 'también', 'chido', 'Terry', '123 457', 'ok', 'no', 'a la casa', 'in the house',
     'I am going to the store and then', 'voy a la tienda y luego', "don't know", 'él dijo que no'];
   files['detect.json'] = {
     users: USERS,
@@ -269,8 +269,8 @@ const SWIPE_WORDS_ES = ['hola', 'yo', 'que', 'jaja', 'gracias', 'mañana', 'tamb
   const styles = [{}, { jitter: 0.1 }, { jitter: 0.3 }, { end: -0.35 }, { end: 0.4, dy: 0.15 }, { dx: -0.2, per: 5 }];
   let si = 0;
   for (const cfg of configs) {
-    const pool = cfg.ctx === 'es' ? SWIPE_WORDS_ES.concat(SWIPE_WORDS_EN.slice(0, 12)) : SWIPE_WORDS_EN.concat(SWIPE_WORDS_ES.slice(0, 6));
-    const count = cfg.name === 'en' ? pool.length : 36;
+    const pool = cfg.ctx === 'es' ? SWIPE_WORDS_ES.concat(SWIPE_WORDS_EN.slice(0, 12)) : SWIPE_WORDS_EN.concat(SWIPE_WORDS_ES.slice(0, 7));
+    const count = cfg.name === 'en' ? pool.length : 35;
     for (let i = 0; i < count; i++) {
       const word = cfg.name === 'en' ? pool[i] : pool[Math.floor(rand() * pool.length)];
       const style = styles[si++ % styles.length];

@@ -39,6 +39,6 @@ layer = layer.filter(ImageFilter.GaussianBlur(1.2))
 img.paste(layer, (0, 0), layer)
 d = ImageDraw.Draw(img, 'RGBA')
 ex, ey = pts[-1]
-d.ellipse([ex - 46, ey - 46, ex + 46, ey + 46], fill=(255, 214, 102, 255))
+d.ellipse([ex - 45, ey - 45, ex + 45, ey + 45], fill=(255, 214, 102, 255))
 img.save(OUT)
 print('wrote', os.path.relpath(OUT, ROOT))

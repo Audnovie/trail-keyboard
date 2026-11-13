@@ -72,6 +72,15 @@ jobs:
       - name: Generate the Xcode project
         run: xcodegen generate 2>&1 | tee logs/xcodegen.log
 
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+          xcodebuild build-for-testing -project Trail.xcodeproj -scheme Trail \
+            -destination "generic/platform=iOS Simulator" -derivedDataPath build/sim \
+            ONLY_ACTIVE_ARCH=YES ARCHS=arm64 SWIFT_COMPILATION_MODE=wholemodule \
+            2>&1 | tee logs/sim-build-full.log | grep -E "error:|warning: .*/(Shared|Keyboard|App|UITests|Tests)/|BUILD|\*\* " | tee logs/sim-build.log
+
       - name: Pick a simulator
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c '
@@ -82,7 +91,7 @@ jobs:
               if "iOS" not in rt: continue
               ver = tuple(int(x) for x in rt.split("iOS-")[-1].split("-"))
               for dev in devs:
-                  if dev["name"] in ("iPhone 17 Pro", "iPhone 17", "iPhone 16 Pro", "iPhone 16"):
+                  if dev["name"] in ("iPhone 17 Pro", "iPhone 17"):
                       if best is None or ver > best[0]: best = (ver, dev["udid"], dev["name"])
           print(best[1])
           sys.stderr.write("simulator: %s iOS %s\n" % (best[2], ".".join(map(str, best[0]))))
@@ -91,13 +100,13 @@ jobs:
           xcrun simctl boot "$UDID" || true
           xcrun simctl bootstatus "$UDID" -b | tail -1
 
-      - name: Build and test on the simulator
+      - name: Test on the simulator
         run: |
           set -o pipefail
-          xcodebuild test -project Trail.xcodeproj -scheme Trail \
+          xcodebuild test-without-building -project Trail.xcodeproj -scheme Trail \
             -destination "platform=iOS Simulator,id=$SIM" \
             -derivedDataPath build/sim -resultBundlePath build/Tests.xcresult \
-            2>&1 | tee logs/ios-test-full.log | grep -E "error:|warning: |Test Case|Executed|BUILD|HARNESS|BUDGET|\*\* " | tee logs/ios-test.log
+            2>&1 | tee logs/ios-test-full.log | grep -E "error:|Test Case|Executed|HARNESS|BUDGET|\*\* " | tee logs/ios-test.log
 
       - name: Test summary
         if: always()
@@ -128,7 +137,7 @@ jobs:
                 xcrun simctl io "$SIM" screenshot "logs/real/screen-$i.png" >/dev/null 2>&1
               else
                 echo "$(date) no TrailKeyboard process" >> logs/real/footprint.txt
-                [ $((i % 6)) -eq 0 ] && xcrun simctl io "$SIM" screenshot "logs/real/screen-$i.png" >/dev/null 2>&1
+                [ $((i % 5)) -eq 0 ] && xcrun simctl io "$SIM" screenshot "logs/real/screen-$i.png" >/dev/null 2>&1
               fi
               sleep 4
             done
@@ -176,9 +185,9 @@ jobs:
         if: always()
         run: |
           cd logs
-          rm -f ios-test-full.log.gz ipa-build-full.log.gz
-          gzip -k ios-test-full.log 2>/dev/null && rm -f ios-test-full.log || true
-          gzip -k ipa-build-full.log 2>/dev/null && rm -f ipa-build-full.log || true
+          for f in sim-build-full.log ios-test-full.log ipa-build-full.log real/test-full.log; do
+            if [ -f "$f" ]; then gzip -f "$f"; fi
+          done
           echo "commit ${{ github.sha }} run ${{ github.run_id }} attempt ${{ github.run_attempt }} status ${{ job.status }}" > STATUS
           git init -q -b logs
           git config user.name "ci"

@@ -58,14 +58,14 @@ final class HarnessViewController: UIViewController {
         heightConstraint = kbView.heightAnchor.constraint(equalToConstant: KeyboardView.height(rowH: Metrics.rowH, header: 0))
         NSLayoutConstraint.activate([
             textLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 12),
-            textLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            textLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            textLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+            textLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
             runButton.topAnchor.constraint(equalTo: textLabel.bottomAnchor, constant: 12),
-            runButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            runButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
             memoryLabel.centerYAnchor.constraint(equalTo: runButton.centerYAnchor),
-            memoryLabel.leadingAnchor.constraint(equalTo: runButton.trailingAnchor, constant: 16),
+            memoryLabel.leadingAnchor.constraint(equalTo: runButton.trailingAnchor, constant: 18),
             doneLabel.centerYAnchor.constraint(equalTo: runButton.centerYAnchor),
-            doneLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            doneLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
             kbView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             kbView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             kbView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
@@ -152,9 +152,9 @@ final class HarnessViewController: UIViewController {
         let stripY = kbView.headerH + Metrics.stripH / 2
         switch name {
         case "gear": kbView.simulateTap(CGPoint(x: 20, y: stripY))
-        case "slot0": kbView.simulateTap(CGPoint(x: kbView.bounds.width / 6, y: stripY))
+        case "slot0": kbView.simulateTap(CGPoint(x: kbView.bounds.width / 3 * 0.5, y: stripY))
         case "slot1": kbView.simulateTap(CGPoint(x: kbView.bounds.width / 2, y: stripY))
-        case "slot2": kbView.simulateTap(CGPoint(x: kbView.bounds.width * 5 / 6, y: stripY))
+        case "slot2": kbView.simulateTap(CGPoint(x: kbView.bounds.width / 3 * 2.5, y: stripY))
         default:
             let code = codes[name] ?? Int(name.unicodeScalars.first?.value ?? 0)
             if let r = kbView.keyRect(code: code) { kbView.simulateTap(CGPoint(x: r.midX, y: r.midY)) }

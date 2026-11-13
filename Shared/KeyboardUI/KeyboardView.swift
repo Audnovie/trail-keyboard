@@ -932,7 +932,7 @@ final class StripView: UIView {
         let s = kb.stripState
         let w = bounds.width
         let h = bounds.height
-        func text(_ str: String, in box: CGRect, size: CGFloat = 16, weight: UIFont.Weight = .regular, color: UIColor? = nil, align: NSTextAlignment = .center) {
+        func text(_ str: String, in box: CGRect, size: CGFloat = 17, weight: UIFont.Weight = .regular, color: UIColor? = nil, align: NSTextAlignment = .center) {
             let para = NSMutableParagraphStyle()
             para.alignment = align
             para.lineBreakMode = .byTruncatingTail
@@ -941,13 +941,13 @@ final class StripView: UIView {
             (str as NSString).draw(in: CGRect(x: box.minX, y: box.midY - lineH / 2, width: box.width, height: lineH), withAttributes: attrs)
         }
         func button(_ label: String, _ box: CGRect, pressed: Bool, strong: Bool) {
-            let r = box.insetBy(dx: 4, dy: 6)
+            let r = box.insetBy(dx: 4, dy: 5)
             (pressed ? t.keyDown : (strong ? t.accent : t.key)).setFill()
-            UIBezierPath(roundedRect: r, cornerRadius: 6).fill()
+            UIBezierPath(roundedRect: r, cornerRadius: 7).fill()
             text(label, in: r, size: 15, weight: .semibold, color: strong && !pressed ? .white : t.text)
         }
         if let bar = kb.inputBar {
-            text(bar.label + " " + bar.text + "▏", in: CGRect(x: 10, y: 0, width: w - 2 * Metrics.promptButtonW - 14, height: h), size: 16, align: .left)
+            text(bar.label + " " + bar.text + "▏", in: CGRect(x: 10, y: 0, width: w - 2 * Metrics.promptButtonW - 14, height: h), size: 17, align: .left)
             button("Add", CGRect(x: w - 2 * Metrics.promptButtonW, y: 0, width: Metrics.promptButtonW, height: h), pressed: s.pressed == PROMPT_YES, strong: true)
             button("Cancel", CGRect(x: w - Metrics.promptButtonW, y: 0, width: Metrics.promptButtonW, height: h), pressed: s.pressed == PROMPT_NO, strong: false)
             return
@@ -963,10 +963,10 @@ final class StripView: UIView {
             text(m.title, in: CGRect(x: 10, y: 0, width: max(0, g.start - 14), height: h), size: 14, color: t.stripDim, align: .left)
             for (i, item) in m.items.enumerated() {
                 let box = CGRect(x: g.start + CGFloat(i) * (g.itemW + 4), y: 0, width: g.itemW, height: h)
-                let r = box.insetBy(dx: 0, dy: 6)
+                let r = box.insetBy(dx: 0, dy: 5)
                 if item.on || s.pressed == MENU_BASE + i {
                     (s.pressed == MENU_BASE + i ? t.keyDown : t.key).setFill()
-                    UIBezierPath(roundedRect: r, cornerRadius: 6).fill()
+                    UIBezierPath(roundedRect: r, cornerRadius: 7).fill()
                 }
                 text(item.label, in: r, size: 14, weight: item.on ? .semibold : .regular)
             }
@@ -983,14 +983,14 @@ final class StripView: UIView {
                 let box = CGRect(x: CGFloat(i) * slotW, y: 0, width: slotW, height: h)
                 if s.pressed == i && s.words[i] != nil {
                     t.divider.setFill()
-                    UIBezierPath(roundedRect: box.insetBy(dx: 3, dy: 5), cornerRadius: 6).fill()
+                    UIBezierPath(roundedRect: box.insetBy(dx: 3, dy: 5), cornerRadius: 7).fill()
                 }
                 if i > 0 {
                     t.divider.setFill()
                     UIRectFill(CGRect(x: box.minX, y: 12, width: 1, height: h - 24))
                 }
                 if let word = s.words[i] {
-                    text(word, in: box.insetBy(dx: 6, dy: 0), size: 17, weight: i == s.bold ? .semibold : .regular)
+                    text(word, in: box.insetBy(dx: 5, dy: 0), size: 17, weight: i == s.bold ? .semibold : .regular)
                 }
             }
             return
@@ -999,7 +999,7 @@ final class StripView: UIView {
         let gearBox = CGRect(x: 0, y: 0, width: Metrics.stripH * 1.2, height: h)
         if s.pressed == SLOT_GEAR {
             t.divider.setFill()
-            UIBezierPath(roundedRect: gearBox.insetBy(dx: 4, dy: 5), cornerRadius: 6).fill()
+            UIBezierPath(roundedRect: gearBox.insetBy(dx: 4, dy: 5), cornerRadius: 7).fill()
         }
         let cfg = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
         if let img = UIImage(systemName: "slider.horizontal.3", withConfiguration: cfg)?.withTintColor(t.stripDim, renderingMode: .alwaysOriginal) {
@@ -1009,7 +1009,7 @@ final class StripView: UIView {
             let box = CGRect(x: w - 88, y: 0, width: 84, height: h)
             if s.pressed == LANG_CHIP {
                 t.divider.setFill()
-                UIBezierPath(roundedRect: box.insetBy(dx: 2, dy: 5), cornerRadius: 6).fill()
+                UIBezierPath(roundedRect: box.insetBy(dx: 2, dy: 5), cornerRadius: 7).fill()
             }
             text("🌐 " + c, in: box, size: 14, color: t.stripDim)
         }
@@ -1076,7 +1076,7 @@ final class AltsPopup: UIView {
             l.text = v
             l.textAlignment = .center
             l.font = .systemFont(ofSize: 24)
-            l.layer.cornerRadius = 6
+            l.layer.cornerRadius = 7
             l.layer.masksToBounds = true
             addSubview(l)
             cells.append(l)
@@ -1098,7 +1098,7 @@ final class AltsPopup: UIView {
 final class TrailView: UIView {
     var theme = Theme.make(dark: false)
     private var live = [CAShapeLayer]()
-    private let bands = 6
+    private let bands = 5
 
     override init(frame: CGRect) {
         super.init(frame: frame)

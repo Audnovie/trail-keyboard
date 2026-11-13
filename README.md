@@ -61,10 +61,11 @@ Restart the PC after the installers finish.
 1. Open **Sideloadly**. Your iPhone should show under *iDevice*.
 2. Type the spare Apple ID's email in *Apple account*.
 3. Drag `Trail.ipa` from your Downloads folder onto the IPA box.
-4. Open **Advanced options** and turn on the automatic refresh option, so Sideloadly's daemon
-   re-signs the app before it expires. Leave everything else as it is.
-5. Click **Start**, enter the Apple ID's password, and the two-factor code if asked.
-6. Wait for **Done.**
+4. Leave the other options as they are. Automatic refresh is on by default: once the install
+   succeeds, Sideloadly's background daemon (it starts with Windows) re-signs the app before it
+   expires.
+5. Click **Start**, enter the Apple ID's password (and the two-factor code if asked), and wait
+   for **Done.**
 
 ### 4. On the iPhone
 
@@ -84,9 +85,9 @@ what it keeps.
 ### Keeping it working
 
 - With a free Apple ID, the app and keyboard stop opening **7 days** after they were signed.
-  Sideloadly's daemon refreshes them when the PC is on, Sideloadly's daemon is running, and the
-  iPhone is plugged in or on the same Wi-Fi (screen on helps it be found). Your learned words are
-  kept across refreshes.
+  Sideloadly's daemon refreshes them when the PC is on and the iPhone is plugged in or on the same
+  Wi-Fi (it waits and tries again if the phone locks or drops off). Your learned words are kept
+  across refreshes.
 - A free Apple ID can have **3** sideloaded apps on a device at once, and register **10** app IDs a
   week. Trail uses **2** of those (the app and its keyboard).
 - If it has expired, plug the iPhone in and press Start in Sideloadly again with the same file.

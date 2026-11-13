@@ -126,12 +126,12 @@ final class HarnessUITests: XCTestCase {
         XCTAssertTrue(kb.exists)
         let f = kb.frame
         // The suggestion bar's left slot, held.
-        kb.coordinate(withNormalizedOffset: CGVector(dx: 1.0 / 6, dy: 22 / f.height)).press(forDuration: 0.9)
+        kb.coordinate(withNormalizedOffset: CGVector(dx: 0.5 / 3, dy: 22 / f.height)).press(forDuration: 0.9)
         let strip = app.descendants(matching: .any)["trail.strip"]
         let value = strip.value as? String ?? ""
         XCTAssertTrue(value.hasPrefix("Never suggest"), value)
         // Block.
-        kb.coordinate(withNormalizedOffset: CGVector(dx: (f.width - 126) / f.width, dy: 22 / f.height)).tap()
+        kb.coordinate(withNormalizedOffset: CGVector(dx: (f.width - 1.5 * 84) / f.width, dy: 22 / f.height)).tap()
         let after = strip.value as? String ?? ""
         XCTAssertFalse(after.hasPrefix("Never suggest"), after)
     }

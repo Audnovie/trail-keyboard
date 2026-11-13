@@ -287,9 +287,9 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
         addSubview(bar)
         bar.addSubview(back)
         bar.addSubview(title)
-        title.font = .systemFont(ofSize: 16, weight: .semibold)
+        title.font = .systemFont(ofSize: 17, weight: .semibold)
         title.textAlignment = .center
-        back.titleLabel?.font = .systemFont(ofSize: 16)
+        back.titleLabel?.font = .systemFont(ofSize: 17)
         back.addTarget(self, action: #selector(tapBack), for: .touchUpInside)
         back.accessibilityIdentifier = "panel.back"
         table.dataSource = self
@@ -306,7 +306,7 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
         super.layoutSubviews()
         let barH: CGFloat = 40
         bar.frame = CGRect(x: 0, y: 0, width: bounds.width, height: barH)
-        back.frame = CGRect(x: 6, y: 0, width: 80, height: barH)
+        back.frame = CGRect(x: 8, y: 0, width: 80, height: barH)
         title.frame = CGRect(x: 90, y: 0, width: bounds.width - 180, height: barH)
         table.frame = CGRect(x: 0, y: barH, width: bounds.width, height: bounds.height - barH)
     }
@@ -367,7 +367,7 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
             cell.textLabel?.text = title
             cell.textLabel?.textAlignment = .center
             cell.textLabel?.textColor = style == .destructive ? theme.bad : (style == .accent ? theme.accent : theme.text)
-            cell.textLabel?.font = .systemFont(ofSize: 16, weight: style == .accent ? .semibold : .regular)
+            cell.textLabel?.font = .systemFont(ofSize: 17, weight: style == .accent ? .semibold : .regular)
             cell.selectionStyle = .default
             cell.accessibilityIdentifier = id
             cell.accessibilityTraits = .button
@@ -432,7 +432,7 @@ final class TrainingHeaderView: UIView {
     private let skip = UIButton(type: .system)
     private let undo = UIButton(type: .system)
     private let done = UIButton(type: .system)
-    private let next = UIButton(type: .system)
+    private let nextButton = UIButton(type: .system)
     private var langButtons = [UIButton]()
     private var progress: CGFloat = 0
 
@@ -440,10 +440,10 @@ final class TrainingHeaderView: UIView {
         super.init(frame: frame)
         accessibilityIdentifier = "trail.training"
         counter.font = .systemFont(ofSize: 12)
-        word.font = .systemFont(ofSize: 26, weight: .semibold)
+        word.font = .systemFont(ofSize: 25, weight: .semibold)
         word.textAlignment = .center
         word.adjustsFontSizeToFitWidth = true
-        word.minimumScaleFactor = 0.6
+        word.minimumScaleFactor = 0.65
         word.accessibilityIdentifier = "training.word"
         result.font = .systemFont(ofSize: 12)
         result.textAlignment = .center
@@ -453,16 +453,16 @@ final class TrainingHeaderView: UIView {
         result.accessibilityIdentifier = "training.result"
         profile.font = .systemFont(ofSize: 11)
         profile.accessibilityIdentifier = "training.profile"
-        for (b, t, id) in [(skip, "Skip", "training.skip"), (undo, "Undo", "training.undo"), (done, "Done", "training.done"), (next, "Next round", "training.next")] {
+        for (b, t, id) in [(skip, "Skip", "training.skip"), (undo, "Undo", "training.undo"), (done, "Done", "training.done"), (nextButton, "Next round", "training.next")] {
             b.setTitle(t, for: .normal)
-            b.titleLabel?.font = .systemFont(ofSize: 14, weight: b === next ? .semibold : .regular)
+            b.titleLabel?.font = .systemFont(ofSize: 14, weight: b === nextButton ? .semibold : .regular)
             b.accessibilityIdentifier = id
             addSubview(b)
         }
         skip.addAction(UIAction { [weak self] _ in self?.onSkip?() }, for: .touchUpInside)
         undo.addAction(UIAction { [weak self] _ in self?.onUndo?() }, for: .touchUpInside)
         done.addAction(UIAction { [weak self] _ in self?.onDone?() }, for: .touchUpInside)
-        next.addAction(UIAction { [weak self] _ in self?.onNext?() }, for: .touchUpInside)
+        nextButton.addAction(UIAction { [weak self] _ in self?.onNext?() }, for: .touchUpInside)
         for v in [counter, word, result, profile, bar] as [UIView] { addSubview(v) }
         bar.addSubview(barFill)
         bar.layer.cornerRadius = 1
@@ -474,20 +474,20 @@ final class TrainingHeaderView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         let w = bounds.width
-        done.frame = CGRect(x: w - 54, y: 2, width: 50, height: 26)
-        undo.frame = CGRect(x: w - 108, y: 2, width: 50, height: 26)
-        skip.frame = CGRect(x: w - 162, y: 2, width: 50, height: 26)
-        next.frame = CGRect(x: w - 154, y: 2, width: 96, height: 26)
+        done.frame = CGRect(x: w - 54, y: 2, width: 50, height: 28)
+        undo.frame = CGRect(x: w - 108, y: 2, width: 50, height: 28)
+        skip.frame = CGRect(x: w - 162, y: 2, width: 50, height: 28)
+        nextButton.frame = CGRect(x: w - 154, y: 2, width: 98, height: 28)
         var x: CGFloat = 10
         for b in langButtons {
-            b.frame = CGRect(x: x, y: 2, width: 34, height: 26)
-            x += 36
+            b.frame = CGRect(x: x, y: 2, width: 34, height: 28)
+            x += 38
         }
-        counter.frame = CGRect(x: x + 4, y: 2, width: max(0, w - x - 170), height: 26)
-        word.frame = CGRect(x: 8, y: 28, width: w - 16, height: 32)
-        result.frame = CGRect(x: 8, y: 60, width: w - 16, height: 16)
-        profile.frame = CGRect(x: 10, y: 76, width: w - 20, height: 14)
-        bar.frame = CGRect(x: 10, y: 92, width: w - 20, height: 2)
+        counter.frame = CGRect(x: x + 4, y: 2, width: max(0, w - x - 170), height: 28)
+        word.frame = CGRect(x: 9, y: 30, width: w - 18, height: 32)
+        result.frame = CGRect(x: 9, y: 62, width: w - 18, height: 15)
+        profile.frame = CGRect(x: 10, y: 78, width: w - 20, height: 14)
+        bar.frame = CGRect(x: 10, y: 94, width: w - 20, height: 2)
         barFill.frame = CGRect(x: 0, y: 0, width: bar.bounds.width * progress, height: 2)
     }
 
@@ -497,7 +497,7 @@ final class TrainingHeaderView: UIView {
         word.textColor = t.text
         bar.backgroundColor = t.divider
         barFill.backgroundColor = t.accent
-        for b in [skip, undo, done, next] { b.tintColor = t.accent }
+        for b in [skip, undo, done, nextButton] { b.tintColor = t.accent }
     }
 
     private func setLangs(_ langs: [(String, String)], _ current: String, _ t: Theme) {
@@ -533,7 +533,7 @@ final class TrainingHeaderView: UIView {
         skip.isHidden = false
         undo.isHidden = false
         undo.isEnabled = canUndo
-        next.isHidden = true
+        nextButton.isHidden = true
         setNeedsLayout()
     }
 
@@ -548,7 +548,7 @@ final class TrainingHeaderView: UIView {
         progress = CGFloat(pr)
         skip.isHidden = true
         undo.isHidden = true
-        next.isHidden = false
+        nextButton.isHidden = false
         setNeedsLayout()
     }
 }

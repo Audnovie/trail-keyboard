@@ -58,15 +58,15 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        let barH: CGFloat = 46
+        let barH: CGFloat = 48
         grid.frame = CGRect(x: 0, y: 0, width: bounds.width, height: bounds.height - barH)
         bar.frame = CGRect(x: 0, y: bounds.height - barH, width: bounds.width, height: barH)
         let w = bounds.width
         abc.frame = CGRect(x: 4, y: 5, width: w * 0.18, height: barH - 10)
         del.frame = CGRect(x: w - w * 0.18 - 4, y: 5, width: w * 0.18, height: barH - 10)
-        space.frame = CGRect(x: abc.frame.maxX + 6, y: 5, width: del.frame.minX - abc.frame.maxX - 12, height: barH - 10)
+        space.frame = CGRect(x: abc.frame.maxX + 5, y: 5, width: del.frame.minX - abc.frame.maxX - 10, height: barH - 10)
         if let flow = grid.collectionViewLayout as? UICollectionViewFlowLayout {
-            let per = max(6, Int(w / 44))
+            let per = max(7, Int(w / 44))
             let side = floor(w / CGFloat(per))
             flow.itemSize = CGSize(width: side, height: side)
         }

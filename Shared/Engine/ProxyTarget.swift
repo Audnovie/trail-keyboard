@@ -63,7 +63,7 @@ public final class ProxyTarget: TextTarget {
 
     private func noteState() {
         recentTails.append(ProxyTarget.tail(model))
-        if recentTails.count > 6 { recentTails.removeFirst(recentTails.count - 6) }
+        if recentTails.count > 8 { recentTails.removeFirst(recentTails.count - 8) }
     }
 
     /// The last 24 characters, with curly quotes made straight (apps with smart punctuation
