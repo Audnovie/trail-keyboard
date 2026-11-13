@@ -15,7 +15,7 @@ two-factor authentication on.
 Sideloadly needs the **web** versions of iTunes and iCloud, not the Microsoft Store ones.
 
 Open **Windows PowerShell** (Start menu → type *PowerShell* → *Windows PowerShell*; a normal
-window, not *Run as administrator*) and run these one block at a time:
+window, not *Run as administrator*) and run these one block at a time, all in the same window (the `$d` line has to be in the same window as the rest):
 
 ```powershell
 # Remove the Microsoft Store iTunes and iCloud, if you have them
@@ -36,13 +36,13 @@ Invoke-WebRequest -UseBasicParsing https://github.com/Audnovie/trail-keyboard/re
 ```
 
 ```powershell
-# Check the download (the two hashes must match)
-(Get-FileHash "$d\Trail.ipa" -Algorithm SHA256).Hash.ToLower()
-(Get-Content "$d\Trail.ipa.sha256").Split(' ')[0]
+# Check the download: it should print "Trail.ipa OK"
+if ((Get-FileHash "$d\Trail.ipa" -Algorithm SHA256).Hash -eq (Get-Content "$d\Trail.ipa.sha256").Split(' ')[0]) { 'Trail.ipa OK' } else { 'Mismatch: run the download block again' }
 ```
 
 ```powershell
-# Install them, one after the other (each opens its own installer; click through it)
+# Install them, one after the other (each opens its own installer; click through it).
+# If one asks to restart, choose Later.
 Start-Process "$d\iTunes64Setup.exe" -Wait
 Start-Process "$d\iCloudSetup.exe" -Wait
 Start-Process "$d\SideloadlySetup64.exe" -Wait
@@ -53,7 +53,7 @@ Restart the PC after the installers finish.
 ### 2. Connect the iPhone
 
 1. Plug the iPhone into the PC and unlock it. Tap **Trust** and enter your passcode.
-2. Open **iTunes** on the PC and click the small iPhone button near the top left.
+2. Open **iTunes** on the PC and click the small iPhone button near the top left, then **Summary**.
 3. Under **Options**, tick **Sync with this iPhone over Wi-Fi** and click **Apply**. (This is what
    lets Sideloadly refresh the keyboard later without the cable.)
 
