@@ -8,12 +8,25 @@
 import UIKit
 import TrailEngine
 
+/// The keyboard's root view; it opts in to the standard key clicks (heard only when the
+/// iPhone's Keyboard Clicks setting is on).
+final class ClickingInputView: UIInputView, UIInputViewAudioFeedback {
+    var enableInputClicksWhenVisible: Bool { true }
+}
+
 final class KeyboardViewController: UIInputViewController {
     private var kbView: KeyboardView!
     private var controller: KeyboardController!
     private var target: ProxyTarget!
+    private var document: ProxyDocument!
     private var heightConstraint: NSLayoutConstraint?
     private var lastDocument: UUID?
+
+    override func loadView() {
+        let v = ClickingInputView(frame: .zero, inputViewStyle: .keyboard)
+        v.allowsSelfSizing = true
+        view = v
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -26,7 +39,9 @@ final class KeyboardViewController: UIInputViewController {
             kbView.topAnchor.constraint(equalTo: view.topAnchor),
             kbView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
-        target = ProxyTarget { [unowned self] in self.textDocumentProxy }
+        document = ProxyDocument { [unowned self] in self.textDocumentProxy }
+        let doc = document!
+        target = ProxyTarget { doc }
         let lexicon = Bundle.main.path(forResource: "Lexicon", ofType: nil)
         controller = KeyboardController(view: kbView, target: target, store: StateStore(fileName: "state.json"), lexiconDir: lexicon)
         controller.onHeightChange = { [weak self] in self?.updateHeight() }
@@ -40,6 +55,13 @@ final class KeyboardViewController: UIInputViewController {
         target.sync()
         lastDocument = textDocumentProxy.documentIdentifier
         controller.fieldChanged(currentTraits())
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // iOS holds back touches near the screen edges for its own gestures, which makes the
+        // first and last keys of a row feel late; the keyboard wants them straight away.
+        for g in view.window?.gestureRecognizers ?? [] { g.delaysTouchesBegan = false }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
