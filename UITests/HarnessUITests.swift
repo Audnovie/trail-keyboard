@@ -81,9 +81,9 @@ final class HarnessUITests: XCTestCase {
     }
 
     func testDeleteRemovesAWholeSwipedWord() {
-        let app = launch("swipe:hello;swipe:there")
+        let app = launch("swipe:hello;swipe:world")
         run(app)
-        XCTAssertEqual(text(app), "Hello there")
+        XCTAssertEqual(text(app), "Hello world")
         key(app, "delete").tap()
         XCTAssertEqual(text(app), "Hello")
     }
@@ -123,18 +123,26 @@ final class HarnessUITests: XCTestCase {
     }
 
     func testLearnedWordsAreListedAndRemovable() {
-        let app = launch("swipe:hello;tap:space;swipe:there;tap:space|tap:gear")
+        let app = launch("swipe:hello;tap:space;swipe:world;tap:space|tap:gear")
         run(app)
         run(app)
+        let table = app.tables["panel.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 5), "settings didn't open")
         let link = app.cells["link.words.en"]
-        XCTAssertTrue(link.waitForExistence(timeout: 5))
+        // The list only makes the rows on screen: scroll down to it.
+        var tries = 0
+        while !link.exists && tries < 8 {
+            table.swipeUp(velocity: .slow)
+            tries += 1
+        }
+        XCTAssertTrue(link.waitForExistence(timeout: 3), "no Learned words link")
         link.tap()
         let row = app.cells["word.hello"]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "hello isn't in the learned words")
         shot("learned-words")
         app.buttons["word.hello.button"].tap()
         XCTAssertFalse(app.cells["word.hello"].waitForExistence(timeout: 1))
-        XCTAssertTrue(app.cells["word.there"].exists)
+        XCTAssertTrue(app.cells["word.world"].exists)
     }
 
     func testHoldingASuggestionOffersToBlockIt() {
