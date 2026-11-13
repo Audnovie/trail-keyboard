@@ -1,0 +1,63 @@
+build/dev/Build/Products/Release-iphoneos/Trail.app:
+total 3048
+drwxr-xr-x  10 runner  staff      320 Nov 13 20:54 .
+drwxr-xr-x@ 11 runner  staff      352 Nov 13 20:54 ..
+-rw-r--r--   1 runner  staff     5354 Nov 13 20:53 AppIcon60x60@2x.png
+-rw-r--r--   1 runner  staff     6866 Nov 13 20:53 AppIcon76x76@2x~ipad.png
+-rw-r--r--   1 runner  staff   104152 Nov 13 20:53 Assets.car
+-rw-r--r--   1 runner  staff     1223 Nov 13 20:54 Info.plist
+drwxr-xr-x   6 runner  staff      192 Nov 13 20:53 Lexicon
+-rw-r--r--   1 runner  staff        8 Nov 13 20:54 PkgInfo
+drwxr-xr-x   3 runner  staff       96 Nov 13 20:54 PlugIns
+-rwxr-xr-x   1 runner  staff  1426464 Nov 13 20:54 Trail
+
+build/dev/Build/Products/Release-iphoneos/Trail.app/PlugIns:
+total 0
+drwxr-xr-x   3 runner  staff   96 Nov 13 20:54 .
+drwxr-xr-x  10 runner  staff  320 Nov 13 20:54 ..
+drwxr-xr-x   5 runner  staff  160 Nov 13 20:54 TrailKeyboard.appex
+Dict {
+    CFBundleName = TrailKeyboard
+    DTSDKName = iphoneos26.5
+    DTXcode = 2660
+    DTSDKBuild = 23F81a
+    CFBundleDevelopmentRegion = en
+    CFBundleVersion = 1
+    BuildMachineOSBuild = 25G332
+    DTPlatformName = iphoneos
+    CFBundlePackageType = XPC!
+    CFBundleShortVersionString = 1.0
+    CFBundleSupportedPlatforms = Array {
+        iPhoneOS
+    }
+    CFBundleInfoDictionaryVersion = 6.0
+    CFBundleExecutable = TrailKeyboard
+    DTCompiler = com.apple.compilers.llvm.clang.1_0
+    UIRequiredDeviceCapabilities = Array {
+        arm64
+    }
+    MinimumOSVersion = 15.0
+    CFBundleIdentifier = io.github.audnovie.trail.keyboard
+    UIDeviceFamily = Array {
+        1
+        2
+    }
+    DTPlatformVersion = 26.5
+    DTXcodeBuild = 17F113
+    CFBundleDisplayName = Trail
+    DTPlatformBuild = 23F81a
+    NSExtension = Dict {
+        NSExtensionAttributes = Dict {
+            PrimaryLanguage = en-US
+            IsASCIICapable = true
+            PrefersRightToLeft = false
+            RequestsOpenAccess = false
+        }
+        NSExtensionPointIdentifier = com.apple.keyboard-service
+        NSExtensionPrincipalClass = TrailKeyboard.KeyboardViewController
+    }
+}
+ 11M	build/dev/Build/Products/Release-iphoneos/Trail.app
+5.4M	build/dev/Build/Products/Release-iphoneos/Trail.app/PlugIns/TrailKeyboard.appex
+-rw-r--r--  1 runner  staff  4679362 Nov 13 20:54 dist/Trail.ipa
+5d04f0a53bb09aceee06321b021af9b68e63b6285c318d4033814f3e2e5801a6  dist/Trail.ipa

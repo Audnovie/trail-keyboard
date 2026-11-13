@@ -1,0 +1,5 @@
+(
+    "io.github.audnovie.trail.keyboard",
+    "en_US@sw=QWERTY;hw=Automatic",
+    "emoji@sw=Emoji"
+)

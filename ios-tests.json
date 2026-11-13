@@ -1,0 +1,596 @@
+{
+  "devices" : [
+    {
+      "architecture" : "arm64",
+      "deviceId" : "FCC5F673-7BEC-4A7D-8F2A-4DC35E2668EC",
+      "deviceName" : "iPhone 17 Pro",
+      "modelName" : "iPhone 17 Pro",
+      "osBuildNumber" : "23F77",
+      "osVersion" : "26.5",
+      "platform" : "iOS Simulator"
+    }
+  ],
+  "testNodes" : [
+    {
+      "children" : [
+        {
+          "children" : [
+            {
+              "children" : [
+                {
+                  "duration" : "0.11s",
+                  "durationInSeconds" : 0.10750293731689453,
+                  "name" : "testManyLearnedWords()",
+                  "nodeIdentifier" : "BudgetTests/testManyLearnedWords()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/BudgetTests/testManyLearnedWords",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "8s",
+                  "durationInSeconds" : 8.50130808353424,
+                  "name" : "testSpeedAndMemory()",
+                  "nodeIdentifier" : "BudgetTests/testSpeedAndMemory()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/BudgetTests/testSpeedAndMemory",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "BudgetTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/BudgetTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "48s",
+                  "durationInSeconds" : 48.627379059791565,
+                  "name" : "testDecode()",
+                  "nodeIdentifier" : "DecoderParityTests/testDecode()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/DecoderParityTests/testDecode",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "DecoderParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/DecoderParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "0.0083s",
+                  "durationInSeconds" : 0.008296012878417969,
+                  "name" : "testDetectLang()",
+                  "nodeIdentifier" : "DetectParityTests/testDetectLang()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/DetectParityTests/testDetectLang",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "DetectParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/DetectParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "10s",
+                  "durationInSeconds" : 10.610541105270386,
+                  "name" : "testLearnAndFit()",
+                  "nodeIdentifier" : "ProfileParityTests/testLearnAndFit()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProfileParityTests/testLearnAndFit",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.0012s",
+                  "durationInSeconds" : 0.0011839866638183594,
+                  "name" : "testMalformedSavedProfileStartsOver()",
+                  "nodeIdentifier" : "ProfileParityTests/testMalformedSavedProfileStartsOver()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProfileParityTests/testMalformedSavedProfileStartsOver",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "ProfileParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProfileParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "0.17s",
+                  "durationInSeconds" : 0.17070698738098145,
+                  "name" : "testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged()",
+                  "nodeIdentifier" : "ProxyTargetTests/testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.18s",
+                  "durationInSeconds" : 0.1775190830230713,
+                  "name" : "testAppThatShowsNoTextKeepsTheWordInProgress()",
+                  "nodeIdentifier" : "ProxyTargetTests/testAppThatShowsNoTextKeepsTheWordInProgress()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testAppThatShowsNoTextKeepsTheWordInProgress",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.016s",
+                  "durationInSeconds" : 0.015905022621154785,
+                  "name" : "testClearedFieldStartsAfresh()",
+                  "nodeIdentifier" : "ProxyTargetTests/testClearedFieldStartsAfresh()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testClearedFieldStartsAfresh",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.41s",
+                  "durationInSeconds" : 0.4070810079574585,
+                  "name" : "testClearedFieldWithoutNoticeGetsNoLeadingSpace()",
+                  "nodeIdentifier" : "ProxyTargetTests/testClearedFieldWithoutNoticeGetsNoLeadingSpace()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testClearedFieldWithoutNoticeGetsNoLeadingSpace",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.57s",
+                  "durationInSeconds" : 0.5703850984573364,
+                  "name" : "testCursorMovedWithoutNoticeRightAfterASwipe()",
+                  "nodeIdentifier" : "ProxyTargetTests/testCursorMovedWithoutNoticeRightAfterASwipe()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testCursorMovedWithoutNoticeRightAfterASwipe",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.00067s",
+                  "durationInSeconds" : 0.0006740093231201172,
+                  "name" : "testDeletesWholeCharactersByUTF16Count()",
+                  "nodeIdentifier" : "ProxyTargetTests/testDeletesWholeCharactersByUTF16Count()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testDeletesWholeCharactersByUTF16Count",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.3s",
+                  "durationInSeconds" : 0.2957429885864258,
+                  "name" : "testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter()",
+                  "nodeIdentifier" : "ProxyTargetTests/testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.29s",
+                  "durationInSeconds" : 0.2853100299835205,
+                  "name" : "testEmptyLineInAnAppThatShowsOneParagraph()",
+                  "nodeIdentifier" : "ProxyTargetTests/testEmptyLineInAnAppThatShowsOneParagraph()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testEmptyLineInAnAppThatShowsOneParagraph",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.0018s",
+                  "durationInSeconds" : 0.0017679929733276367,
+                  "name" : "testHowTheAppsTextFits()",
+                  "nodeIdentifier" : "ProxyTargetTests/testHowTheAppsTextFits()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testHowTheAppsTextFits",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.091s",
+                  "durationInSeconds" : 0.09062695503234863,
+                  "name" : "testKeyStillWorksAfterAnUnnoticedChange()",
+                  "nodeIdentifier" : "ProxyTargetTests/testKeyStillWorksAfterAnUnnoticedChange()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testKeyStillWorksAfterAnUnnoticedChange",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.00088s",
+                  "durationInSeconds" : 0.0008770227432250977,
+                  "name" : "testMovesTheCursorByWholeCharacters()",
+                  "nodeIdentifier" : "ProxyTargetTests/testMovesTheCursorByWholeCharacters()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testMovesTheCursorByWholeCharacters",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.033s",
+                  "durationInSeconds" : 0.033320069313049316,
+                  "name" : "testNeverDeletesTextAfterTheCursorMoves()",
+                  "nodeIdentifier" : "ProxyTargetTests/testNeverDeletesTextAfterTheCursorMoves()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testNeverDeletesTextAfterTheCursorMoves",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.084s",
+                  "durationInSeconds" : 0.08377790451049805,
+                  "name" : "testOneLineFieldThatSwallowsReturn()",
+                  "nodeIdentifier" : "ProxyTargetTests/testOneLineFieldThatSwallowsReturn()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testOneLineFieldThatSwallowsReturn",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.00082s",
+                  "durationInSeconds" : 0.0008150339126586914,
+                  "name" : "testOwnEditsAreNotMistakenForOutsideChanges()",
+                  "nodeIdentifier" : "ProxyTargetTests/testOwnEditsAreNotMistakenForOutsideChanges()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testOwnEditsAreNotMistakenForOutsideChanges",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "13s",
+                  "durationInSeconds" : 13.264725923538208,
+                  "name" : "testSessionsThroughTheProxyMatchTheModelField()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsThroughTheProxyMatchTheModelField()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsThroughTheProxyMatchTheModelField",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "15s",
+                  "durationInSeconds" : 15.224317908287048,
+                  "name" : "testSessionsTypedSlowly()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsTypedSlowly()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsTypedSlowly",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "14s",
+                  "durationInSeconds" : 14.141869068145752,
+                  "name" : "testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "10s",
+                  "durationInSeconds" : 10.03949499130249,
+                  "name" : "testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "9s",
+                  "durationInSeconds" : 9.657541036605835,
+                  "name" : "testSessionsTypedSlowlyWithSmartQuotes()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsTypedSlowlyWithSmartQuotes()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsTypedSlowlyWithSmartQuotes",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "10s",
+                  "durationInSeconds" : 10.270964980125427,
+                  "name" : "testSessionsWhenTheAppShowsChangesLate()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsWhenTheAppShowsChangesLate()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsWhenTheAppShowsChangesLate",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "11s",
+                  "durationInSeconds" : 11.928125977516174,
+                  "name" : "testSessionsWhenTheAppShowsOnlyRecentText()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsWhenTheAppShowsOnlyRecentText()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsWhenTheAppShowsOnlyRecentText",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "11s",
+                  "durationInSeconds" : 11.851225972175598,
+                  "name" : "testSessionsWhenTheAppShowsOnlyTheCurrentParagraph()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsWhenTheAppShowsOnlyTheCurrentParagraph()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsWhenTheAppShowsOnlyTheCurrentParagraph",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "11s",
+                  "durationInSeconds" : 11.007369995117188,
+                  "name" : "testSessionsWhenTheAppStaysBehindUntilTheNextKey()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsWhenTheAppStaysBehindUntilTheNextKey()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsWhenTheAppStaysBehindUntilTheNextKey",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "13s",
+                  "durationInSeconds" : 13.25990891456604,
+                  "name" : "testSessionsWithSmartQuotes()",
+                  "nodeIdentifier" : "ProxyTargetTests/testSessionsWithSmartQuotes()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testSessionsWithSmartQuotes",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.028s",
+                  "durationInSeconds" : 0.028262019157409668,
+                  "name" : "testUndoingAFixAfterAnUnnoticedChangeTypesNothing()",
+                  "nodeIdentifier" : "ProxyTargetTests/testUndoingAFixAfterAnUnnoticedChangeTypesNothing()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testUndoingAFixAfterAnUnnoticedChangeTypesNothing",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.094s",
+                  "durationInSeconds" : 0.09365808963775635,
+                  "name" : "testUndoInTheAppIsNoticed()",
+                  "nodeIdentifier" : "ProxyTargetTests/testUndoInTheAppIsNoticed()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testUndoInTheAppIsNoticed",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.085s",
+                  "durationInSeconds" : 0.08532094955444336,
+                  "name" : "testWordThatVanishedWithoutNoticeIsNotDeletedAgain()",
+                  "nodeIdentifier" : "ProxyTargetTests/testWordThatVanishedWithoutNoticeIsNotDeletedAgain()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests/testWordThatVanishedWithoutNoticeIsNotDeletedAgain",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "ProxyTargetTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/ProxyTargetTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "12s",
+                  "durationInSeconds" : 12.033129930496216,
+                  "name" : "testSessions()",
+                  "nodeIdentifier" : "SessionParityTests/testSessions()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/SessionParityTests/testSessions",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "SessionParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/SessionParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "4s",
+                  "durationInSeconds" : 4.50310206413269,
+                  "name" : "testSuggestions()",
+                  "nodeIdentifier" : "SuggestParityTests/testSuggestions()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/SuggestParityTests/testSuggestions",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "SuggestParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/SuggestParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "0.0028s",
+                  "durationInSeconds" : 0.0028330087661743164,
+                  "name" : "testCaps()",
+                  "nodeIdentifier" : "TextParityTests/testCaps()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/TextParityTests/testCaps",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.0021s",
+                  "durationInSeconds" : 0.0020949840545654297,
+                  "name" : "testKeyOfAndLearnable()",
+                  "nodeIdentifier" : "TextParityTests/testKeyOfAndLearnable()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/TextParityTests/testKeyOfAndLearnable",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "0.00099s",
+                  "durationInSeconds" : 0.0009900331497192383,
+                  "name" : "testSentenceStart()",
+                  "nodeIdentifier" : "TextParityTests/testSentenceStart()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/TextParityTests/testSentenceStart",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "TextParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/TextParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "0.018s",
+                  "durationInSeconds" : 0.01757490634918213,
+                  "name" : "testOperations()",
+                  "nodeIdentifier" : "UserWordsParityTests/testOperations()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/UserWordsParityTests/testOperations",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "UserWordsParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/UserWordsParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "duration" : "0.44s",
+                  "durationInSeconds" : 0.4378089904785156,
+                  "name" : "testLookups()",
+                  "nodeIdentifier" : "WordListParityTests/testLookups()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/WordListParityTests/testLookups",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "WordListParityTests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests/WordListParityTests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            }
+          ],
+          "name" : "TrailEngineTests",
+          "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailEngineTests",
+          "nodeType" : "Unit test bundle",
+          "result" : "Passed"
+        },
+        {
+          "children" : [
+            {
+              "children" : [
+                {
+                  "duration" : "52s",
+                  "durationInSeconds" : 52.513643980026245,
+                  "name" : "testDeleteRemovesAWholeSwipedWord()",
+                  "nodeIdentifier" : "HarnessUITests/testDeleteRemovesAWholeSwipedWord()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testDeleteRemovesAWholeSwipedWord",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "14s",
+                  "durationInSeconds" : 14.892605900764465,
+                  "name" : "testEmojiPanel()",
+                  "nodeIdentifier" : "HarnessUITests/testEmojiPanel()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testEmojiPanel",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "11s",
+                  "durationInSeconds" : 11.584130883216858,
+                  "name" : "testHoldingASuggestionOffersToBlockIt()",
+                  "nodeIdentifier" : "HarnessUITests/testHoldingASuggestionOffersToBlockIt()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testHoldingASuggestionOffersToBlockIt",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "21s",
+                  "durationInSeconds" : 21.97504699230194,
+                  "name" : "testLearnedWordsAreListedAndRemovable()",
+                  "nodeIdentifier" : "HarnessUITests/testLearnedWordsAreListedAndRemovable()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testLearnedWordsAreListedAndRemovable",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "10s",
+                  "durationInSeconds" : 10.160662055015564,
+                  "name" : "testPickingAnotherSuggestionReplacesTheSwipe()",
+                  "nodeIdentifier" : "HarnessUITests/testPickingAnotherSuggestionReplacesTheSwipe()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testPickingAnotherSuggestionReplacesTheSwipe",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "10s",
+                  "durationInSeconds" : 10.006772994995117,
+                  "name" : "testRealDragAcrossTheTopRowTypesAWord()",
+                  "nodeIdentifier" : "HarnessUITests/testRealDragAcrossTheTopRowTypesAWord()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testRealDragAcrossTheTopRowTypesAWord",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "9s",
+                  "durationInSeconds" : 9.502915978431702,
+                  "name" : "testSwipedWordsGetSpacesAndCapitals()",
+                  "nodeIdentifier" : "HarnessUITests/testSwipedWordsGetSpacesAndCapitals()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testSwipedWordsGetSpacesAndCapitals",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "27s",
+                  "durationInSeconds" : 27.509228944778442,
+                  "name" : "testTappingWordsWithSmartFixes()",
+                  "nodeIdentifier" : "HarnessUITests/testTappingWordsWithSmartFixes()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testTappingWordsWithSmartFixes",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                },
+                {
+                  "duration" : "15s",
+                  "durationInSeconds" : 15.068843960762024,
+                  "name" : "testTrainingRound()",
+                  "nodeIdentifier" : "HarnessUITests/testTrainingRound()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests/testTrainingRound",
+                  "nodeType" : "Test Case",
+                  "result" : "Passed"
+                }
+              ],
+              "name" : "HarnessUITests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/HarnessUITests",
+              "nodeType" : "Test Suite",
+              "result" : "Passed"
+            },
+            {
+              "children" : [
+                {
+                  "children" : [
+                    {
+                      "name" : "Test skipped - Needs Trail switched on as the Simulator's keyboard (CI does this).",
+                      "nodeType" : "Failure Message"
+                    }
+                  ],
+                  "duration" : "0.33s",
+                  "durationInSeconds" : 0.3335139751434326,
+                  "name" : "testTheKeyboardExtensionTypes()",
+                  "nodeIdentifier" : "RealKeyboardUITests/testTheKeyboardExtensionTypes()",
+                  "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/RealKeyboardUITests/testTheKeyboardExtensionTypes",
+                  "nodeType" : "Test Case",
+                  "result" : "Skipped"
+                }
+              ],
+              "name" : "RealKeyboardUITests",
+              "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests/RealKeyboardUITests",
+              "nodeType" : "Test Suite",
+              "result" : "Skipped"
+            }
+          ],
+          "name" : "TrailUITests",
+          "nodeIdentifierURL" : "test://com.apple.xcode/Trail/TrailUITests",
+          "nodeType" : "UI test bundle",
+          "result" : "Passed"
+        }
+      ],
+      "name" : "Trail",
+      "nodeType" : "Test Plan",
+      "result" : "Passed"
+    }
+  ],
+  "testPlanConfigurations" : [
+    {
+      "configurationId" : "1",
+      "configurationName" : "Test Scheme Action"
+    }
+  ]
+}

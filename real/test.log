@@ -1,0 +1,9 @@
+Test Case '-[TrailUITests.RealKeyboardUITests testTheKeyboardExtensionTypes]' started.
+2026-11-13 20:50:59.131 xcodebuild[24648:74340] [MT] IDELaunchParametersSnapshot: The operation couldn’t be completed. (DebuggerLLDB.DebuggerVersionStore.StoreError error 0.)
+REAL hierarchy after opening the keyboard:
+REAL typed: Hello there.
+REAL after a drag from t to o: Hello there. To
+Test Case '-[TrailUITests.RealKeyboardUITests testTheKeyboardExtensionTypes]' passed (74.405 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 74.405 (74.411) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 74.405 (74.412) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 74.405 (74.415) seconds

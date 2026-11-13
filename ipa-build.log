@@ -1,0 +1,25 @@
+    export ALLOW_BUILD_REQUEST_OVERRIDES\=NO
+    export BUILD_ACTIVE_RESOURCES_ONLY\=NO
+    export BUILD_COMPONENTS\=headers\ build
+    export BUILD_DIR\=/Users/runner/work/trail-keyboard/trail-keyboard/build/dev/Build/Products
+    export BUILD_LIBRARY_FOR_DISTRIBUTION\=NO
+    export BUILD_ONLY_KNOWN_LOCALIZATIONS\=NO
+    export BUILD_ROOT\=/Users/runner/work/trail-keyboard/trail-keyboard/build/dev/Build/Products
+    export BUILD_STYLE\=
+    export BUILD_VARIANTS\=normal
+    export CLANG_MODULES_BUILD_SESSION_FILE\=/Users/runner/work/trail-keyboard/trail-keyboard/build/dev/ModuleCache.noindex/Session.modulevalidation
+    export CONFIGURATION_BUILD_DIR\=/Users/runner/work/trail-keyboard/trail-keyboard/build/dev/Build/Products/Release-iphoneos
+    export FUSE_BUILD_PHASES\=YES
+    export FUSE_BUILD_SCRIPT_PHASES\=NO
+    export INFOPLIST_EXPAND_BUILD_SETTINGS\=YES
+    export IS_UNOPTIMIZED_BUILD\=NO
+    export MAC_OS_X_PRODUCT_BUILD_VERSION\=25G332
+    export PLATFORM_PRODUCT_BUILD_VERSION\=23F81a
+    export SDK_PRODUCT_BUILD_VERSION\=23F81a
+    export TARGET_BUILD_DIR\=/Users/runner/work/trail-keyboard/trail-keyboard/build/dev/Build/Products/Release-iphoneos
+    export VERSION_INFO_BUILDER\=runner
+    export XCODE_PRODUCT_BUILD_VERSION\=17F113
+2026-11-13 20:53:32.437 appintentsmetadataprocessor[31247:92132] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-11-13 20:54:39.043 appintentsmetadataprocessor[34251:99236] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+warning: All interface orientations must be supported unless the app requires full screen. (in target 'Trail' from project 'Trail')
+** BUILD SUCCEEDED **
