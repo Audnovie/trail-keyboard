@@ -56,8 +56,8 @@ final class EmojiSearchField: UIView {
             text.text = query + "▏"
             text.textColor = theme.text
         }
+        text.accessibilityLabel = "Search emoji"
         text.accessibilityValue = query
-        text.accessibilityLabel = query.isEmpty ? "Search emoji" : query
     }
 
     override func layoutSubviews() {
