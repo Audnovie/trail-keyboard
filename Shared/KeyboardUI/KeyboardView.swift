@@ -24,7 +24,7 @@ protocol KeyboardViewDelegate: AnyObject {
     func kbEmoji(_ text: String)
     func kbEmojiBack()
     func kbEmojiDelete()
-    func kbEmojiSpace()
+    func kbEmojiSearch()
     func kbOpenSettings()
 }
 
@@ -103,6 +103,11 @@ final class KeyboardView: UIView, KeyboardSurface {
     private var repeatCount = 0
     private var alts: AltsState?
     private(set) var emojiOpen = false
+    /// The emoji panel kept as it was but set aside while its search box takes the keys.
+    private(set) var emojiParked = false
+    /// Recently used emoji, newest first, for the emoji panel's first page (an open panel
+    /// keeps what it opened with, so its pages don't shift while in use).
+    var emojiRecent: [String] = []
 
     let keysView = KeysView()
     let stripView = StripView()
@@ -111,6 +116,17 @@ final class KeyboardView: UIView, KeyboardSurface {
     private let altsView = AltsPopup()
     let globeButton = UIButton(type: .custom)
     private var emojiPanel: EmojiPanel?
+    /// The emoji panel's list of emoji (while the panel is open or set aside).
+    var emojiCatalog: EmojiCatalog? { emojiPanel?.catalog }
+    /// Covers the suggestion bar (the emoji search's results).
+    var stripCover: UIView? {
+        didSet {
+            oldValue?.removeFromSuperview()
+            if let v = stripCover { addSubview(v) }
+            a11yCache = nil
+            setNeedsLayout()
+        }
+    }
     /// Shown above the suggestion bar in training (set by the controller).
     var header: UIView? {
         didSet {
@@ -151,6 +167,8 @@ final class KeyboardView: UIView, KeyboardSurface {
         previewView.apply(t)
         altsView.apply(t)
         emojiPanel?.apply(t)
+        (header as? EmojiSearchField)?.apply(t)
+        (stripCover as? EmojiResultsRow)?.apply(t)
         keysView.setNeedsDisplay()
         stripView.setNeedsDisplay()
     }
@@ -201,7 +219,9 @@ final class KeyboardView: UIView, KeyboardSurface {
         stripView.frame = CGRect(x: 0, y: headerH, width: w, height: Metrics.stripH)
         keysView.frame = bounds
         trailView.frame = bounds
-        emojiPanel?.frame = CGRect(x: 0, y: headerH + Metrics.stripH, width: w, height: max(0, bounds.height - headerH - Metrics.stripH))
+        // Like Apple's, the emoji panel takes the suggestion bar's place too (its search box sits there).
+        emojiPanel?.frame = CGRect(x: 0, y: headerH, width: w, height: max(0, bounds.height - headerH))
+        stripCover?.frame = stripView.frame
         if size == laidOutSize && rh == rowH { return }
         laidOutSize = size
         rowH = rh
@@ -263,15 +283,17 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     func showEmoji(_ show: Bool) {
         emojiOpen = show
+        emojiParked = false
         if show {
             cancelAll()
             if emojiPanel == nil {
                 let p = EmojiPanel()
                 p.apply(theme)
+                p.recent = emojiRecent
                 p.onEmoji = { [weak self] e in self?.delegate?.kbEmoji(e) }
                 p.onBack = { [weak self] in self?.delegate?.kbEmojiBack() }
                 p.onDelete = { [weak self] in self?.delegate?.kbEmojiDelete() }
-                p.onSpace = { [weak self] in self?.delegate?.kbEmojiSpace() }
+                p.onSearch = { [weak self] in self?.delegate?.kbEmojiSearch() }
                 emojiPanel = p
                 addSubview(p)
             }
@@ -283,6 +305,21 @@ final class KeyboardView: UIView, KeyboardSurface {
         }
         placeGlobe()
         a11yCache = nil
+        keysView.setNeedsDisplay()
+        setNeedsLayout()
+    }
+
+    /// Sets the open emoji panel aside (kept as it was) so the keys can type a search, or
+    /// brings it back.
+    func parkEmoji(_ parked: Bool) {
+        guard let p = emojiPanel, parked != emojiParked else { return }
+        emojiParked = parked
+        emojiOpen = !parked
+        p.isHidden = parked
+        cancelAll()
+        placeGlobe()
+        a11yCache = nil
+        keysView.setNeedsDisplay()
         setNeedsLayout()
     }
 
@@ -496,7 +533,7 @@ final class KeyboardView: UIView, KeyboardSurface {
     }
 
     private func down(_ id: ObjectIdentifier, _ x: CGFloat, _ y: CGFloat) {
-        if emojiOpen && y >= headerH + Metrics.stripH { return }
+        if emojiOpen && y >= headerH { return }
         if swipePointer != nil || alts != nil { return }
         // A new finger lands: finish any other finger's tap now (fast two-thumb typing).
         for o in pointers.values {
@@ -766,7 +803,8 @@ final class KeyboardView: UIView, KeyboardSurface {
         case UIKeyCode.globe: return ("next keyboard", "key.globe")
         default:
             let l = k.isLetter && (shifted || capsLock) ? k.label.uppercased() : k.label
-            let names: [String: String] = [".": "period", ",": "comma", "'": "apostrophe", "?": "question", "!": "exclamation"]
+            let names: [String: String] = [".": "period", ",": "comma", "'": "apostrophe", "’": "apostrophe", "”": "quote",
+                                           "?": "question", "!": "exclamation"]
             return (l, "key." + (names[k.label] ?? k.label))
         }
     }
@@ -781,10 +819,10 @@ final class KeyboardView: UIView, KeyboardSurface {
                 return out
             }
             if let h = header { out.append(h) }
-            out.append(stripView)
-            if let e = emojiPanel {
+            if let e = emojiPanel, !emojiParked {
                 out.append(e)
             } else {
+                out.append(stripCover ?? stripView)
                 for row in layout.rows {
                     for k in row where k.code != UIKeyCode.globe {
                         let e = UIAccessibilityElement(accessibilityContainer: self)

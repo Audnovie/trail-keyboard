@@ -45,6 +45,9 @@ targets:
       - path: Resources/Lexicon
         type: folder
         buildPhase: resources
+      - path: Resources/Emoji
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: TrailEngine
       - target: TrailKeyboard
@@ -76,6 +79,9 @@ targets:
       - path: Keyboard
       - path: Shared/KeyboardUI
       - path: Resources/Lexicon
+        type: folder
+        buildPhase: resources
+      - path: Resources/Emoji
         type: folder
         buildPhase: resources
     dependencies:

@@ -37,8 +37,11 @@ jobs:
 
       - name: Generated files are up to date
         run: |
+          set -o pipefail
           python3 tools/build_lexicon.py --check 2>&1 | tee logs/generated.log
           node tools/fixtures/gen.js --check 2>&1 | tee -a logs/generated.log
+          (mkdir -p "$RUNNER_TEMP/emojibase" && cd "$RUNNER_TEMP/emojibase" && npm pack emojibase-data@18.0.0 --silent && tar -xzf emojibase-data-18.0.0.tgz)
+          python3 tools/build_emoji.py "$RUNNER_TEMP/emojibase/package" --check 2>&1 | tee -a logs/generated.log
 
       - name: swift test (optimised, as on the phone)
         run: |

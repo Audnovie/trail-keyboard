@@ -106,6 +106,11 @@ what it keeps.
 - **Hold a key** for accents (á é í ó ú ü ñ) and the top row's numbers; hold **.** for ? ! ¿ ¡ …
 - **Drag the space bar** to move the cursor. With Spanish on, **hold the space bar** to pick the
   language (Auto picks it from the words before the cursor).
+- **123** and **#+=** are laid out like Apple's keyboard. Hold a key there for its variants, as
+  on Apple's: " for “ ” „ « », ' for ‘ ’ `, - for – — •, $ for € £ ¥ ¢ ₩ ₽, 0 for °, . for …
+- **Emoji:** the emoji scroll sideways; the buttons along the bottom jump to a category, and the
+  first page is the emoji you used last. Tap **Search emoji** and type (or swipe) a word in
+  English or Spanish ("heart", "corazón"); tap a match to put it in, and **Done** to go back.
 - **Settings:** when no word is in progress, tap the sliders button at the left of the bar.
 
 ### Training rounds
@@ -120,7 +125,8 @@ summary shows how many it got right with your profile and without it.
 
 - **No network.** The keyboard doesn't ask for Full Access, so iOS gives it no network access.
 - **No text kept.** It never stores sentences or swipes. It counts single words you use, words
-  you rejected or blocked, a running summary of how you swipe, and training results.
+  you rejected or blocked, a running summary of how you swipe, training results, and the last 30
+  emoji you used (not in the sensitive fields below).
 - **Not in sensitive fields.** Password fields always get Apple's keyboard. In email, web
   address, username, one-time code, phone, address and card fields Trail doesn't learn at all
   (and in email, web address, code and card fields it doesn't suggest either).
@@ -134,7 +140,11 @@ summary shows how many it got right with your profile and without it.
   logic), ported line for line from the JavaScript web trial in `tools/reference/core.js`.
 - `Resources/Lexicon`: the English (51,025 words) and Spanish (59,746 words) lists, built by
   `tools/build_lexicon.py` into files the keyboard maps into memory instead of loading.
-- `Shared/KeyboardUI`: the keys, suggestion bar, panels and training rounds.
+- `Resources/Emoji/emoji.tsv`: the emoji, in Apple's categories, with English and Spanish names
+  and keywords for searching, built by `tools/build_emoji.py` from emojibase-data (names from
+  Unicode CLDR; licences in `Resources/Emoji/NOTICE.txt`). Emoji newer than the iPhone's iOS
+  can draw are left out on that iPhone.
+- `Shared/KeyboardUI`: the keys, suggestion bar, emoji panel, panels and training rounds.
 - `Keyboard`: the keyboard extension. `App`: the companion app and the UI-test harness.
 - `Tests/EngineTests`: replays fixtures recorded from the JavaScript engine
   (`tools/fixtures/gen.js`) and checks the Swift engine gives the same answers.

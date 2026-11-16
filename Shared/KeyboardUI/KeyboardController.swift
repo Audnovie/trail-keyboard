@@ -44,6 +44,11 @@ final class KeyboardController: KeyboardViewDelegate {
     private var panelStack = [PanelPage]()
     /// A panel's one-line text box, while it's taking the keys.
     private var input: PanelInput?
+    /// The emoji search's box and results, while the keys type a search.
+    private var emojiSearch: (field: EmojiSearchField, results: EmojiResultsRow)?
+    /// Emoji used recently (newest first), for the emoji panel's first page.
+    private(set) var recentEmoji = [String]()
+    static let recentEmojiLimit = 30
     private var trainingHeader: TrainingHeaderView?
     private let clock: () -> Double
     /// A destructive button that was tapped once and needs a second tap.
@@ -80,6 +85,8 @@ final class KeyboardController: KeyboardViewDelegate {
         }
         settings = s?.settings ?? AppSettings()
         tests = state.tests
+        recentEmoji = state.recentEmoji
+        view.emojiRecent = recentEmoji
         profiles = [:]
         for (key, saved) in state.profiles {
             let P = SwipeProfile()
@@ -98,6 +105,7 @@ final class KeyboardController: KeyboardViewDelegate {
         for L in lex.langs { s.langs[L.code] = L.user.saved(maxEntries: cap) }
         s.settings = settings
         s.tests = tests
+        s.recentEmoji = recentEmoji
         for (key, P) in profiles where P.total > 0 { s.profiles[key] = P.saved() }
         return s
     }
@@ -305,6 +313,7 @@ final class KeyboardController: KeyboardViewDelegate {
     // ---- height ----
 
     var headerHeight: CGFloat {
+        if emojiSearch != nil { return Metrics.stripH }
         if panel != nil && input == nil { return Metrics.panelExtra }
         if input != nil { return 0 }
         return mode == .training ? Metrics.trainingHeaderH : 0
@@ -315,13 +324,24 @@ final class KeyboardController: KeyboardViewDelegate {
     func kbKey(_ key: Key) {
         view.clearMenu()
         if let inp = input {
-            if key.code == KeyCode.shift {
+            switch key.code {
+            case KeyCode.shift:
                 inp.caps.toggle()
                 view.setShift(inp.caps, false)
-            } else if key.code == KeyCode.enter {
+            case KeyCode.enter:
                 finishInput(inp, commit: true)
                 return
-            } else {
+            case KeyCode.symbols:
+                view.setLayout(.symbols)
+            case KeyCode.symbols2:
+                view.setLayout(.symbols2)
+            case KeyCode.letters:
+                view.setLayout(.letters)
+            case KeyCode.emoji:
+                // In the emoji search, the emoji key goes back to the emoji.
+                if emojiSearch != nil { endEmojiSearch() }
+                return
+            default:
                 inp.key(key.code)
                 if inp.caps {
                     inp.caps = false
@@ -435,7 +455,29 @@ final class KeyboardController: KeyboardViewDelegate {
 
     func kbEmoji(_ text: String) {
         engine.onEmoji(text)
+        noteRecentEmoji(text)
+        // Picked from the search: shift shows the search box's capitals, not the text's.
+        if let inp = input, emojiSearch != nil { view.setShift(inp.caps, false) }
         afterAction()
+    }
+
+    /// Remembers an emoji for the panel's first page (only where words are learned, so not in
+    /// email, address, code or similar fields). The open panel shows it from next time.
+    private func noteRecentEmoji(_ e: String) {
+        guard engine.learning() else { return }
+        recentEmoji.removeAll { $0 == e }
+        recentEmoji.insert(e, at: 0)
+        if recentEmoji.count > KeyboardController.recentEmojiLimit {
+            recentEmoji.removeLast(recentEmoji.count - KeyboardController.recentEmojiLimit)
+        }
+        view.emojiRecent = recentEmoji
+        changed()
+    }
+
+    func clearRecentEmoji() {
+        recentEmoji = []
+        view.emojiRecent = []
+        changed()
     }
 
     func kbEmojiBack() {
@@ -448,8 +490,50 @@ final class KeyboardController: KeyboardViewDelegate {
         afterAction()
     }
 
-    func kbEmojiSpace() {
-        engine.onKey(KeyCode.space)
+    /// The emoji panel's search box: the letter keys type a search, the matches show in a
+    /// row under the box, and Done, Return or the emoji key go back to the panel.
+    func kbEmojiSearch() {
+        guard mode == .type, input == nil, emojiSearch == nil, let catalog = view.emojiCatalog else { return }
+        let field = EmojiSearchField()
+        let results = EmojiResultsRow()
+        field.apply(view.theme)
+        results.apply(view.theme)
+        field.onClose = { [weak self] in self?.endEmojiSearch() }
+        results.onPick = { [weak self] e in self?.kbEmoji(e) }
+        let inp = PanelInput(label: "Search emoji") { _ in }
+        inp.takesSpaces = true
+        inp.onChange = { [weak self, weak field, weak results] q in
+            field?.setQuery(q)
+            if q.trimmingCharacters(in: .whitespaces).isEmpty {
+                results?.show(self?.recentEmoji ?? [], empty: "Type to search emoji")
+            } else {
+                let found = catalog.search(q)
+                results?.show(found, empty: "No emoji found")
+            }
+        }
+        emojiSearch = (field, results)
+        input = inp
+        view.parkEmoji(true)
+        view.header = field
+        view.stripCover = results
+        view.setHeaderHeight(Metrics.stripH)
+        view.setLayout(.letters)
+        view.setShift(false, false)
+        view.holdsEnabled = true
+        onHeightChange?()
+        renderInput()
+    }
+
+    /// Back from the emoji search to the emoji panel, as it was.
+    private func endEmojiSearch() {
+        guard emojiSearch != nil else { return }
+        emojiSearch = nil
+        input = nil
+        view.header = nil
+        view.stripCover = nil
+        view.setHeaderHeight(mode == .training ? Metrics.trainingHeaderH : 0)
+        view.parkEmoji(false)
+        onHeightChange?()
         afterAction()
     }
 
@@ -637,11 +721,17 @@ final class KeyboardController: KeyboardViewDelegate {
 
     private func renderInput() {
         guard let inp = input else { return }
+        inp.onChange?(inp.text)
+        if emojiSearch != nil { return }
         view.inputBar = (inp.label, inp.text)
         view.stripView.accessibilityValue = inp.label + " " + inp.text
     }
 
     private func finishInput(_ inp: PanelInput, commit: Bool) {
+        if emojiSearch != nil {
+            endEmojiSearch()
+            return
+        }
         input = nil
         view.inputBar = nil
         view.clearStrip()
@@ -660,6 +750,8 @@ final class KeyboardController: KeyboardViewDelegate {
         }
         tests = TestStats()
         profiles = [:]
+        recentEmoji = []
+        view.emojiRecent = []
         settings = AppSettings()
         applyLanguages()
         applyProfile()
@@ -685,6 +777,10 @@ final class PanelInput {
     let commit: (String) -> Void
     /// The next letter in capitals (shift).
     var caps = false
+    /// Space types a space (a search can be several words).
+    var takesSpaces = false
+    /// Called with the text whenever it's shown afresh.
+    var onChange: ((String) -> Void)?
 
     init(label: String, commit: @escaping (String) -> Void) {
         self.label = label
@@ -692,7 +788,11 @@ final class PanelInput {
     }
 
     func key(_ code: Int) {
-        if code == KeyCode.space || code == KeyCode.enter || code <= 0 { return }
+        if code == KeyCode.space {
+            if takesSpaces && !text.isEmpty && !text.hasSuffix(" ") { type(" ") }
+            return
+        }
+        if code == KeyCode.enter || code <= 0 { return }
         if let u = Unicode.Scalar(UInt16(truncatingIfNeeded: code)) { type(String(Character(u))) }
     }
 

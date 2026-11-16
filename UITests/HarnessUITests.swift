@@ -169,10 +169,97 @@ final class HarnessUITests: XCTestCase {
         let grid = app.collectionViews["trail.emoji"]
         XCTAssertTrue(grid.waitForExistence(timeout: 5))
         shot("emoji")
-        grid.cells.element(boundBy: 0).tap()
+        grid.cells["😀"].tap()
         XCTAssertEqual(text(app), "😀")
-        app.buttons["ABC"].tap()
+        app.buttons["trail.emoji.abc"].tap()
         XCTAssertTrue(key(app, "a").exists)
         memory(app, "after emoji")
+    }
+
+    /// Like Apple's: the emoji scroll sideways, and the buttons along the bottom jump to a category.
+    func testEmojiPanelScrollsSidewaysByCategory() {
+        let app = launch()
+        key(app, "emoji").tap()
+        let grid = app.collectionViews["trail.emoji"]
+        XCTAssertTrue(grid.waitForExistence(timeout: 5))
+        let first = grid.cells["😀"]
+        XCTAssertTrue(first.exists)
+        let before = first.frame.minX
+        grid.swipeLeft()
+        XCTAssertTrue(!first.exists || first.frame.minX < before - 50, "the emoji should move sideways")
+        app.buttons["trail.emoji.cat8"].tap()
+        let flag = grid.cells["🏁"]
+        XCTAssertTrue(flag.waitForExistence(timeout: 3), "Flags")
+        XCTAssertTrue(app.buttons["trail.emoji.cat8"].isSelected)
+        shot("emoji-flags")
+        flag.tap()
+        app.buttons["trail.emoji.cat1"].tap()
+        XCTAssertTrue(grid.cells["😀"].waitForExistence(timeout: 3), "back to Smileys & People")
+        XCTAssertEqual(text(app), "🏁")
+        memory(app, "after scrolling the emoji")
+    }
+
+    /// Searching: the letter keys type into the search box, matches show in a row, a tap types
+    /// one, and Done goes back; Spanish names work too; what was used opens the panel next time.
+    func testEmojiSearch() {
+        let app = launch()
+        key(app, "emoji").tap()
+        let search = app.buttons["trail.emoji.search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        for k in ["h", "e", "a", "r", "t"] { key(app, k).tap() }
+        let results = app.collectionViews["trail.emoji.results"]
+        XCTAssertTrue(results.waitForExistence(timeout: 5))
+        let heart = results.cells["❤️"]
+        XCTAssertTrue(heart.waitForExistence(timeout: 3))
+        XCTAssertEqual(app.staticTexts["trail.emoji.query"].value as? String, "heart")
+        shot("emoji-search")
+        heart.tap()
+        XCTAssertEqual(text(app), "❤️")
+        for _ in 0..<5 { key(app, "delete").tap() }
+        for k in ["c", "o", "r", "a", "z", "o", "n"] { key(app, k).tap() }
+        XCTAssertTrue(results.cells["❤️"].waitForExistence(timeout: 3), "Spanish: corazón")
+        app.buttons["trail.emoji.searchDone"].tap()
+        XCTAssertTrue(app.collectionViews["trail.emoji"].waitForExistence(timeout: 5))
+        XCTAssertFalse(results.exists)
+        app.buttons["trail.emoji.abc"].tap()
+        key(app, "emoji").tap()
+        XCTAssertTrue(app.buttons["trail.emoji.cat0"].waitForExistence(timeout: 5), "the Recent page")
+        XCTAssertTrue(app.collectionViews["trail.emoji"].cells["❤️"].exists)
+        XCTAssertEqual(text(app), "❤️")
+        memory(app, "after searching emoji")
+    }
+
+    /// The 123 and #+= pages are laid out like Apple's keyboard.
+    func testSymbolPagesMatchApplesLayout() {
+        let app = launch()
+        key(app, "123").tap()
+        func inOrder(_ ids: [String], _ what: String) {
+            let keys = ids.map { key(app, $0) }
+            for (a, b) in zip(keys, keys.dropFirst()) {
+                XCTAssertLessThan(a.frame.midX, b.frame.midX, what)
+                XCTAssertEqual(a.frame.midY, b.frame.midY, accuracy: 2, what)
+            }
+        }
+        inOrder(["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"], "123 page, row 1")
+        inOrder(["-", "/", ":", ";", "(", ")", "$", "&", "@", "quote"], "123 page, row 2")
+        inOrder(["sym2", "period", "comma", "question", "exclamation", "apostrophe", "delete"], "123 page, row 3")
+        inOrder(["abc", "emoji", "space", "return"], "123 page, row 4")
+        XCTAssertLessThan(key(app, "1").frame.midY, key(app, "-").frame.midY)
+        XCTAssertLessThan(key(app, "-").frame.midY, key(app, "period").frame.midY)
+        shot("symbols")
+        key(app, "quote").tap()
+        key(app, "apostrophe").tap()
+        key(app, "sym2").tap()
+        inOrder(["[", "]", "{", "}", "#", "%", "^", "*", "+", "="], "#+= page, row 1")
+        inOrder(["_", "\\", "|", "~", "<", ">", "€", "£", "¥", "•"], "#+= page, row 2")
+        inOrder(["123", "period", "comma", "question", "exclamation", "apostrophe", "delete"], "#+= page, row 3")
+        shot("symbols2")
+        key(app, "€").tap()
+        key(app, "123").tap()
+        XCTAssertTrue(key(app, "@").exists)
+        key(app, "abc").tap()
+        XCTAssertTrue(key(app, "q").exists)
+        XCTAssertEqual(text(app), "\"'€")
     }
 }

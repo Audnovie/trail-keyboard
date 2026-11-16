@@ -255,6 +255,13 @@ enum PanelPages {
         let size = c.store.fileSize
         let kb = size > 0 ? String(format: "%.1f KB", Double(size) / 1024) : "nothing saved yet"
         var aside = [PanelRow]()
+        var emojiRows = [PanelRow]()
+        if !c.recentEmoji.isEmpty {
+            emojiRows.append(.action(id: "privacy.emoji", title: "Clear recent emoji (\(c.recentEmoji.count))", style: .normal) {
+                c.clearRecentEmoji()
+                c.renderPanel()
+            })
+        }
         let copies = c.store.setAside
         if !copies.isEmpty {
             let names = copies.map { $0.lastPathComponent }.joined(separator: ", ")
@@ -262,13 +269,13 @@ enum PanelPages {
         }
         return PanelContent(title: "What the keyboard keeps", sections: [
             PanelSection(title: nil, rows: aside + [
-                .text(id: "privacy.where", "Everything Trail learns stays inside the keyboard on this iPhone: the single words you use and how often, words you rejected or blocked, your swipe profile (running averages, never the swipes themselves), training results and these settings. All of it is on these pages, and you can delete any of it."),
+                .text(id: "privacy.where", "Everything Trail learns stays inside the keyboard on this iPhone: the single words you use and how often, words you rejected or blocked, your swipe profile (running averages, never the swipes themselves), training results, the last \(KeyboardController.recentEmojiLimit) emoji you used (the emoji panel’s first page) and these settings. All of it is on these pages, and you can delete any of it."),
                 .text(id: "privacy.network", "Trail can’t connect to anything: Full Access is off, so iOS gives it no network access. Nothing is sent anywhere."),
                 .text(id: "privacy.text", "It doesn’t keep what you write: no sentences, no history, no swipes. It only counts single words, and only in ordinary text fields. In email, web address, username, code, phone, address and card fields it doesn’t learn at all, and password fields always use Apple’s keyboard."),
                 .text(id: "privacy.backup", "The saved file (\(kb)) is left out of iCloud and computer backups, so it never leaves this iPhone."),
             ]),
-            PanelSection(title: nil, rows: [
-                confirming(c, id: "privacy.erase", title: "Erase everything Trail learned", confirm: "Tap again: erase all words, lists, training and settings") {
+            PanelSection(title: nil, rows: emojiRows + [
+                confirming(c, id: "privacy.erase", title: "Erase everything Trail learned", confirm: "Tap again: erase all words, lists, training, recent emoji and settings") {
                     c.eraseEverything()
                 },
             ]),

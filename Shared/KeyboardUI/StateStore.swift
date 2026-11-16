@@ -115,10 +115,12 @@ struct SavedState: Codable {
     var settings = AppSettings()
     var tests = TestStats()
     var profiles = [String: SwipeProfile.Saved]()
+    /// Emoji used recently, newest first.
+    var recentEmoji = [String]()
 
     init() {}
 
-    enum CodingKeys: String, CodingKey { case v, updatedAt, langs, settings, tests, profiles }
+    enum CodingKeys: String, CodingKey { case v, updatedAt, langs, settings, tests, profiles, recentEmoji }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -140,6 +142,8 @@ struct SavedState: Codable {
                 }
             }
         }
+        let emoji = (try? c.decodeIfPresent([String].self, forKey: .recentEmoji)) ?? nil ?? []
+        recentEmoji = Array(emoji.filter { !$0.isEmpty && $0.count <= 2 }.prefix(KeyboardController.recentEmojiLimit))
     }
 }
 

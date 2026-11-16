@@ -1,5 +1,6 @@
-// The keys: letters, two pages of symbols, and what holding a key offers. Ported from the web
-// trial (itself from the Android app's Layout.java), plus a globe key for iPhones that need one.
+// The keys: letters, two pages of symbols, and what holding a key offers. The letters are ported
+// from the web trial (itself from the Android app's Layout.java); the two symbol pages are laid
+// out like Apple's keyboard (123 and #+=). Plus a globe key for iPhones that need one.
 
 import UIKit
 import TrailEngine
@@ -18,16 +19,23 @@ final class Key {
     let alts: [String]?
     /// In key widths.
     let width: CGFloat
+    /// Space left empty inside the key's width on each side (in key widths): drawn narrower,
+    /// touched across the whole width.
+    let padLeft: CGFloat
+    let padRight: CGFloat
     /// Where it's drawn, and the area that counts as touching it (edge keys reach the edge).
     var rect = CGRect.zero
     var hit = CGRect.zero
 
-    init(_ code: Int, _ label: String, hint: String? = nil, alts: [String]? = nil, width: CGFloat = 1) {
+    init(_ code: Int, _ label: String, hint: String? = nil, alts: [String]? = nil, width: CGFloat = 1,
+         padLeft: CGFloat = 0, padRight: CGFloat = 0) {
         self.code = code
         self.label = label
         self.hint = hint
         self.alts = (alts?.isEmpty ?? true) ? nil : alts
         self.width = width
+        self.padLeft = padLeft
+        self.padRight = padRight
     }
 
     var isLetter: Bool { code >= 97 && code <= 122 }
@@ -61,6 +69,50 @@ enum Layouts {
         }
     }
 
+    /// What holding a key on the symbol pages offers, as on Apple's keyboard (the key itself
+    /// first, so letting go without sliding types it), plus a few that had their own keys before.
+    static let symbolAlts: [String: [String]] = [
+        "0": ["0", "°"],
+        "-": ["-", "–", "—", "•"],
+        "/": ["/", "\\", "÷"],
+        "$": ["$", "€", "£", "¥", "¢", "₩", "₽"],
+        "&": ["&", "§"],
+        "\"": ["\"", "“", "”", "„", "«", "»"],
+        "'": ["'", "‘", "’", "`"],
+        ".": [".", "…"],
+        "?": ["?", "¿"],
+        "!": ["!", "¡"],
+        "%": ["%", "‰"],
+        "=": ["=", "≠", "≈"],
+        "*": ["*", "×"],
+        "+": ["+", "±"],
+    ]
+
+    /// Keys of a symbol page: each character types itself; quotes show curly, as on Apple's.
+    private static func symbolKeys(_ s: String, width: CGFloat = 1) -> [Key] {
+        let shown: [String: String] = ["\"": "”", "'": "’"]
+        return s.map { c in
+            let str = String(c)
+            return Key(Int(str.unicodeScalars.first!.value), shown[str] ?? str, alts: symbolAlts[str], width: width)
+        }
+    }
+
+    /// Apple's third row on both symbol pages: the page switch, . , ? ! ' and delete.
+    private static func symbolThirdRow(switchTo code: Int, label: String) -> [Key] {
+        [Key(code, label, width: 1.5, padRight: 0.2)] + symbolKeys(".,?!'", width: 1.4)
+            + [Key(KeyCode.delete, "", width: 1.5, padLeft: 0.2)]
+    }
+
+    /// Apple's bottom row on the symbol pages: ABC, (globe,) emoji, space, return.
+    private static func symbolBottomRow(globe: Bool) -> [Key] {
+        var row = [Key(KeyCode.letters, "ABC", width: 1.25)]
+        if globe { row.append(Key(UIKeyCode.globe, "", width: 1.25)) }
+        row.append(Key(KeyCode.emoji, "", width: 1.25))
+        row.append(Key(KeyCode.space, "", width: globe ? 3.75 : 5))
+        row.append(Key(KeyCode.enter, "", width: 2.5))
+        return row
+    }
+
     private static func bottomRow(letters: Bool, globe: Bool) -> [Key] {
         let switchKey = letters ? Key(KeyCode.symbols, "123", width: globe ? 1.25 : 1.5)
                                 : Key(KeyCode.letters, "ABC", width: globe ? 1.25 : 1.5)
@@ -90,21 +142,23 @@ enum Layouts {
         ])
     }
 
+    /// Apple's 123 page.
     static func symbols(globe: Bool) -> KeyLayout {
         KeyLayout(name: .symbols, rows: [
-            chars("1234567890"),
-            chars("@#$_&-+()/"),
-            [Key(KeyCode.symbols2, "=\\<", width: 1.5)] + chars("*\"':;!?") + [Key(KeyCode.delete, "", width: 1.5)],
-            bottomRow(letters: false, globe: globe),
+            symbolKeys("1234567890"),
+            symbolKeys("-/:;()$&@\""),
+            symbolThirdRow(switchTo: KeyCode.symbols2, label: "#+="),
+            symbolBottomRow(globe: globe),
         ])
     }
 
+    /// Apple's #+= page.
     static func symbols2(globe: Bool) -> KeyLayout {
         KeyLayout(name: .symbols2, rows: [
-            chars("~`|•√π÷×¶∆"),
-            chars("£€¥^°={}[]"),
-            [Key(KeyCode.symbols, "123", width: 1.5)] + chars("%©®™<>\\") + [Key(KeyCode.delete, "", width: 1.5)],
-            bottomRow(letters: false, globe: globe),
+            symbolKeys("[]{}#%^*+="),
+            symbolKeys("_\\|~<>€£¥•"),
+            symbolThirdRow(switchTo: KeyCode.symbols, label: "123"),
+            symbolBottomRow(globe: globe),
         ])
     }
 
@@ -118,7 +172,9 @@ enum Layouts {
             let y = top + CGFloat(r) * rowH
             for (i, k) in row.enumerated() {
                 let w = k.width * unit
-                k.rect = CGRect(x: x + gapX / 2, y: y + gapY / 2, width: w - gapX, height: rowH - gapY)
+                let padL = k.padLeft * unit
+                let padR = k.padRight * unit
+                k.rect = CGRect(x: x + gapX / 2 + padL, y: y + gapY / 2, width: w - gapX - padL - padR, height: rowH - gapY)
                 let l = i == 0 ? 0 : x
                 let rr = i == row.count - 1 ? width : x + w
                 k.hit = CGRect(x: l, y: y, width: rr - l, height: rowH)

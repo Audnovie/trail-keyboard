@@ -36,6 +36,31 @@ final class RealKeyboardUITests: XCTestCase {
         let swiped = field.value as? String ?? ""
         print("REAL after a drag from t to o: \(swiped)")
         XCTAssertTrue(swiped.hasPrefix("Hello there. "), swiped)
+        // The emoji panel: every category (CI samples the memory meanwhile), then a search.
+        app.keys["key.emoji"].tap()
+        let grid = app.collectionViews["trail.emoji"]
+        if grid.waitForExistence(timeout: 5) {
+            print("REAL emoji panel open at \(Date())")
+            for c in 1...8 {
+                let b = app.buttons["trail.emoji.cat\(c)"]
+                guard b.exists else { continue }
+                b.tap()
+                usleep(500_000)
+                grid.swipeLeft()
+                usleep(500_000)
+            }
+            print("REAL emoji categories scrolled at \(Date())")
+            sleep(10)
+            app.buttons["trail.emoji.search"].tap()
+            for k in ["h", "e", "a", "r", "t"] { app.keys["key." + k].tap() }
+            let heart = app.collectionViews["trail.emoji.results"].cells["❤️"]
+            if heart.waitForExistence(timeout: 5) { heart.tap() }
+            sleep(1)
+            print("REAL after an emoji search: \(field.value as? String ?? "")")
+            app.buttons["trail.emoji.searchDone"].tap()
+        } else {
+            print("REAL emoji panel not found")
+        }
         sleep(30)
     }
 }
