@@ -8,10 +8,12 @@ public final class EmojiCatalog {
     public struct Item {
         public let emoji: String
         public let category: Int
-        /// Lower case, no accents, words separated by single spaces.
+        /// Lower case, no accents, words separated by single spaces; each with a space in front,
+        /// so " hea" finds words starting "hea".
         let english: String
         let spanish: String
-        let keywords: String
+        /// Both names and the keywords.
+        let everything: String
         /// Place among the most used emoji (lower is more used); others come after them.
         let popularity: Int
     }
@@ -34,8 +36,11 @@ public final class EmojiCatalog {
                   let version = Double(f[2]), version <= newest else { continue }
             sections[cat].append(items.count)
             let pop = f.count > 6 ? Int(f[6]) ?? Int.max : Int.max
-            items.append(Item(emoji: String(f[0]), category: cat, english: String(f[3]), spanish: String(f[4]),
-                              keywords: String(f[5]), popularity: pop))
+            let en = " " + String(f[3])
+            let es = " " + String(f[4])
+            let everything = en + es + " " + String(f[5])
+            items.append(Item(emoji: String(f[0]), category: cat, english: en, spanish: es,
+                              everything: everything, popularity: pop))
         }
         self.items = items
         self.sections = sections
@@ -87,9 +92,8 @@ public final class EmojiCatalog {
         let tokens = q.split(separator: " ").map { " " + $0 }
         guard let last = q.split(separator: " ").last.map(String.init) else { return [] }
         var ranked = [[Item]](repeating: [], count: 3)
-        func all(_ words: String) -> Bool {
-            let padded = " " + words
-            return tokens.allSatisfy { padded.contains($0) }
+        func all(_ padded: String) -> Bool {
+            tokens.allSatisfy { padded.contains($0) }
         }
         func headed(_ name: String) -> Bool {
             let w = name.split(separator: " ")
@@ -100,7 +104,7 @@ public final class EmojiCatalog {
                 ranked[headed(it.english) ? 0 : 1].append(it)
             } else if all(it.spanish) {
                 ranked[headed(it.spanish) ? 0 : 1].append(it)
-            } else if all(it.english + " " + it.spanish + " " + it.keywords) {
+            } else if all(it.everything) {
                 ranked[2].append(it)
             }
         }

@@ -122,7 +122,8 @@ final class KeyboardView: UIView, KeyboardSurface {
     var stripCover: UIView? {
         didSet {
             oldValue?.removeFromSuperview()
-            if let v = stripCover { addSubview(v) }
+            // Under the key previews and the hold pop-up, which can reach up over it.
+            if let v = stripCover { insertSubview(v, belowSubview: previewView) }
             a11yCache = nil
             setNeedsLayout()
         }
@@ -131,7 +132,7 @@ final class KeyboardView: UIView, KeyboardSurface {
     var header: UIView? {
         didSet {
             oldValue?.removeFromSuperview()
-            if let h = header { addSubview(h) }
+            if let h = header { insertSubview(h, belowSubview: previewView) }
             setNeedsLayout()
         }
     }

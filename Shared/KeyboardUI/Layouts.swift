@@ -203,26 +203,3 @@ enum Layouts {
         return nearest
     }
 }
-
-/// The emoji the emoji panel offers (the same set as the web trial).
-let EMOJI: [String] = {
-    let all = """
-    😀 😃 😄 😁 😆 😅 🤣 😂 🙂 🙃 😉 😊 😇 🥰 😍 🤩 😘 😗 😚 😋 😛 😜 🤪 😝 🤑 🤗 🤭 🤫 🤔 🤐 🤨 😐 \
-    😑 😶 😏 😒 🙄 😬 😌 😔 😪 🤤 😴 😷 🤒 🤕 🤢 🤮 🥵 🥶 😵 🤯 🤠 🥳 😎 🤓 😕 😟 🙁 😮 😯 😲 😳 🥺 \
-    😦 😧 😨 😰 😥 😢 😭 😱 😖 😣 😞 😓 😩 😫 🥱 😤 😡 😠 🤬 😈 💀 💩 🤡 👻 👽 🤖 😺 😸 😹 😻 🙀 😿 \
-    👋 🤚 ✋ 🖖 👌 🤌 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 👇 ☝️ 👍 👎 ✊ 👊 👏 🙌 👐 🤲 🤝 🙏 💪 👀 🧠 💅 🤳 \
-    ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 💔 ❣️ 💕 💞 💓 💗 💖 💘 💯 🔥 ✨ ⭐ 🌟 💥 💢 💦 💨 💫 💬 💤 🎉 🎊 🎁 🎂 \
-    🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🦆 🦉 🐝 🦋 🐢 🐍 🐙 🐠 🐬 🐳 🦈 🐊 🦄 🐉 \
-    🌵 🌲 🌴 🌱 🍀 🍁 🍄 🌹 🌻 🌸 🌞 🌙 ☁️ 🌧️ ⛈️ ❄️ ☃️ 🌈 🌊 🌍 🍎 🍊 🍋 🍌 🍉 🍇 🍓 🍑 🥑 🍅 🌽 🥕 \
-    🍞 🧀 🍳 🥓 🍔 🍟 🍕 🌭 🌮 🌯 🍝 🍜 🍣 🍱 🍛 🍚 🍩 🍪 🍰 🧁 🍫 🍬 🍭 🍿 ☕ 🍵 🥤 🍺 🍻 🍷 🥂 🍸 \
-    ⚽ 🏀 🏈 ⚾ 🎾 🏐 🏒 🎮 🕹️ 🎲 🧩 🎨 🎬 🎤 🎧 🎵 🎸 🎹 📷 📱 💻 ⌨️ 🖥️ 💡 📚 ✏️ 📝 📅 📌 📎 🔒 🔑 \
-    🔨 🛠️ ⚙️ 💰 💸 💳 ✉️ 🚗 🚕 🚌 🚆 ✈️ 🚀 🚲 🏠 ✅ ❌ ❓ ❗ ⚠️ 🚫 ♻️ ✔️ ➕ ➖ ➡️ ⬅️ ⬆️ ⬇️ 🔴 🟢 🇨🇦
-    """
-    var seen = Set<String>()
-    var out = [String]()
-    for s in all.split(separator: " ").map(String.init) where !s.isEmpty && !seen.contains(s) {
-        seen.insert(s)
-        out.append(s)
-    }
-    return out
-}()

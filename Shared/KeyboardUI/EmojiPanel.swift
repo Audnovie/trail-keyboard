@@ -36,10 +36,15 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         ("lightbulb", "💡", "Objects"), ("heart", "❤️", "Symbols"), ("flag", "🏳️", "Flags"),
     ]
 
-    override init(frame: CGRect) {
+    /// Read once and kept (a few hundred KB), so opening the panel doesn't read it again.
+    private static let shared: EmojiCatalog? = {
         let path = Bundle.main.path(forResource: "Emoji", ofType: nil).map { $0 + "/emoji.tsv" }
         let newest = EmojiCatalog.newestVersion(iOS: ProcessInfo.processInfo.operatingSystemVersion)
-        catalog = path.flatMap { EmojiCatalog(path: $0, newest: newest) }
+        return path.flatMap { EmojiCatalog(path: $0, newest: newest) }
+    }()
+
+    override init(frame: CGRect) {
+        catalog = EmojiPanel.shared
         let f = UICollectionViewFlowLayout()
         f.scrollDirection = .horizontal
         f.minimumInteritemSpacing = 0

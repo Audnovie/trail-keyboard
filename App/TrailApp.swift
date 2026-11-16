@@ -73,8 +73,8 @@ struct HomeView: View {
                     }
 
                     Card(title: "What it keeps", status: nil) {
-                        Text("Single words you use (and how often), words you rejected or blocked, a running summary of how you swipe, and training results, per language. Never sentences, never your swipes, nothing from password, email, web address, username, code, address or card fields.")
-                        Text("It’s all in Trail’s settings on the keyboard (sliders button) under Learned words and Never suggest, where you can delete any of it. It stays on this iPhone: no network access, and left out of backups.")
+                        Text("Single words you use (and how often), words you rejected or blocked, a running summary of how you swipe, training results, per language, and the last 30 emoji you picked. Never sentences, never your swipes, nothing from password, email, web address, username, code, address or card fields.")
+                        Text("It’s all in Trail’s settings on the keyboard (sliders button) under Learned words, Never suggest and What the keyboard keeps, where you can delete any of it. It stays on this iPhone: no network access, and left out of backups.")
                             .font(.footnote).foregroundColor(.secondary)
                     }
 

@@ -257,9 +257,9 @@ enum PanelPages {
         var aside = [PanelRow]()
         var emojiRows = [PanelRow]()
         if !c.recentEmoji.isEmpty {
-            emojiRows.append(.action(id: "privacy.emoji", title: "Clear recent emoji (\(c.recentEmoji.count))", style: .normal) {
+            emojiRows.append(.text(id: "privacy.emojiList", "Recent emoji: " + c.recentEmoji.joined(separator: " ")))
+            emojiRows.append(confirming(c, id: "privacy.emoji", title: "Clear recent emoji", confirm: "Tap again: clear the recent emoji") {
                 c.clearRecentEmoji()
-                c.renderPanel()
             })
         }
         let copies = c.store.setAside
@@ -271,7 +271,7 @@ enum PanelPages {
             PanelSection(title: nil, rows: aside + [
                 .text(id: "privacy.where", "Everything Trail learns stays inside the keyboard on this iPhone: the single words you use and how often, words you rejected or blocked, your swipe profile (running averages, never the swipes themselves), training results, the last \(KeyboardController.recentEmojiLimit) emoji you used (the emoji panel’s first page) and these settings. All of it is on these pages, and you can delete any of it."),
                 .text(id: "privacy.network", "Trail can’t connect to anything: Full Access is off, so iOS gives it no network access. Nothing is sent anywhere."),
-                .text(id: "privacy.text", "It doesn’t keep what you write: no sentences, no history, no swipes. It only counts single words, and only in ordinary text fields. In email, web address, username, code, phone, address and card fields it doesn’t learn at all, and password fields always use Apple’s keyboard."),
+                .text(id: "privacy.text", "It doesn’t keep what you write: no sentences, no swipes, no history of your typing. It only counts single words (and remembers the last emoji you picked), and only in ordinary text fields. In email, web address, username, code, phone, address and card fields it doesn’t learn at all, and password fields always use Apple’s keyboard."),
                 .text(id: "privacy.backup", "The saved file (\(kb)) is left out of iCloud and computer backups, so it never leaves this iPhone."),
             ]),
             PanelSection(title: nil, rows: emojiRows + [

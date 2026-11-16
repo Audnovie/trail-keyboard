@@ -502,7 +502,11 @@ final class KeyboardController: KeyboardViewDelegate {
         results.onPick = { [weak self] e in self?.kbEmoji(e) }
         let inp = PanelInput(label: "Search emoji") { _ in }
         inp.takesSpaces = true
+        var shown: String?
         inp.onChange = { [weak self, weak field, weak results] q in
+            // Shift and 123/ABC show the box again without changing it: no new search then.
+            if q == shown { return }
+            shown = q
             field?.setQuery(q)
             if q.trimmingCharacters(in: .whitespaces).isEmpty {
                 results?.show(self?.recentEmoji ?? [], empty: "Type to search emoji")
@@ -522,6 +526,7 @@ final class KeyboardController: KeyboardViewDelegate {
         view.holdsEnabled = true
         onHeightChange?()
         renderInput()
+        UIAccessibility.post(notification: .screenChanged, argument: field)
     }
 
     /// Back from the emoji search to the emoji panel, as it was.
@@ -532,9 +537,11 @@ final class KeyboardController: KeyboardViewDelegate {
         view.header = nil
         view.stripCover = nil
         view.setHeaderHeight(mode == .training ? Metrics.trainingHeaderH : 0)
+        view.setLayout(.letters)
         view.parkEmoji(false)
         onHeightChange?()
         afterAction()
+        UIAccessibility.post(notification: .screenChanged, argument: nil)
     }
 
     func kbOpenSettings() {
@@ -735,6 +742,7 @@ final class KeyboardController: KeyboardViewDelegate {
         input = nil
         view.inputBar = nil
         view.clearStrip()
+        view.setLayout(.letters)
         if commit { inp.commit(inp.text) }
         panel?.isHidden = false
         view.setHeaderHeight(panel != nil ? Metrics.panelExtra : 0)
