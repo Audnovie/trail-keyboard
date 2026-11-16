@@ -58,6 +58,10 @@ final class RealKeyboardUITests: XCTestCase {
             sleep(1)
             print("REAL after an emoji search: \(field.value as? String ?? "")")
             app.buttons["trail.emoji.searchDone"].tap()
+            sleep(10)
+            // Closing the panel empties iOS's emoji pictures (CI's memory samples should drop).
+            app.buttons["trail.emoji.abc"].tap()
+            print("REAL emoji panel closed at \(Date())")
         } else {
             print("REAL emoji panel not found")
         }

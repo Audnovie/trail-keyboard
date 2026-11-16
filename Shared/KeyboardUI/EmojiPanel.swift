@@ -197,10 +197,41 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         updateSelected()
     }
 
+    // ---- iOS's emoji pictures (see GlyphCaches) ----
+
+    /// Memory in use (MB) when the panel appeared, or when the pictures were last emptied.
+    private var trimBaseMB = 0.0
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil {
+            GlyphCaches.install()
+            trimBaseMB = memoryInUseMB()
+        } else {
+            // Closed, or the keyboard went away: the pictures aren't needed now.
+            GlyphCaches.clear()
+        }
+    }
+
+    /// Browsing has added 10 MB or more since the last time: empty iOS's emoji pictures.
+    private func trimIfGrown() {
+        guard trimBaseMB > 0, memoryInUseMB() - trimBaseMB >= 10 else { return }
+        GlyphCaches.clear()
+        trimBaseMB = memoryInUseMB()
+    }
+
     // ---- following the scroll; jumping to a category ----
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         updateSelected()
+    }
+
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        trimIfGrown()
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { trimIfGrown() }
     }
 
     private func updateSelected() {
@@ -230,6 +261,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
             grid.contentOffset.x = max(0, grid.contentOffset.x - flow.sectionInset.left)
         }
         highlight(b.tag)
+        trimIfGrown()
     }
 
     /// Back to the first page (recent, or Smileys & People).
