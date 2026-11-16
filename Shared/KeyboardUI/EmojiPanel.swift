@@ -148,7 +148,6 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         let c = cv.dequeueReusableCell(withReuseIdentifier: "e", for: ip) as! EmojiCell
         let e = emoji(at: ip) ?? ""
         c.label.text = e
-        c.label.font = .systemFont(ofSize: floor(flow.itemSize.height * 0.72))
         c.accessibilityLabel = e
         return c
     }
@@ -269,13 +268,12 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
 }
 
 final class EmojiCell: UICollectionViewCell {
-    let label = UILabel()
+    let label = EmojiLabel()
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         label.textAlignment = .center
-        label.adjustsFontSizeToFitWidth = true
-        label.minimumScaleFactor = 0.5
+        label.font = .systemFont(ofSize: Metrics.emojiFont)
         contentView.addSubview(label)
         isAccessibilityElement = true
     }
@@ -285,5 +283,27 @@ final class EmojiCell: UICollectionViewCell {
     override func layoutSubviews() {
         super.layoutSubviews()
         label.frame = contentView.bounds
+    }
+}
+
+/// An emoji drawn at a fixed number of pixels (Metrics.emojiScale), whatever the screen, so the
+/// pictures iOS keeps of drawn emoji stay small.
+final class EmojiLabel: UILabel {
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        applyScale()
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        applyScale()
+    }
+
+    private func applyScale() {
+        let screen = traitCollection.displayScale > 0 ? traitCollection.displayScale : Metrics.emojiScale
+        let s = min(Metrics.emojiScale, screen)
+        if contentScaleFactor != s { contentScaleFactor = s }
     }
 }

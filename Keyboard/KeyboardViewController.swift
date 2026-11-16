@@ -6,6 +6,7 @@
 // storage, shown in its settings.
 
 import UIKit
+import os
 import TrailEngine
 
 /// The keyboard's root view; it opts in to the standard key clicks (heard only when the
@@ -69,6 +70,23 @@ final class KeyboardViewController: UIInputViewController {
     override func viewWillDisappear(_ animated: Bool) {
         controller.willHide()
         super.viewWillDisappear(animated)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        recycleIfHeavy()
+    }
+
+    /// iOS keeps a picture of every emoji drawn in this process, and closes a keyboard that goes
+    /// over its memory allowance (mid-typing, if it happens then). So if the keyboard hides
+    /// using most of its allowance, it quits now (everything was saved as it hid) and iOS starts
+    /// a fresh one for the next text field.
+    private func recycleIfHeavy() {
+        let available = Double(os_proc_available_memory())
+        guard available > 0 else { return }  // no allowance reported (the Simulator)
+        let used = memoryInUseMB() * 1_048_576
+        guard used > 0, used >= (used + available) * 0.6 else { return }
+        exit(0)
     }
 
     override func viewWillLayoutSubviews() {

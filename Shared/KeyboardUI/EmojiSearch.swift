@@ -137,7 +137,6 @@ final class EmojiResultsRow: UIView, UICollectionViewDataSource, UICollectionVie
         let c = cv.dequeueReusableCell(withReuseIdentifier: "e", for: ip) as! EmojiCell
         let e = ip.item < results.count ? results[ip.item] : ""
         c.label.text = e
-        c.label.font = .systemFont(ofSize: floor(bounds.height * 0.68))
         c.accessibilityLabel = e
         return c
     }

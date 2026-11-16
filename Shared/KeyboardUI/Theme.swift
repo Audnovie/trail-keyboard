@@ -91,4 +91,10 @@ enum Metrics {
     static let trainingHeaderH: CGFloat = 98
     /// Extra height while a settings panel is open.
     static let panelExtra: CGFloat = 98
+    /// Emoji in the emoji panel and its search: one fixed size, drawn at 2 pixels a point
+    /// (54 pixels). iOS keeps a picture of every emoji it draws in the keyboard's memory: about
+    /// 20 KB each at this size, against about 52 KB at full sharpness, and a keyboard over its
+    /// allowance is closed.
+    static let emojiFont: CGFloat = 27
+    static let emojiScale: CGFloat = 2
 }
