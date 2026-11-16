@@ -53,7 +53,7 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        KeyboardViewController.onScreen += 1
+        KeyboardViewController.onScreen.add(self)
         kbView.setGlobe(needsInputModeSwitchKey)
         updateHeight()
         target.sync(newField: true)
@@ -76,19 +76,20 @@ final class KeyboardViewController: UIInputViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        KeyboardViewController.onScreen = max(0, KeyboardViewController.onScreen - 1)
+        KeyboardViewController.onScreen.remove(self)
         // Not straight away: iOS often hides a keyboard only to bring it back at once (an alert,
         // a quick app switch, dictation).
         let hidden = Date()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            // Much later means this process was paused, and is probably waking to show a keyboard.
-            guard Date().timeIntervalSince(hidden) < 4 else { return }
+            // Late means this process was paused, and is probably waking to show a keyboard.
+            guard Date().timeIntervalSince(hidden) < 2 else { return }
             self.recycleIfHeavy()
         }
     }
 
     /// Keyboards of this process on screen (iOS can bring up a new one before the old one goes).
-    private static var onScreen = 0
+    /// Held weakly, so one released without being told it went doesn't count.
+    private static let onScreen = NSHashTable<KeyboardViewController>.weakObjects()
     /// Memory in use (MB) when the first keyboard of this process appeared.
     private static var startMB = 0.0
 
@@ -97,7 +98,7 @@ final class KeyboardViewController: UIInputViewController {
     /// process is on screen, and it has grown by 10 MB or more since it started and uses half
     /// its allowance or more, it saves and quits; iOS starts a fresh one for the next text field.
     private func recycleIfHeavy() {
-        guard KeyboardViewController.onScreen == 0, controller.mode == .type else { return }
+        guard KeyboardViewController.onScreen.allObjects.isEmpty, controller.mode == .type else { return }
         let availableMB = Double(os_proc_available_memory()) / 1024 / 1024
         guard availableMB > 0 else { return }  // no allowance reported (the Simulator)
         let usedMB = memoryInUseMB()
