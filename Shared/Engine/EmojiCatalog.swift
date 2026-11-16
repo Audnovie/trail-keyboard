@@ -8,12 +8,12 @@ public final class EmojiCatalog {
     public struct Item {
         public let emoji: String
         public let category: Int
-        /// Lower case, no accents, words separated by single spaces; each with a space in front,
-        /// so " hea" finds words starting "hea".
-        let english: String
-        let spanish: String
+        /// Lower case, no accents, words separated by single spaces, as UTF-8 bytes (plain ASCII
+        /// in practice); each with a space in front, so " hea" finds words starting "hea".
+        let english: [UInt8]
+        let spanish: [UInt8]
         /// Both names and the keywords.
-        let everything: String
+        let everything: [UInt8]
         /// Place among the most used emoji (lower is more used); others come after them.
         let popularity: Int
     }
@@ -36,9 +36,14 @@ public final class EmojiCatalog {
                   let version = Double(f[2]), version <= newest else { continue }
             sections[cat].append(items.count)
             let pop = f.count > 6 ? Int(f[6]) ?? Int.max : Int.max
-            let en = " " + String(f[3])
-            let es = " " + String(f[4])
-            let everything = en + es + " " + String(f[5])
+            var en: [UInt8] = [EmojiCatalog.space]
+            en.append(contentsOf: f[3].utf8)
+            var es: [UInt8] = [EmojiCatalog.space]
+            es.append(contentsOf: f[4].utf8)
+            var everything = en
+            everything.append(contentsOf: es)
+            everything.append(EmojiCatalog.space)
+            everything.append(contentsOf: f[5].utf8)
             items.append(Item(emoji: String(f[0]), category: cat, english: en, spanish: es,
                               everything: everything, popularity: pop))
         }
@@ -88,16 +93,26 @@ public final class EmojiCatalog {
     /// red heart before smiling face with heart-eyes), then names, then keywords; among equals,
     /// the most used emoji first, then the panel's order.
     public func search(_ query: String, limit: Int = 80) -> [String] {
-        let q = EmojiCatalog.normalize(query)
-        let tokens = q.split(separator: " ").map { " " + $0 }
-        guard let last = q.split(separator: " ").last.map(String.init) else { return [] }
-        var ranked = [[Item]](repeating: [], count: 3)
-        func all(_ padded: String) -> Bool {
-            tokens.allSatisfy { padded.contains($0) }
+        let words = EmojiCatalog.normalize(query).split(separator: " ")
+        guard let lastWord = words.last else { return [] }
+        // Compared as bytes: String.contains goes through Foundation and was most of the time.
+        func spaced(_ w: Substring) -> [UInt8] {
+            var b: [UInt8] = [EmojiCatalog.space]
+            b.append(contentsOf: w.utf8)
+            return b
         }
-        func headed(_ name: String) -> Bool {
-            let w = name.split(separator: " ")
-            return w.first.map(String.init) == last || w.last.map(String.init) == last
+        let tokens = words.map(spaced)
+        let last = spaced(lastWord)
+        var ranked = [[Item]](repeating: [], count: 3)
+        func all(_ text: [UInt8]) -> Bool {
+            tokens.allSatisfy { EmojiCatalog.bytes(text, contain: $0) }
+        }
+        /// The name's first or last word is the last word typed.
+        func headed(_ name: [UInt8]) -> Bool {
+            let n = last.count
+            guard name.count >= n else { return false }
+            if name.starts(with: last) && (name.count == n || name[n] == EmojiCatalog.space) { return true }
+            return name.suffix(n).elementsEqual(last)
         }
         for it in items {
             if all(it.english) {
@@ -113,5 +128,30 @@ public final class EmojiCatalog {
             group.enumerated().sorted { ($0.element.popularity, $0.offset) < ($1.element.popularity, $1.offset) }.map { $0.element.emoji }
         }
         return Array(sorted.joined().prefix(limit))
+    }
+
+    static let space = UInt8(ascii: " ")
+
+    /// Whether `hay` contains `needle`, byte for byte.
+    static func bytes(_ hay: [UInt8], contain needle: [UInt8]) -> Bool {
+        let n = needle.count
+        let h = hay.count
+        if n == 0 { return true }
+        if n > h { return false }
+        return hay.withUnsafeBufferPointer { (hp: UnsafeBufferPointer<UInt8>) -> Bool in
+            needle.withUnsafeBufferPointer { (np: UnsafeBufferPointer<UInt8>) -> Bool in
+                let first = np[0]
+                var i = 0
+                while i <= h - n {
+                    if hp[i] == first {
+                        var j = 1
+                        while j < n && hp[i + j] == np[j] { j += 1 }
+                        if j == n { return true }
+                    }
+                    i += 1
+                }
+                return false
+            }
+        }
     }
 }

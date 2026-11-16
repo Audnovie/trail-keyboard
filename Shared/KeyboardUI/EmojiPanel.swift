@@ -72,7 +72,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
 
         addSubview(bar)
         abc.setTitle("ABC", for: .normal)
-        abc.titleLabel?.font = .systemFont(ofSize: 16, weight: .medium)
+        abc.titleLabel?.font = .systemFont(ofSize: 15, weight: .medium)
         abc.accessibilityIdentifier = "trail.emoji.abc"
         abc.addTarget(self, action: #selector(back), for: .touchUpInside)
         bar.addSubview(abc)
@@ -165,7 +165,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
         let w = bounds.width
         let top = Metrics.stripH
         let barH = Metrics.stripH
-        search.frame = CGRect(x: 8, y: 5, width: w - 16, height: top - 10)
+        search.frame = CGRect(x: 0, y: 0, width: w, height: top).insetBy(dx: 8, dy: 5)
         let gridH = max(0, bounds.height - top - barH)
         grid.frame = CGRect(x: 0, y: top, width: w, height: gridH)
         bar.frame = CGRect(x: 0, y: bounds.height - barH, width: w, height: barH)

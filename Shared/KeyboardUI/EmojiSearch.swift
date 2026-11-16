@@ -22,7 +22,7 @@ final class EmojiSearchField: UIView {
         text.lineBreakMode = .byTruncatingHead
         box.addSubview(text)
         close.setTitle("Done", for: .normal)
-        close.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        close.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
         close.accessibilityIdentifier = "trail.emoji.searchDone"
         close.addTarget(self, action: #selector(closeTap), for: .touchUpInside)
         addSubview(close)
@@ -126,7 +126,7 @@ final class EmojiResultsRow: UIView, UICollectionViewDataSource, UICollectionVie
         let side = bounds.height
         if side > 0 && flow.itemSize.width != side {
             flow.itemSize = CGSize(width: side, height: side)
-            flow.sectionInset = UIEdgeInsets(top: 0, left: 6, bottom: 0, right: 6)
+            flow.sectionInset = UIEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
             flow.invalidateLayout()
         }
     }
