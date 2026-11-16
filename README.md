@@ -145,6 +145,13 @@ summary shows how many it got right with your profile and without it.
   Unicode CLDR; licences in `Resources/Emoji/NOTICE.txt`). Emoji newer than the iPhone's iOS
   can draw are left out on that iPhone.
 - `Shared/KeyboardUI`: the keys, suggestion bar, emoji panel, panels and training rounds.
+- Memory: iOS closes a keyboard that goes over its memory allowance, and keeps a picture of
+  every emoji it draws. So Trail does three things:
+  - It draws emoji at 54 pixels.
+  - It empties those pictures as you browse emoji, when the panel closes, and when the keyboard
+    hides (`Shared/KeyboardUI/GlyphCaches.swift`).
+  - If the keyboard has still grown a lot, it quits a moment after it hides, and iOS starts a
+    fresh one (`Keyboard/KeyboardViewController.swift`).
 - `Keyboard`: the keyboard extension. `App`: the companion app and the UI-test harness.
 - `Tests/EngineTests`: replays fixtures recorded from the JavaScript engine
   (`tools/fixtures/gen.js`) and checks the Swift engine gives the same answers.
