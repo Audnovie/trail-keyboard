@@ -77,6 +77,8 @@ final class KeyboardViewController: UIInputViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         KeyboardViewController.onScreen.remove(self)
+        // iOS's emoji pictures aren't needed while hidden (an open emoji panel keeps what it shows).
+        GlyphCaches.clear()
         // Not straight away: iOS often hides a keyboard only to bring it back at once (an alert,
         // a quick app switch, dictation).
         let hidden = Date()

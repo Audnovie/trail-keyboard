@@ -514,6 +514,8 @@ final class KeyboardController: KeyboardViewDelegate {
                 let found = catalog.search(q)
                 results?.show(found, empty: "No emoji found")
             }
+            // Each search can draw emoji not seen yet (see GlyphCaches).
+            GlyphCaches.trimIfGrown()
         }
         emojiSearch = (field, results)
         input = inp

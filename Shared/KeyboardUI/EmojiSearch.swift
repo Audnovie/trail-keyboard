@@ -141,6 +141,14 @@ final class EmojiResultsRow: UIView, UICollectionViewDataSource, UICollectionVie
         return c
     }
 
+    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        GlyphCaches.trimIfGrown()
+    }
+
+    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate { GlyphCaches.trimIfGrown() }
+    }
+
     func collectionView(_ cv: UICollectionView, didSelectItemAt ip: IndexPath) {
         guard ip.item < results.count else { return }
         UIDevice.current.playInputClick()
