@@ -79,6 +79,78 @@ final class BudgetTests: XCTestCase {
         }
     }
 
+    /// A full set of word pairs loads quickly, and swipes and suggestions after a word with a lot
+    /// of words learned after it stay quick.
+    func testFullSetOfWordPairs() {
+        let f = TestData.fixture("decoder.json")
+        let geo = geometry(f)
+        let lex = TestData.lexicon(["en", "es"], users: f["users"])
+        prepareShared(lex.enabled())
+        let W = TestData.list("en")
+        let U = lex.get("en")!.user
+        // 400 different words after "the"; the rest after other words.
+        var i = 0
+        while U.pairCount < MAX_PAIRS && i < 20000 {
+            let prev = U.pairCount < 400 ? "the" : W.display((i * 7) % W.size)
+            U.recordPair(prev, W.display((i * 13 + 5) % W.size), amount: Double(i % 3 + 1))
+            i += 1
+        }
+        XCTAssertEqual(U.pairCount, MAX_PAIRS)
+        XCTAssertGreaterThanOrEqual(U.followers("the").count, 390)
+
+        var t0 = Date()
+        let copy = UserWords(starters: STARTER_BLOCKS)
+        copy.load(U.saved())
+        let loadMs = Date().timeIntervalSince(t0) * 1000
+        XCTAssertEqual(copy.pairCount, MAX_PAIRS)
+
+        let engine = InputEngine(target: Editor(), view: nil, lex: lex, now: { 0 })
+        engine.onGeometry(geo.cx, geo.cy, geo.kw)
+        engine.start(TypingSettings())
+        t0 = Date()
+        let boost = engine.boostFor("the", "en")
+        let boostMs = Date().timeIntervalSince(t0) * 1000
+        XCTAssertNotNil(boost)
+
+        let dec = SwipeDecoder()
+        dec.setKeyCenters(geo.cx, geo.cy, geo.kw)
+        let sug = TypingSuggester()
+        sug.setKeyCenters(geo.cx, geo.cy, geo.kw)
+        let src = TestData.sources(lex, ctx: "en")
+        let cases = f["cases"].array.filter { $0["config"].string == "both-en" }
+        for c in cases.prefix(3) {
+            let xs = c["xs"].doubles
+            _ = dec.decode(xs, c["ys"].doubles, xs.count, src, max: 8, boost: boost)
+        }
+        var worstSwipe = 0.0
+        var totalSwipe = 0.0
+        for c in cases {
+            let xs = c["xs"].doubles
+            let ys = c["ys"].doubles
+            t0 = Date()
+            _ = dec.decode(xs, ys, xs.count, src, max: 8, boost: boost)
+            let ms = Date().timeIntervalSince(t0) * 1000
+            worstSwipe = max(worstSwipe, ms)
+            totalSwipe += ms
+        }
+        var worstType = 0.0
+        for typed in ["a", "s", "t", "th", "de", "qu", "helo", "thnaks", "definately", "co", "m"] {
+            t0 = Date()
+            _ = sug.suggest(typed, src, max: 6, boost: boost)
+            worstType = max(worstType, Date().timeIntervalSince(t0) * 1000)
+        }
+        print(String(format: "BUDGET word pairs: %d loaded in %.1f ms; lifts after a word with %d words after it in %.2f ms",
+                     MAX_PAIRS, loadMs, U.followers("the").count, boostMs))
+        print(String(format: "BUDGET swipe with those lifts: %.1f ms average, %.1f ms worst over %d swipes; typing suggestions %.1f ms worst",
+                     totalSwipe / Double(cases.count), worstSwipe, cases.count, worstType))
+        #if !DEBUG
+        XCTAssertLessThan(loadMs, 200, "loading the word pairs took too long")
+        XCTAssertLessThan(boostMs, 20, "working out the lifts took too long")
+        XCTAssertLessThan(worstSwipe, 120, "a swipe took too long to read")
+        XCTAssertLessThan(worstType, 60, "suggestions took too long")
+        #endif
+    }
+
     /// Learned words beyond what the keyboard keeps still load and stay quick.
     func testManyLearnedWords() {
         let U = UserWords()
