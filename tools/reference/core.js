@@ -176,6 +176,41 @@ var Trail = (function () {
   const NEW_WORD_ACTIVE_USES = 2;
   const ADDED_WORD_ZIPF = 3.4;
   const STARTER_BLOCKS = ['Java', 'Cleo', 'haba', "Hab's"];
+  /** Word pairs: how much a word you've written after the one before the cursor is lifted, in
+   *  zipf units (PAIR_WEIGHT * ln(1 + times), at most PAIR_MAX_BONUS), and how many are kept. */
+  const PAIR_WEIGHT = 0.7;
+  const PAIR_MAX_BONUS = 2;
+  const MAX_PAIRS = 2000;
+
+  /** A word as one side of a pair: lower case, straight apostrophes. */
+  function pairForm(word) {
+    return word.toLowerCase().replace(/’/g, "'");
+  }
+
+  function pairBonusOf(count) {
+    return Math.min(PAIR_MAX_BONUS, PAIR_WEIGHT * Math.log(1 + count));
+  }
+
+  /**
+   * The word right before the end of `text` (in pair form), or null when there's none or
+   * something other than spaces comes between (punctuation and new lines end a pair).
+   * @param needSpace the word must be followed by at least one space
+   */
+  function wordBefore(text, needSpace) {
+    let end = text.length;
+    while (end > 0 && text[end - 1] === ' ') end--;
+    if (needSpace && end === text.length) return null;
+    let start = end;
+    while (start > 0) {
+      const c = text[start - 1];
+      if (!isLetter(c) && c !== "'" && c !== '’') break;
+      start--;
+    }
+    while (start < end && (text[start] === "'" || text[start] === '’')) start++;
+    while (end > start && (text[end - 1] === "'" || text[end - 1] === '’')) end--;
+    const w = text.slice(start, end);
+    return isLearnable(w) ? pairForm(w) : null;
+  }
 
   /** Only plain words: letters with an optional inner apostrophe. */
   function isLearnable(word) {
@@ -210,13 +245,15 @@ var Trail = (function () {
     }
   }
 
-  /** One language's learned words and never-suggest list. */
+  /** One language's learned words, word pairs and never-suggest list. */
   class UserWords {
     /** @param starters words blocked from the start (removable in settings) */
     constructor(starters) {
       this.starters = starters || STARTER_BLOCKS;
       this.entries = new Map();
       this.blocked = new Map();
+      /** "prev next" -> {prev, next, count}, least recently used first. */
+      this.pairs = new Map();
       this.version = 0;
       this.onChange = null;
       for (const w of this.starters) this.blocked.set(w.toLowerCase(), w);
@@ -348,12 +385,78 @@ var Trail = (function () {
       return this.entries.size;
     }
 
+    // ---- word pairs: which word you write after which ----
+
+    /** You wrote `next` right after `prev` (amount 2 when you picked it over a wrong guess). */
+    recordPair(prev, next, amount) {
+      if (!isLearnable(prev) || !isLearnable(next) || this.isBlocked(next)) return;
+      const k = pairForm(prev) + ' ' + pairForm(next);
+      let p = this.pairs.get(k);
+      if (p) this.pairs.delete(k);
+      else p = { prev: pairForm(prev), next, count: 0 };
+      p.count = Math.min(p.count + amount, 100000);
+      this.pairs.set(k, p);
+      while (this.pairs.size > MAX_PAIRS) this.pairs.delete(this.pairs.keys().next().value);
+      this.changed();
+    }
+
+    /** `next` after `prev` was a wrong guess: count it once less (gone at nothing). */
+    weakenPair(prev, next) {
+      const k = pairForm(prev) + ' ' + pairForm(next);
+      const p = this.pairs.get(k);
+      if (!p) return;
+      p.count -= 1;
+      if (p.count <= 0) this.pairs.delete(k);
+      this.changed();
+    }
+
+    forgetPair(prev, next) {
+      if (this.pairs.delete(pairForm(prev) + ' ' + pairForm(next))) this.changed();
+    }
+
+    clearPairs() {
+      if (this.pairs.size > 0) {
+        this.pairs.clear();
+        this.changed();
+      }
+    }
+
+    /** Words you've written after `prev`, most often first (then most recently). */
+    followers(prev) {
+      const a = pairForm(prev);
+      const list = [];
+      let i = 0;
+      for (const p of this.pairs.values()) {
+        if (p.prev === a) list.push({ p, i });
+        i++;
+      }
+      list.sort((x, y) => (y.p.count !== x.p.count ? y.p.count - x.p.count : y.i - x.i));
+      return list.map((x) => x.p);
+    }
+
+    /** Every pair, most used first (then alphabetically). */
+    allPairs() {
+      const list = Array.from(this.pairs.values());
+      list.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        const x = a.prev + ' ' + pairForm(a.next);
+        const y = b.prev + ' ' + pairForm(b.next);
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+      return list;
+    }
+
+    pairCount() {
+      return this.pairs.size;
+    }
+
     toJSON(maxEntries) {
       let list = this.all();
       if (maxEntries && list.length > maxEntries) list = list.slice(0, maxEntries);
       return {
         learned: list.map((e) => [e.word, Math.round(e.uses * 10) / 10, e.rejects, e.added ? 1 : 0]),
         blocked: this.blockedWords(),
+        pairs: Array.from(this.pairs.values()).map((p) => [p.prev, p.next, Math.round(p.count * 10) / 10]),
       };
     }
 
@@ -377,6 +480,17 @@ var Trail = (function () {
       } else {
         for (const w of this.starters) this.blocked.set(w.toLowerCase(), w);
       }
+      this.pairs.clear();
+      const pairs = data && Array.isArray(data.pairs) ? data.pairs : [];
+      for (const row of pairs) {
+        if (!Array.isArray(row) || !isLearnable(row[0]) || !isLearnable(row[1])) continue;
+        const count = Math.min(Number(row[2]) || 0, 100000);
+        if (!(count > 0)) continue;
+        const k = pairForm(row[0]) + ' ' + pairForm(row[1]);
+        this.pairs.delete(k);
+        this.pairs.set(k, { prev: pairForm(row[0]), next: row[1], count });
+      }
+      while (this.pairs.size > MAX_PAIRS) this.pairs.delete(this.pairs.keys().next().value);
       this.version++;
     }
   }
@@ -445,6 +559,31 @@ var Trail = (function () {
   }
 
   /** Blocked in the word's own language, or (for another language's word) in the one you're writing in. */
+  /**
+   * Word pairs at work: lifts by word id in S's list for the words you've written after the
+   * word before the cursor, when S is the language you're writing in (null otherwise).
+   * @param boost {lang, byWord: Map(pair form -> lift)} or null
+   */
+  function liftsFor(S, P, boost) {
+    if (!boost || S !== P || S.lang !== boost.lang) return null;
+    const out = new Map();
+    for (const [w, b] of boost.byWord) {
+      const key = keyOf(w);
+      if (!key) continue;
+      for (const id of S.words.withKey(key)) {
+        if (pairForm(S.words.display[id]) === w) out.set(id, b);
+      }
+    }
+    return out;
+  }
+
+  /** The same lift for a word you taught it (not in the list). */
+  function liftOfWord(S, P, boost, word) {
+    if (!boost || S !== P || S.lang !== boost.lang) return 0;
+    const b = boost.byWord.get(pairForm(word));
+    return b === undefined ? 0 : b;
+  }
+
   function blockedIn(S, P, word) {
     if (S.user && S.user.isBlocked(word)) return true;
     return isForeign(S, P) && !!P.user && P.user.isBlocked(word);
@@ -1076,7 +1215,8 @@ var Trail = (function () {
     }
 
     /** @returns {{word: string, cost: number, lang: string}[]} best first */
-    decode(xs, ys, count, sources, max) {
+    /** @param boost word pairs at work (see liftsFor), or null */
+    decode(xs, ys, count, sources, max, boost) {
       const out = [];
       if (!this.hasGeometry || count < 2 || !sources || !sources.length) return out;
       const p = this.params;
@@ -1124,6 +1264,7 @@ var Trail = (function () {
         const W = S.words;
         const bias = S.bias || 0;
         const shared = isForeign(S, P) ? sharedWith(W, P.words) : null;
+        const lifts = liftsFor(S, P, boost || null);
         for (let f = 0; f < 26; f++) {
           if (!startOk[f]) continue;
           for (let l = 0; l < 26; l++) {
@@ -1134,6 +1275,10 @@ var Trail = (function () {
               if (shared !== null && shared[id] === 1) continue;
               let prior = p.wFreq * (W.score[id] / 100 + bias);
               if (S.user) prior += p.wUser * bonusIn(S, P, W.display[id]);
+              if (lifts !== null) {
+                const l = lifts.get(id);
+                if (l !== undefined) prior += p.wUser * l;
+              }
               c = this.consider(si * SRC_SHIFT + id, W.keys[id], prior, gLen, c);
             }
           }
@@ -1151,7 +1296,9 @@ var Trail = (function () {
           if (foreign && P.words.find(e.word) >= 0) continue;
           if (!startOk[key.charCodeAt(0) - 97] || !endOk[key.charCodeAt(key.length - 1) - 97]) continue;
           added.push({ word: e.word, key, si });
-          const prior = p.wFreq * (ADDED_WORD_ZIPF + (S.bias || 0)) + p.wUser * bonusIn(S, P, e.word);
+          let prior = p.wFreq * (ADDED_WORD_ZIPF + (S.bias || 0)) + p.wUser * bonusIn(S, P, e.word);
+          const l = liftOfWord(S, P, boost || null, e.word);
+          if (l !== 0) prior += p.wUser * l;
           c = this.consider(-added.length, key, prior, gLen, c);
         }
       }
@@ -1379,10 +1526,14 @@ var Trail = (function () {
      * Ranked suggestions for a word in progress, best first, never blocked words.
      * @param sources one per language: {words, user, bias, lang}
      */
-    suggest(typed, sources, max) {
+    /** @param boost word pairs at work (see liftsFor), or null */
+    suggest(typed, sources, max, boost) {
       const key = keyOf(typed);
       if (!key) return [];
       const P = primaryOf(sources);
+      boost = boost || null;
+      // A lower-case word that a list has only in capitals ("amd": AMD) may still be a slip.
+      const lowerTyped = typed === typed.toLowerCase();
       const best = new Map();
       const add = (S, word, score, kind, cost) => {
         if (blockedIn(S, P, word)) return;
@@ -1399,10 +1550,17 @@ var Trail = (function () {
         const foreign = isForeign(S, P);
         const shared = foreign ? sharedWith(W, P.words) : null;
         const bonus = (word) => bonusIn(S, P, word);
+        const lifts = liftsFor(S, P, boost);
+        const lift = (id) => {
+          if (lifts === null) return 0;
+          const l = lifts.get(id);
+          return l === undefined ? 0 : l;
+        };
         for (const id of W.withKey(key)) {
           if (shared !== null && shared[id] === 1) continue;
-          add(S, W.display[id], W.score[id] / 100 + bias + bonus(W.display[id]) + 2, EXACT, 0);
-          exact = true;
+          const d = W.display[id];
+          add(S, d, W.score[id] / 100 + bias + bonus(d) + lift(id) + 2, EXACT, 0);
+          if (!(lowerTyped && d === d.toUpperCase() && d !== d.toLowerCase())) exact = true;
         }
         const range = W.prefixRange(key);
         let scanned = 0;
@@ -1411,7 +1569,7 @@ var Trail = (function () {
           if (W.keys[id].length === key.length) continue;
           if (shared !== null && shared[id] === 1) continue;
           const extra = W.keys[id].length - key.length;
-          add(S, W.display[id], W.score[id] / 100 + bias + bonus(W.display[id]) - 0.4 - 0.05 * extra, COMPLETION, 0);
+          add(S, W.display[id], W.score[id] / 100 + bias + bonus(W.display[id]) + lift(id) - 0.4 - 0.05 * extra, COMPLETION, 0);
         }
         if (user) {
           for (const e of user.activeAdded()) {
@@ -1419,9 +1577,9 @@ var Trail = (function () {
             const k = keyOf(e.word);
             if (k === key) {
               exact = true;
-              add(S, e.word, ADDED_WORD_ZIPF + bias + bonus(e.word) + 2, EXACT, 0);
+              add(S, e.word, ADDED_WORD_ZIPF + bias + bonus(e.word) + liftOfWord(S, P, boost, e.word) + 2, EXACT, 0);
             } else if (k.startsWith(key)) {
-              add(S, e.word, ADDED_WORD_ZIPF + bias + bonus(e.word) - 0.4, COMPLETION, 0);
+              add(S, e.word, ADDED_WORD_ZIPF + bias + bonus(e.word) + liftOfWord(S, P, boost, e.word) - 0.4, COMPLETION, 0);
             }
           }
         }
@@ -1434,6 +1592,7 @@ var Trail = (function () {
           const W = S.words;
           const bias = S.bias || 0;
           const shared = isForeign(S, P) ? sharedWith(W, P.words) : null;
+          const lifts = liftsFor(S, P, boost);
           for (let f = 0; f < 26; f++) {
             if (f !== first && (!this.hasGeometry || this.keyDist[first * 26 + f] > 1.25)) continue;
             const ids = W.withFirst(f);
@@ -1444,7 +1603,12 @@ var Trail = (function () {
               if (Math.abs(k.length - key.length) > 2) continue;
               const cost = this.editCost(key, k, limit);
               if (cost > limit) continue;
-              add(S, W.display[id], W.score[id] / 100 + bias + bonusIn(S, P, W.display[id]) - 1.5 * cost, CORRECTION, cost);
+              let l = 0;
+              if (lifts !== null) {
+                const v = lifts.get(id);
+                if (v !== undefined) l = v;
+              }
+              add(S, W.display[id], W.score[id] / 100 + bias + bonusIn(S, P, W.display[id]) + l - 1.5 * cost, CORRECTION, cost);
             }
           }
         }
@@ -1628,12 +1792,22 @@ var Trail = (function () {
   const SLOT_GEAR = -1;
   const PROMPT_YES = 10;
   const PROMPT_NO = 11;
+  const PROMPT_LESS = 12;
+  /** The buttons of the two prompts: [label, slot]. */
+  const WORD_PROMPT = [['Less often', PROMPT_LESS], ['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
+  const PAIR_PROMPT = [['Forget', PROMPT_YES], ['Cancel', PROMPT_NO]];
   const SHIFT_OFF = 0;
   const SHIFT_ON = 1;
   const SHIFT_LOCK = 2;
   const STRIP_NONE = 0;
   const STRIP_TYPED = 1;
   const STRIP_GESTURE = 2;
+  /** Your usual next words, after a space. */
+  const STRIP_NEXT = 3;
+  /** A word that may be misspelled (in red), with fixes, after a space. */
+  const STRIP_FLAG = 4;
+  /** What you typed before an automatic fix, offered after backspacing to the fixed word. */
+  const STRIP_UNDO = 5;
 
   function needsSpaceBefore(c) {
     return !/\s/.test(c) && '([{"\'“‘/-@#\n¿¡'.indexOf(c) < 0;
@@ -1666,7 +1840,7 @@ var Trail = (function () {
       this.now = now || (() => Date.now());
       this.decoder = new SwipeDecoder();
       this.suggester = new TypingSuggester();
-      this.settings = { swipe: true, smartFix: true, autocorrect: false, doubleSpace: true, learn: true, typingLang: 'auto' };
+      this.settings = { swipe: true, smartFix: true, autocorrect: true, doubleSpace: true, learn: true, pairs: true, typingLang: 'auto' };
       /** The language you were last writing in, used until the words before the cursor say otherwise. */
       this.lastLang = 'en';
       this.canSuggest = true;
@@ -1695,11 +1869,25 @@ var Trail = (function () {
       this.stripLang = [null, null, null];
       this.blockCandidate = null;
       this.blockLang = null;
+      /** 'word' (less often or never) or 'pair' (forget a word pair). */
+      this.promptKind = 'word';
+      this.promptPrev = null;
+      /** The word before the next-word suggestions. */
+      this.nextPrev = null;
+      /** The red word: {literal, ctx, prev}. */
+      this.flag = null;
       this.spaceAfterPick = false;
       this.lastSpaceTime = -1e9;
       this.revertFrom = null;
       this.revertTo = null;
       this.revertLang = null;
+      /** The fix's language, the word before it (for word pairs), and whether what you typed
+       *  started with a capital only because of sentence-start shift. */
+      this.revertFixLang = null;
+      this.revertPrev = null;
+      this.revertAutoCap = false;
+      /** The last tapped word committed: {literal, ctx, prev, changed}. */
+      this.lastCommit = null;
       this.deletedGestureWord = null;
       this.deletedGestureLang = null;
       this.deletedGestureTime = 0;
@@ -1821,6 +2009,54 @@ var Trail = (function () {
       return ctx;
     }
 
+    // ---- word pairs ----
+
+    /** Up to `limit` characters before the cursor, or before the word being composed. */
+    textBefore(beforeComposing, limit) {
+      const end = beforeComposing && this.ic.cs >= 0 ? this.ic.cs : this.ic.sel;
+      return this.ic.text.slice(Math.max(0, end - limit), end);
+    }
+
+    /** The word before the one being composed (tapped or swiped), with a space between. */
+    prevBeforeComposing() {
+      return wordBefore(this.textBefore(true, 60), true);
+    }
+
+    /** The word before the cursor, with a space after it. */
+    prevAtCursor() {
+      return wordBefore(this.textBefore(false, 60), true);
+    }
+
+    /** The word a swipe follows: what's before the cursor, composing or not (a space goes between). */
+    prevForSwipe() {
+      return wordBefore(this.textBefore(false, 60), false);
+    }
+
+    /** What the word before says about the next one, in the language you're writing in (or null). */
+    boostFor(prev, ctx) {
+      if (!this.settings.pairs || !prev || !ctx) return null;
+      const L = this.lex.get(ctx);
+      if (!L || !L.words) return null;
+      const byWord = new Map();
+      for (const p of L.user.followers(prev)) {
+        if (L.user.isBlocked(p.next)) continue;
+        byWord.set(pairForm(p.next), pairBonusOf(p.count));
+      }
+      return byWord.size > 0 ? { lang: ctx, byWord } : null;
+    }
+
+    learnPair(prev, word, amount, code) {
+      if (!prev || !word || !this.settings.pairs || !this.learning()) return;
+      const L = this.lex.get(code);
+      if (L) L.user.recordPair(prev, word, amount);
+    }
+
+    weakenPair(prev, word, code) {
+      if (!prev || !word || !this.settings.pairs || !this.learning()) return;
+      const L = this.lex.get(code);
+      if (L) L.user.weakenPair(prev, word);
+    }
+
     /** The typing language or the languages switched on changed: redo the word being tapped out. */
     refreshSuggestions() {
       if (this.stripKind === STRIP_TYPED && this.typed.length > 0) this.showTypedSuggestions();
@@ -1926,18 +2162,12 @@ var Trail = (function () {
       if (this.revertFrom !== null && this.revertTo !== null) {
         const b = ic.getTextBeforeCursor(this.revertFrom.length + 1);
         if (b === this.revertFrom + ' ') {
-          // Undo the automatic fix: put back exactly what you typed.
-          ic.deleteSurroundingText(this.revertFrom.length + 1, 0);
-          ic.commitText(this.revertTo);
-          if (this.learning()) {
-            this.recordReject(this.revertFrom, this.revertLang);
-            if (this.revertTo.length >= 2) {
-              const lang = this.langOfTyped(this.revertTo, this.contextLang());
-              this.recordUse(this.learnForm(this.revertTo, false, lang), 1, lang);
-            }
-          }
-          this.revertFrom = null;
-          this.revertTo = null;
+          // Back to the fixed word: the space goes as usual, and what you typed is offered.
+          ic.deleteSurroundingText(1, 0);
+          this.afterGesture = false;
+          this.spaceAfterPick = false;
+          this.showUndo();
+          this.updateShift();
           return;
         }
         this.revertFrom = null;
@@ -1960,7 +2190,7 @@ var Trail = (function () {
       if (!this.canSwipe || !this.decoder.ready()) return;
       const ctx = this.contextLang();
       if (!ctx) return;
-      const res = this.decoder.decode(xs, ys, count, this.sources(ctx), 8);
+      const res = this.decoder.decode(xs, ys, count, this.sources(ctx), 8, this.boostFor(this.prevForSwipe(), ctx));
       this.ic.beginBatchEdit();
       try {
         this.swipeInner(this.ic, res, path, ctx);
@@ -2048,8 +2278,8 @@ var Trail = (function () {
         this.view.openSettings();
         return;
       }
-      if (slot === PROMPT_YES || slot === PROMPT_NO) {
-        this.answerPrompt(slot === PROMPT_YES);
+      if (slot === PROMPT_YES || slot === PROMPT_NO || slot === PROMPT_LESS) {
+        this.answerPrompt(slot);
         return;
       }
       if (slot < 0 || slot > 2 || this.stripText[slot] == null) return;
@@ -2069,6 +2299,7 @@ var Trail = (function () {
         if (chosen === this.gestureWord) {
           this.finalizeGesture();
         } else {
+          const prev = this.prevBeforeComposing();
           ic.setComposingText(chosen);
           ic.finishComposingText();
           if (this.onCorrection) {
@@ -2081,6 +2312,9 @@ var Trail = (function () {
             this.recordUse(base, 2, lang);
             // Rejected while writing in gestureCtx: that's where it should come up less.
             this.recordReject(this.gestureBase, this.gestureCtx || this.gestureLang);
+            // After this word, the one you picked is likelier and the guess less likely.
+            this.learnPair(prev, base, 2, lang);
+            this.weakenPair(prev, this.gestureBase, this.gestureCtx || this.gestureLang);
           }
           this.gestureWord = null;
           this.gestureBase = null;
@@ -2097,15 +2331,19 @@ var Trail = (function () {
       }
       if (this.stripKind === STRIP_TYPED && this.typed.length > 0) {
         const literal = this.typed;
+        const prev = this.prevBeforeComposing();
         ic.setComposingText(chosen);
         ic.finishComposingText();
         if (this.learning()) {
           if (chosen === literal) {
             if (literal.length >= 2 || this.inBase(literal, lang)) {
-              this.recordUse(this.learnForm(literal, this.typedFirstAutoCap, lang), 1, lang);
+              const form = this.learnForm(literal, this.typedFirstAutoCap, lang);
+              this.recordUse(form, 1, lang);
+              this.learnPair(prev, form, 1, lang);
             }
           } else {
             this.recordUse(base, 2, lang);
+            this.learnPair(prev, base, 2, lang);
           }
         }
         this.typed = '';
@@ -2114,26 +2352,131 @@ var Trail = (function () {
         this.stripKind = STRIP_NONE;
         this.view.clearStrip();
         this.updateShift();
+        this.showNextWords();
+        return;
+      }
+      if (this.stripKind === STRIP_NEXT) {
+        // One of your usual next words: typed with a space after.
+        const prev = this.nextPrev;
+        ic.commitText(chosen + ' ');
+        if (this.learning()) {
+          this.recordUse(base, 1, lang);
+          this.learnPair(prev, base, 1, lang);
+        }
+        this.deletedGestureWord = null;
+        this.afterGesture = false;
+        this.spaceAfterPick = true;
+        this.stripKind = STRIP_NONE;
+        this.view.clearStrip();
+        this.updateShift();
+        this.showNextWords();
+        return;
+      }
+      if (this.stripKind === STRIP_FLAG && this.flag !== null) {
+        const f = this.flag;
+        this.flag = null;
+        this.stripKind = STRIP_NONE;
+        this.view.clearStrip();
+        const litLang = this.langOfTyped(f.literal, f.ctx);
+        if (slot === 0) {
+          // You meant it: it counts as a word from now on.
+          if (this.learning()) this.recordUse(this.learnForm(f.literal, false, litLang), 1, litLang);
+          this.showNextWords();
+          return;
+        }
+        if (ic.getTextBeforeCursor(f.literal.length + 1) !== f.literal + ' ') return;
+        ic.deleteSurroundingText(f.literal.length + 1, 0);
+        ic.commitText(chosen + ' ');
+        if (this.learning()) {
+          // Take back what typing it taught, and learn the fix.
+          const form = this.learnForm(f.literal, false, litLang);
+          const L = this.lex.get(litLang);
+          const e = L ? L.user.get(form) : null;
+          if (e !== null && e.added && e.uses <= 1) L.user.remove(form);
+          this.weakenPair(f.prev, form, litLang);
+          this.recordUse(base, 2, lang);
+          this.learnPair(f.prev, base, 2, lang);
+        }
+        this.deletedGestureWord = null;
+        this.afterGesture = false;
+        this.spaceAfterPick = true;
+        this.updateShift();
+        this.showNextWords();
+        return;
+      }
+      if (this.stripKind === STRIP_UNDO && this.revertFrom !== null && this.revertTo !== null) {
+        const from = this.revertFrom;
+        const to = this.revertTo;
+        this.revertFrom = null;
+        this.revertTo = null;
+        this.stripKind = STRIP_NONE;
+        this.view.clearStrip();
+        if (ic.getTextBeforeCursor(from.length) !== from) return;
+        if (slot === 0) {
+          // Put back exactly what you typed. One undo is enough: it isn't fixed again.
+          ic.deleteSurroundingText(from.length, 0);
+          ic.commitText(to + ' ');
+          if (this.learning()) {
+            this.recordReject(from, this.revertLang);
+            this.weakenPair(this.revertPrev, from, this.revertFixLang);
+            if (to.length >= 2) {
+              const tl = this.langOfTyped(to, this.contextLang());
+              const form = this.learnForm(to, this.revertAutoCap, tl);
+              this.recordUse(form, 2, tl);
+              this.learnPair(this.revertPrev, form, 1, tl);
+            }
+          }
+        } else {
+          ic.commitText(' ');
+        }
+        this.afterGesture = false;
+        this.spaceAfterPick = true;
+        this.updateShift();
+        this.showNextWords();
       }
     }
 
     onStripLongPress(slot) {
       if (slot < 0 || slot > 2 || this.stripBase[slot] == null) return;
+      if (this.stripKind === STRIP_NEXT) {
+        if (this.nextPrev === null) return;
+        this.promptKind = 'pair';
+        this.promptPrev = this.nextPrev;
+        this.blockCandidate = this.stripBase[slot];
+        this.blockLang = this.stripLang[slot];
+        this.view.setPrompt('“' + this.blockCandidate + '” after “' + this.nextPrev + '”', PAIR_PROMPT);
+        return;
+      }
+      this.promptKind = 'word';
       this.blockCandidate = this.stripBase[slot];
-      // Blocked in the language you're writing in: blocking a Spanish word that turned up in
-      // English leaves it alone for Spanish.
+      // In the language you're writing in: a Spanish word that turned up in English stays as it
+      // is for Spanish.
       this.blockLang = (this.stripKind === STRIP_GESTURE && this.gestureCtx) || this.contextLang() || this.stripLang[slot];
       const L = this.lex.get(this.blockLang);
       const where = this.lex.enabled().length > 1 && L ? ' in ' + L.name : '';
-      this.view.setPrompt('Never suggest “' + this.blockCandidate + '”' + where + '?');
+      this.view.setPrompt('“' + this.blockCandidate + '”' + where, WORD_PROMPT);
     }
 
-    answerPrompt(yes) {
+    /** @param choice PROMPT_LESS, PROMPT_YES (never / forget) or PROMPT_NO */
+    answerPrompt(choice) {
       const word = this.blockCandidate;
       const code = this.blockLang;
       this.blockCandidate = null;
-      this.view.setPrompt(null);
-      if (yes && word !== null) {
+      this.view.setPrompt(null, []);
+      if (this.promptKind === 'pair') {
+        if (choice === PROMPT_YES && word !== null && this.promptPrev !== null) {
+          const L = this.lex.get(code);
+          if (L) L.user.forgetPair(this.promptPrev, word);
+        }
+        if (this.stripKind === STRIP_NEXT) this.showNextWords();
+        return;
+      }
+      if (choice === PROMPT_LESS && word !== null) {
+        // As if you'd corrected it twice; picking it yourself later brings it back.
+        this.recordReject(word, code);
+        this.recordReject(word, code);
+      }
+      if (choice === PROMPT_YES && word !== null) {
         const L = this.lex.get(code);
         if (L) L.user.block(word);
         if (this.stripKind === STRIP_GESTURE && this.gestureWord !== null && this.gestureResults !== null) {
@@ -2158,13 +2501,16 @@ var Trail = (function () {
       }
       if (this.stripKind === STRIP_GESTURE) this.showGestureStrip();
       else if (this.stripKind === STRIP_TYPED) this.showTypedSuggestions();
-      else this.view.clearStrip();
+      else {
+        this.stripKind = STRIP_NONE;
+        this.view.clearStrip();
+      }
     }
 
     dismissPrompt() {
       if (this.blockCandidate !== null) {
         this.blockCandidate = null;
-        this.view.setPrompt(null);
+        this.view.setPrompt(null, []);
       }
     }
 
@@ -2297,6 +2643,7 @@ var Trail = (function () {
         this.afterGesture = false;
         this.lastSpaceTime = now;
         this.updateShift();
+        this.showNextWords();
         return;
       }
       if (this.typed.length > 0) {
@@ -2304,6 +2651,8 @@ var Trail = (function () {
         ic.commitText(' ');
         this.lastSpaceTime = now;
         this.updateShift();
+        const c = this.lastCommit;
+        if (c === null || c.changed || !this.showFlag(c.literal, c.ctx, c.prev)) this.showNextWords();
         return;
       }
       if (this.spaceAfterPick) {
@@ -2319,6 +2668,10 @@ var Trail = (function () {
           ic.commitText('. ');
           this.lastSpaceTime = -1e9;
           this.afterGesture = false;
+          if (this.stripKind !== STRIP_NONE) {
+            this.stripKind = STRIP_NONE;
+            this.view.clearStrip();
+          }
           this.updateShift();
           return;
         }
@@ -2327,6 +2680,7 @@ var Trail = (function () {
       this.lastSpaceTime = now;
       this.afterGesture = false;
       this.updateShift();
+      this.showNextWords();
     }
 
     handleEnter() {
@@ -2353,13 +2707,16 @@ var Trail = (function () {
     }
 
     finalizeGesture() {
+      const prev = this.prevBeforeComposing();
       this.ic.finishComposingText();
       if (this.learning() && this.gestureBase !== null) {
         this.recordUse(this.gestureBase, 1, this.gestureLang);
+        this.learnPair(prev, this.gestureBase, 1, this.gestureLang);
         if (this.deletedGestureWord !== null && this.now() - this.deletedGestureTime < 20000 &&
             this.deletedGestureWord.toLowerCase() !== this.gestureBase.toLowerCase()) {
           // You deleted a swiped word and swiped again: the first guess was wrong.
           this.recordReject(this.deletedGestureWord, this.deletedGestureLang);
+          this.weakenPair(prev, this.deletedGestureWord, this.deletedGestureLang);
         }
       }
       this.deletedGestureWord = null;
@@ -2380,14 +2737,18 @@ var Trail = (function () {
       const ic = this.ic;
       const literal = this.typed;
       const ctx = this.contextLang();
+      const prev = this.prevBeforeComposing();
       this.typed = '';
-      const fix = this.decideTypedCommit(literal, ctx);
+      const fix = this.decideTypedCommit(literal, ctx, prev);
       const commit = fix.text;
       if (commit !== literal) {
         ic.setComposingText(commit);
         this.revertFrom = commit;
         this.revertTo = literal;
         this.revertLang = ctx;
+        this.revertFixLang = fix.lang;
+        this.revertPrev = prev;
+        this.revertAutoCap = this.typedFirstAutoCap;
       } else {
         this.revertFrom = null;
         this.revertTo = null;
@@ -2396,15 +2757,20 @@ var Trail = (function () {
       if (this.learning()) {
         const lang = commit === literal ? this.langOfTyped(literal, ctx) : fix.lang;
         const base = commit === literal ? this.learnForm(literal, this.typedFirstAutoCap, lang) : this.baseFormOf(commit, lang);
-        if (isLearnable(base) && (base.length >= 2 || this.inBase(base, lang))) this.recordUse(base, 1, lang);
+        if (isLearnable(base) && (base.length >= 2 || this.inBase(base, lang))) {
+          this.recordUse(base, 1, lang);
+          this.learnPair(prev, base, 1, lang);
+        }
       }
+      this.lastCommit = { literal, ctx, prev, changed: commit !== literal };
       this.deletedGestureWord = null;
       this.stripKind = STRIP_NONE;
       this.view.clearStrip();
     }
 
     /** What pressing space turns the tapped word into: {text, lang} (lang null if unchanged). */
-    decideTypedCommit(literal, ctx) {
+    /** @param prev the word before it (for word pairs), if known */
+    decideTypedCommit(literal, ctx, prev) {
       const plain = { text: literal, lang: null };
       if (ctx === undefined) ctx = this.contextLang();
       if (!this.canSuggest || !ctx || !literal) return plain;
@@ -2452,17 +2818,58 @@ var Trail = (function () {
           }
         }
       }
-      if (this.settings.autocorrect && literal.length >= 2 && !srcs.some((S) => S.words.find(literal) >= 0) &&
-          !srcs.some((S) => this.isActiveAddedIn(literal, S))) {
-        const s = this.suggester.suggest(literal, srcs, 3);
-        if (s.length > 0) {
-          const top = s[0];
-          if ((top.kind === CORRECTION && top.cost <= 1.0) || top.kind === EXACT) {
-            return { text: withCaps(top.word, caps), lang: top.lang };
+      if (this.settings.autocorrect && literal.length >= 2 && !srcs.some((S) => this.isActiveAddedIn(literal, S))) {
+        const listed = srcs.filter((S) => S.words.find(literal) >= 0);
+        const slip = listed.length > 0 && this.isAbbreviationSlip(literal, listed, srcs);
+        if (listed.length === 0 || slip) {
+          const boost = prev ? this.boostFor(prev, ctx) : null;
+          if (slip) {
+            const fix = this.slipFix(this.suggester.suggest(literal, srcs, 8, boost), listed, literal);
+            if (fix !== null) return { text: withCaps(fix.word, caps), lang: fix.lang };
+          } else {
+            for (const s of this.suggester.suggest(literal, srcs, 3, boost)) {
+              // The likeliest close fix: one passing over fixes that need more than one change,
+              // but not over a longer word starting with what you typed.
+              if (s.kind === COMPLETION) break;
+              if (s.kind === EXACT || s.cost <= 1.0) return { text: withCaps(s.word, caps), lang: s.lang };
+            }
           }
         }
       }
       return plain;
+    }
+
+    /** A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used. */
+    isAbbreviationSlip(literal, listed, srcs) {
+      if (literal.length > 4 || literal !== literal.toLowerCase()) return false;
+      for (const S of srcs) {
+        const e = S.user.get(literal);
+        if (e !== null && e.uses > 0) return false;
+      }
+      const key = keyOf(literal);
+      for (const S of listed) {
+        for (const id of S.words.withKey(key)) {
+          const d = S.words.display[id];
+          if (d.toLowerCase() === literal && d !== d.toUpperCase()) return false;
+        }
+      }
+      return true;
+    }
+
+    /** "amd" -> "and": one neighbouring key off a word at least 100 times as common, and
+     *  clearly the likeliest such word; null if there's none. */
+    slipFix(list, listed, literal) {
+      let own = -99;
+      for (const S of listed) {
+        const id = S.words.find(literal);
+        if (id >= 0) own = Math.max(own, S.words.score[id] / 100 + S.bias);
+      }
+      const near = list.filter((s) => s.kind === CORRECTION && s.cost <= 0.5);
+      if (near.length === 0) return null;
+      const z0 = near[0].score + 1.5 * near[0].cost;
+      if (z0 - own < 2) return null;
+      if (near.length > 1 && z0 - (near[1].score + 1.5 * near[1].cost) < 1) return null;
+      return near[0];
     }
 
     // ---- suggestion strip ----
@@ -2505,9 +2912,10 @@ var Trail = (function () {
       this.stripKind = STRIP_TYPED;
       const literal = this.typed;
       const caps = capsOf(literal);
-      const fix = this.decideTypedCommit(literal, ctx);
+      const prev = this.prevBeforeComposing();
+      const fix = this.decideTypedCommit(literal, ctx, prev);
       const onSpace = fix.text;
-      const list = this.suggester.suggest(literal, this.sources(ctx), 6);
+      const list = this.suggester.suggest(literal, this.sources(ctx), 6, this.boostFor(prev, ctx));
       const alts = [];
       for (const s of list) {
         if (s.word.toLowerCase() === literal.toLowerCase() || s.word.toLowerCase() === onSpace.toLowerCase()) continue;
@@ -2528,6 +2936,72 @@ var Trail = (function () {
       this.setSlot(1, literal, literal, literalLang);
       this.setSlot(2, a1 && a1.word, a1 === null ? null : withCaps(a1.word, caps), a1 && a1.lang);
       this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], 1);
+    }
+
+    /** Your usual next words after the word before the cursor (or an empty bar). */
+    showNextWords() {
+      const prev = this.canSuggest && this.settings.pairs ? this.prevAtCursor() : null;
+      const ctx = prev === null ? null : this.contextLang();
+      const L = ctx ? this.lex.get(ctx) : null;
+      const words = [];
+      if (L && L.words) {
+        for (const p of L.user.followers(prev)) {
+          if (L.user.isBlocked(p.next)) continue;
+          words.push(p.next);
+          if (words.length === 3) break;
+        }
+      }
+      if (words.length === 0) {
+        if (this.stripKind !== STRIP_NONE) {
+          this.stripKind = STRIP_NONE;
+          this.view.clearStrip();
+        }
+        return;
+      }
+      const caps = this.capChars || this.shift === SHIFT_LOCK ? 2 : this.shift === SHIFT_ON ? 1 : 0;
+      this.stripKind = STRIP_NEXT;
+      this.nextPrev = prev;
+      // The likeliest in the middle, like the other suggestions.
+      const order = [words.length > 1 ? words[1] : null, words[0], words.length > 2 ? words[2] : null];
+      for (let i = 0; i < 3; i++) this.setSlot(i, order[i], order[i] === null ? null : withCaps(order[i], caps), ctx);
+      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], -1, -1);
+    }
+
+    /**
+     * After a space: a tapped word that isn't one (not in a list, not yours) is shown in red with
+     * the closest fixes. False (nothing shown) when it's a word or nothing is close.
+     */
+    showFlag(literal, ctx, prev) {
+      if (!this.canSuggest || !ctx || literal.length < 2 || !isLearnable(literal) || capsOf(literal) === 2) return false;
+      const srcs = this.sources(ctx);
+      for (const S of srcs) {
+        if (S.words.find(literal) >= 0) return false;
+        const e = S.user.get(literal);
+        if (e !== null && e.uses >= NEW_WORD_ACTIVE_USES) return false;
+      }
+      const found = this.suggester.suggest(literal, srcs, 6, this.boostFor(prev, ctx));
+      // Fixes one mistake away first, then the rest, each in the suggester's order.
+      const fixes = found.filter((x) => x.kind === CORRECTION && x.cost <= 1.0)
+        .concat(found.filter((x) => x.kind === CORRECTION && x.cost > 1.0));
+      if (fixes.length === 0) return false;
+      const caps = capsOf(literal);
+      this.stripKind = STRIP_FLAG;
+      this.flag = { literal, ctx, prev };
+      this.setSlot(0, null, literal, null);
+      this.setSlot(1, fixes[0].word, withCaps(fixes[0].word, caps), fixes[0].lang);
+      const f2 = fixes.length > 1 ? fixes[1] : null;
+      this.setSlot(2, f2 && f2.word, f2 === null ? null : withCaps(f2.word, caps), f2 && f2.lang);
+      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], -1, 0);
+      return true;
+    }
+
+    /** Backspaced to an automatically fixed word: what you typed, and the fix. */
+    showUndo() {
+      this.stripKind = STRIP_UNDO;
+      this.setSlot(0, null, this.revertTo, this.revertLang);
+      this.setSlot(1, null, this.revertFrom, this.revertLang);
+      this.setSlot(2, null, null, null);
+      this.view.setSuggestions('“' + this.revertTo + '”', this.revertFrom, null, 1, -1);
     }
 
     setSlot(i, base, text, lang) {
@@ -2589,8 +3063,12 @@ var Trail = (function () {
     SLOT_GEAR,
     PROMPT_YES,
     PROMPT_NO,
+    PROMPT_LESS,
     STARTER_BLOCKS,
     withCaps,
+    wordBefore,
+    pairForm,
+    MAX_PAIRS,
   };
 })();
 

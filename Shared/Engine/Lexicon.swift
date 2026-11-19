@@ -99,6 +99,36 @@ func bonusIn(_ S: Source, _ P: Source?, _ word: String) -> Double {
     return b
 }
 
+/// Word pairs at work: lifts (zipf units) for the words you've written after the word before the
+/// cursor, by pair form, in the language you're writing in. Same as core.js.
+public struct PairBoost: Equatable {
+    public let lang: String
+    public let byWord: [String: Double]
+
+    public init(lang: String, byWord: [String: Double]) {
+        self.lang = lang
+        self.byWord = byWord
+    }
+}
+
+/// The lifts by word id in S's list, when S is the language you're writing in (nil otherwise).
+func liftsFor(_ S: Source, _ P: Source?, _ boost: PairBoost?) -> [Int32: Double]? {
+    guard let b = boost, let P = P, S === P, S.lang == b.lang else { return nil }
+    var out = [Int32: Double]()
+    for (w, v) in b.byWord {
+        let key = keyOf(w)
+        if key.isEmpty { continue }
+        for id in S.words.withKey(key) where pairForm(S.words.display(id)) == w { out[Int32(id)] = v }
+    }
+    return out
+}
+
+/// The same lift for a word you taught it (not in the list).
+func liftOfWord(_ S: Source, _ P: Source?, _ boost: PairBoost?, _ word: String) -> Double {
+    guard let b = boost, let P = P, S === P, S.lang == b.lang else { return 0 }
+    return b.byWord[pairForm(word)] ?? 0
+}
+
 /// Blocked in the word's own language, or (for another language's word) in the one you're writing in.
 func blockedIn(_ S: Source, _ P: Source?, _ word: String) -> Bool {
     if S.user.isBlocked(word) { return true }

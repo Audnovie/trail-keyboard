@@ -102,7 +102,19 @@ what it keeps.
 - **Delete** right after a swipe removes the whole word. Swiping again soon after counts the
   first guess as wrong.
 - **Shift** right after a swipe cycles the word: lowercase, Capitalized, ALL CAPS.
-- **Hold a suggestion** to never see it again ("Never suggest").
+- **Hold a suggestion** for *Less often* (it comes up less; picking it yourself later brings it
+  back), *Never* (it goes on the never-suggest list) or *Cancel*.
+- **Typos:** a clear typo is fixed when you press space (*tyoing* → *typing*, *amd* → *and*).
+  Press **delete** straight after: the space goes and the bar shows what you typed in quotes; tap
+  it to put it back, and that word isn't fixed again. A word Trail doesn't know and can't fix for
+  sure shows in **red** in the bar with fixes to tap; tap the red word itself to keep it (it's
+  learned). A keyboard can't draw on an app's text, so the red is in the bar rather than an
+  underline. Switch the automatic fixes off in Settings → *Fix typos automatically*.
+- **Word pairs:** Trail learns which word you write after which, from your own typing (fixing a
+  word from the bar counts double, and the wrong guess counts less). After *you're*, a swipe
+  between *i* and *o* then leans to the one you usually write there, and after a space your usual
+  next words show in the bar; tap one to type it. Hold one there to *Forget* that pair.
+  Settings → *Word pairs* switches it off.
 - **Hold a key** for accents (á é í ó ú ü ñ) and the top row's numbers; hold **.** for ? ! ¿ ¡ …
 - **Drag the space bar** to move the cursor. With Spanish on, **hold the space bar** to pick the
   language (Auto picks it from the words before the cursor).
@@ -124,15 +136,19 @@ summary shows how many it got right with your profile and without it.
 ## Privacy
 
 - **No network.** The keyboard doesn't ask for Full Access, so iOS gives it no network access.
-- **No text kept.** It never stores sentences or swipes. It counts single words you use, words
+- **No text kept.** It never stores sentences or swipes. It counts single words you use, which
+  word you write after which (word pairs, at most 2000 per language, oldest dropped first), words
   you rejected or blocked, a running summary of how you swipe, training results, and the last 30
   emoji you used (not in the sensitive fields below).
 - **Not in sensitive fields.** Password fields always get Apple's keyboard. In email, web
   address, username, one-time code, phone, address and card fields Trail doesn't learn at all
-  (and in email, web address, code and card fields it doesn't suggest either).
+  (and in email, web address, code and card fields it doesn't suggest either). Where it doesn't
+  learn, and where the app has turned autocorrection off, it doesn't fix typos or show red words
+  either.
 - **Only on this iPhone, and visible.** It's one file inside the keyboard's own storage, left out
-  of iCloud and computer backups. Settings → *Learned words*, *Never suggest*, *Training results*
-  and *What the keyboard keeps* show all of it, with buttons to delete any of it.
+  of iCloud and computer backups. Settings → *Learned words*, *Never suggest*, *Word pairs*,
+  *Training results* and *What the keyboard keeps* show all of it, with buttons to delete any of
+  it.
 
 ## How it's built
 

@@ -68,13 +68,19 @@ struct HomeView: View {
 
                     Card(title: "4. Teach it how you swipe", status: nil) {
                         Text("On Trail’s suggestion bar, tap the sliders button at the left (it shows when no word is in progress), then Start a training round. Swipe the word shown, 20 to a round. It starts adjusting to how you swipe after 20 swipes and keeps improving up to about 150. Words you miss come back in later rounds.")
-                        Text("Picking a different word from the suggestion bar after a swipe also teaches it: that word comes up more, the wrong guess less. Hold any suggestion to never see it again.")
+                        Text("Picking a different word from the suggestion bar after a swipe also teaches it: that word comes up more, the wrong guess less, and it learns which word you write after which. Hold a suggestion to see it less often, or never again.")
+                            .font(.footnote).foregroundColor(.secondary)
+                    }
+
+                    Card(title: "Typos", status: nil) {
+                        Text("A clear typo is fixed when you press space (tyoing → typing). Press delete straight after to see what you typed in the bar, and tap it to keep it: that word isn’t fixed again. A word Trail doesn’t know and can’t fix for sure shows in red in the bar, with fixes to tap; tap the red word to keep it as it is.")
+                        Text("A keyboard can’t draw on an app’s text, so Trail shows the red word in its bar instead of underlining it.")
                             .font(.footnote).foregroundColor(.secondary)
                     }
 
                     Card(title: "What it keeps", status: nil) {
-                        Text("Single words you use (and how often), words you rejected or blocked, a running summary of how you swipe, training results, per language, and the last 30 emoji you picked. Never sentences, never your swipes, nothing from password, email, web address, username, code, address or card fields.")
-                        Text("It’s all in Trail’s settings on the keyboard (sliders button) under Learned words, Never suggest and What the keyboard keeps, where you can delete any of it. It stays on this iPhone: no network access, and left out of backups.")
+                        Text("Single words you use (and how often), which word you write after which (word pairs), words you rejected or blocked, a running summary of how you swipe, training results, per language, and the last 30 emoji you picked. Never sentences, never your swipes, nothing from password, email, web address, username, code, address or card fields.")
+                        Text("It’s all in Trail’s settings on the keyboard (sliders button) under Learned words, Never suggest, Word pairs and What the keyboard keeps, where you can delete any of it. It stays on this iPhone: no network access, and left out of backups.")
                             .font(.footnote).foregroundColor(.secondary)
                     }
 

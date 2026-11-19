@@ -1,7 +1,7 @@
 // What the keyboard learns about you, per language: words you use (and how often), words you
-// rejected, words you taught it, and words it must never suggest. Kept only on this iPhone,
-// inside the keyboard, and shown in full in the keyboard's Learned words panel.
-// Same rules as UserWords in core.js.
+// rejected, words you taught it, words it must never suggest, and word pairs (which word you
+// write after which). Kept only on this iPhone, inside the keyboard, and shown in full in the
+// keyboard's Learned words and Word pairs panels. Same rules as UserWords in core.js.
 
 import Foundation
 
@@ -12,6 +12,40 @@ let NEW_WORD_ACTIVE_USES = 2.0
 public let ADDED_WORD_ZIPF = 3.4
 /// Blocked from the start in English (removable): the iPhone keyboard's favourite wrong guesses.
 public let STARTER_BLOCKS = ["Java", "Cleo", "haba", "Hab's"]
+/// Word pairs: a word you've written after the one before the cursor is lifted by
+/// PAIR_WEIGHT * ln(1 + times), at most PAIR_MAX_BONUS (zipf units); this many pairs are kept.
+let PAIR_WEIGHT = 0.7
+let PAIR_MAX_BONUS = 2.0
+public let MAX_PAIRS = 2000
+
+/// A word as one side of a pair: lower case, straight apostrophes.
+public func pairForm(_ word: String) -> String {
+    word.lowercased().replacingOccurrences(of: "\u{2019}", with: "'")
+}
+
+func pairBonusOf(_ count: Double) -> Double {
+    min(PAIR_MAX_BONUS, PAIR_WEIGHT * log(1 + count))
+}
+
+/// The word right before the end of `text` (in pair form), or nil when there's none or something
+/// other than spaces comes between (punctuation and new lines end a pair). Same as core.js.
+/// - Parameter needSpace: the word must be followed by at least one space.
+public func wordBefore(_ text: String, needSpace: Bool) -> String? {
+    let u = Array(text.utf16)
+    var end = u.count
+    while end > 0 && u[end - 1] == 0x20 { end -= 1 }
+    if needSpace && end == u.count { return nil }
+    var start = end
+    while start > 0 {
+        let c = u[start - 1]
+        if !isLetterUnit(c) && c != 0x27 && c != 0x2019 { break }
+        start -= 1
+    }
+    while start < end && (u[start] == 0x27 || u[start] == 0x2019) { start += 1 }
+    while end > start && (u[end - 1] == 0x27 || u[end - 1] == 0x2019) { end -= 1 }
+    let w = String(decoding: u[start..<end], as: UTF16.self)
+    return isLearnable(w) ? pairForm(w) : nil
+}
 
 public final class UserWords {
     public final class Entry {
@@ -26,9 +60,24 @@ public final class UserWords {
         public var active: Bool { !added || uses >= NEW_WORD_ACTIVE_USES }
     }
 
+    /// You wrote `next` right after `prev` (pair form) this many times.
+    public final class Pair {
+        public let prev: String
+        public let next: String
+        public internal(set) var count: Double
+
+        init(prev: String, next: String, count: Double) {
+            self.prev = prev
+            self.next = next
+            self.count = count
+        }
+    }
+
     public let starters: [String]
     private var entries = OrderedDict<String, Entry>()
     private var blocked = OrderedDict<String, String>()
+    /// "prev next" -> pair, least recently used first.
+    private var pairs = OrderedDict<String, Pair>()
     public private(set) var version = 0
     public var onChange: (() -> Void)?
     /// Per word list (by uid): the bonus and blocked lookups by word id, for this version.
@@ -157,21 +206,78 @@ public final class UserWords {
 
     public var count: Int { entries.count }
 
+    // ---- word pairs: which word you write after which ----
+
+    private static func pairKey(_ prev: String, _ next: String) -> String { pairForm(prev) + " " + pairForm(next) }
+
+    /// You wrote `next` right after `prev` (amount 2 when you picked it over a wrong guess).
+    public func recordPair(_ prev: String, _ next: String, amount: Double) {
+        if !isLearnable(prev) || !isLearnable(next) || isBlocked(next) { return }
+        let k = UserWords.pairKey(prev, next)
+        let p = pairs.removeValue(forKey: k) ?? Pair(prev: pairForm(prev), next: next, count: 0)
+        p.count = min(p.count + amount, 100000)
+        pairs[k] = p
+        while pairs.count > MAX_PAIRS, let oldest = pairs.keys.first { pairs.removeValue(forKey: oldest) }
+        changed()
+    }
+
+    /// `next` after `prev` was a wrong guess: count it once less (gone at nothing).
+    public func weakenPair(_ prev: String, _ next: String) {
+        let k = UserWords.pairKey(prev, next)
+        guard let p = pairs[k] else { return }
+        p.count -= 1
+        if p.count <= 0 { pairs.removeValue(forKey: k) }
+        changed()
+    }
+
+    public func forgetPair(_ prev: String, _ next: String) {
+        if pairs.removeValue(forKey: UserWords.pairKey(prev, next)) != nil { changed() }
+    }
+
+    public func clearPairs() {
+        if !pairs.isEmpty {
+            pairs.removeAll()
+            changed()
+        }
+    }
+
+    /// Words you've written after `prev`, most often first (then most recently).
+    public func followers(_ prev: String) -> [Pair] {
+        let a = pairForm(prev)
+        var list = [(p: Pair, i: Int)]()
+        for (i, p) in pairs.orderedValues.enumerated() where p.prev == a { list.append((p, i)) }
+        list.sort { x, y in x.p.count != y.p.count ? x.p.count > y.p.count : x.i > y.i }
+        return list.map { $0.p }
+    }
+
+    /// Every pair, most used first (then alphabetically).
+    public func allPairs() -> [Pair] {
+        pairs.orderedValues.sorted { a, b in
+            if a.count != b.count { return a.count > b.count }
+            return jsLess(a.prev + " " + pairForm(a.next), b.prev + " " + pairForm(b.next))
+        }
+    }
+
+    public var pairCount: Int { pairs.count }
+
     // ---- saving ----
 
-    /// The saved form: learned rows of [word, uses, rejects, added (0/1)] and the blocked words.
-    /// Reading is forgiving like the JavaScript version: bad rows are skipped, not fatal.
+    /// The saved form: learned rows of [word, uses, rejects, added (0/1)], the blocked words, and
+    /// word pairs as [prev, next, times] rows, least recently used first. Reading is forgiving like
+    /// the JavaScript version: bad rows are skipped, not fatal.
     public struct Saved: Codable, Equatable {
         public var learned: [JSONValue]
         /// nil when the copy had no blocked list (the starter blocks apply then).
         public var blocked: [String]?
+        public var pairs: [JSONValue]
 
-        public init(learned: [JSONValue], blocked: [String]?) {
+        public init(learned: [JSONValue], blocked: [String]?, pairs: [JSONValue] = []) {
             self.learned = learned
             self.blocked = blocked
+            self.pairs = pairs
         }
 
-        enum CodingKeys: String, CodingKey { case learned, blocked }
+        enum CodingKeys: String, CodingKey { case learned, blocked, pairs }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -185,6 +291,11 @@ public final class UserWords {
             } else {
                 blocked = nil
             }
+            if case .array(let rows)? = try? c.decode(JSONValue.self, forKey: .pairs) {
+                pairs = rows
+            } else {
+                pairs = []
+            }
         }
     }
 
@@ -195,7 +306,8 @@ public final class UserWords {
             learned: list.map {
                 .array([.string($0.word), .number(jsRound($0.uses * 10) / 10), .number(Double($0.rejects)), .number($0.added ? 1 : 0)])
             },
-            blocked: blockedWords())
+            blocked: blockedWords(),
+            pairs: pairs.orderedValues.map { .array([.string($0.prev), .string($0.next), .number(jsRound($0.count * 10) / 10)]) })
     }
 
     /// Replaces everything with a saved copy. A copy with no blocked list gets the starter blocks.
@@ -219,6 +331,17 @@ public final class UserWords {
         } else {
             for w in starters { blocked[w.lowercased()] = w }
         }
+        pairs.removeAll()
+        for item in data?.pairs ?? [] {
+            guard case .array(let row) = item, row.count >= 2, case .string(let a) = row[0], case .string(let b) = row[1],
+                  isLearnable(a), isLearnable(b) else { continue }
+            let count = min(row.count > 2 ? row[2].jsNumberOrZero : 0, 100000)
+            if !(count > 0) { continue }
+            let k = UserWords.pairKey(a, b)
+            pairs.removeValue(forKey: k)
+            pairs[k] = Pair(prev: pairForm(a), next: b, count: count)
+        }
+        while pairs.count > MAX_PAIRS, let oldest = pairs.keys.first { pairs.removeValue(forKey: oldest) }
         version += 1
     }
 }

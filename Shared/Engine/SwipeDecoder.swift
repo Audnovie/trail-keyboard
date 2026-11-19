@@ -190,7 +190,8 @@ public final class SwipeDecoder {
     }
 
     /// Best first.
-    public func decode(_ xs: [Double], _ ys: [Double], _ count: Int, _ sources: [Source], max: Int) -> [SwipeResult] {
+    /// - Parameter boost: word pairs at work (words you've written after the word before), or nil.
+    public func decode(_ xs: [Double], _ ys: [Double], _ count: Int, _ sources: [Source], max: Int, boost: PairBoost? = nil) -> [SwipeResult] {
         var out = [SwipeResult]()
         if !hasGeometry || count < 2 || sources.isEmpty { return out }
         let p = params
@@ -239,6 +240,7 @@ public final class SwipeDecoder {
             let bias = S.bias
             let index = SourceIndex(S, P)
             let shared: SharedMap? = isForeign(S, P) ? sharedWith(W, P!.words) : nil
+            let lifts = liftsFor(S, P, boost)
             for f in 0..<26 where startOk[f] {
                 for l in 0..<26 where endOk[l] {
                     for id32 in W.withFirstLast(f, l) {
@@ -246,6 +248,7 @@ public final class SwipeDecoder {
                         if let sh = shared, sh[id] { continue }
                         var prior = p.wFreq * (Double(W.score(id)) / 100 + bias)
                         prior += p.wUser * index.bonus(id)
+                        if let lift = lifts?[Int32(id)] { prior += p.wUser * lift }
                         consider(Int32(si * SRC_SHIFT + id), W.keyBytes(id), prior, gLen)
                     }
                 }
@@ -262,7 +265,9 @@ public final class SwipeDecoder {
                 if foreign && P!.words.find(e.word) >= 0 { continue }
                 if !startOk[Int(key[0]) - 97] || !endOk[Int(key[key.count - 1]) - 97] { continue }
                 added.append((e.word, key, si))
-                let prior = p.wFreq * (ADDED_WORD_ZIPF + S.bias) + p.wUser * bonusIn(S, P, e.word)
+                var prior = p.wFreq * (ADDED_WORD_ZIPF + S.bias) + p.wUser * bonusIn(S, P, e.word)
+                let lift = liftOfWord(S, P, boost, e.word)
+                if lift != 0 { prior += p.wUser * lift }
                 consider(Int32(-added.count), key, prior, gLen)
             }
         }

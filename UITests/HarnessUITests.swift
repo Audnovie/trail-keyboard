@@ -145,22 +145,91 @@ final class HarnessUITests: XCTestCase {
         XCTAssertTrue(app.cells["word.world"].exists)
     }
 
-    func testHoldingASuggestionOffersToBlockIt() {
-        let app = launch("swipe:sense")
+    private func strip(_ app: XCUIApplication) -> String {
+        app.descendants(matching: .any)["trail.strip"].value as? String ?? ""
+    }
+
+    /// Holding a suggestion asks: Less often, Never or Cancel, each a button of its own.
+    func testHoldingASuggestionOffersLessOftenOrNever() {
+        let app = launch("type:hel")
         run(app)
+        XCTAssertEqual(strip(app), "“Hel” | He | Help")
         let kb = app.otherElements["harness.keyboard"]
         XCTAssertTrue(kb.exists)
         let f = kb.frame
-        // The suggestion bar's left slot, held.
-        kb.coordinate(withNormalizedOffset: CGVector(dx: 0.5 / 3, dy: 22 / f.height)).press(forDuration: 0.9)
-        let strip = app.descendants(matching: .any)["trail.strip"]
-        let value = strip.value as? String ?? ""
-        XCTAssertTrue(value.hasPrefix("Never suggest"), value)
-        shot("block-prompt")
-        // Block.
-        kb.coordinate(withNormalizedOffset: CGVector(dx: (f.width - 1.5 * 84) / f.width, dy: 22 / f.height)).tap()
-        let after = strip.value as? String ?? ""
-        XCTAssertFalse(after.hasPrefix("Never suggest"), after)
+        // The suggestion bar's right slot, held.
+        kb.coordinate(withNormalizedOffset: CGVector(dx: 2.5 / 3, dy: 22 / f.height)).press(forDuration: 0.9)
+        XCTAssertEqual(strip(app), "“help” in English — Less often, Never, Cancel")
+        for id in ["prompt.less", "prompt.yes", "prompt.no"] {
+            XCTAssertTrue(app.buttons[id].exists, "no \(id) button")
+        }
+        shot("word-prompt")
+        app.buttons["prompt.less"].tap()
+        // Help came down: the next likeliest takes its place.
+        XCTAssertEqual(strip(app), "“Hel” | He | Her")
+        XCTAssertFalse(app.buttons["prompt.less"].exists)
+        XCTAssertEqual(text(app), "Hel")
+    }
+
+    /// Delete straight after an automatic fix: the bar offers what you typed, and a tap puts it back.
+    func testUndoingAnAutomaticFix() {
+        let app = launch("type:teh |tap:delete|tap:slot0")
+        run(app)
+        XCTAssertEqual(text(app), "The ")
+        run(app)
+        XCTAssertEqual(text(app), "The")
+        XCTAssertEqual(strip(app), "“Teh” | The | ")
+        shot("undo-offer")
+        run(app)
+        XCTAssertEqual(text(app), "Teh ")
+    }
+
+    /// A word it doesn't know and can't fix for sure is red in the bar, with fixes to tap.
+    func testUnknownWordShowsInRedWithFixes() {
+        let app = launch("type:blorf |tap:slot1")
+        run(app)
+        XCTAssertEqual(text(app), "Blorf ")
+        XCTAssertEqual(strip(app), "Blorf (check spelling) | Blood | Blog")
+        shot("red-word")
+        run(app)
+        XCTAssertEqual(text(app), "Blood ")
+    }
+
+    /// After a space, the word you usually write next is in the bar.
+    func testNextWordAfterASpace() {
+        let app = launch("type:see you see you see |tap:slot1")
+        run(app)
+        XCTAssertEqual(text(app), "See you see you see ")
+        XCTAssertEqual(strip(app), " | you | ")
+        shot("next-word")
+        run(app)
+        XCTAssertEqual(text(app), "See you see you see you ")
+    }
+
+    /// Word pairs are listed in the keyboard's settings, and each can be forgotten.
+    func testWordPairsAreListedAndForgettable() {
+        let app = launch("type:see you see you ok |tap:gear")
+        run(app)
+        run(app)
+        let table = app.tables["panel.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 5), "settings didn't open")
+        let link = app.cells["link.pairs.en"]
+        var tries = 0
+        while !link.exists && tries < 8 {
+            table.swipeUp(velocity: .slow)
+            tries += 1
+        }
+        XCTAssertTrue(link.waitForExistence(timeout: 3), "no Word pairs link")
+        link.tap()
+        let row = app.cells["pair.see.you"]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "see you isn't in the word pairs")
+        XCTAssertTrue(app.cells["pair.you.see"].exists)
+        // Kept in the word list's own form.
+        XCTAssertTrue(app.cells["pair.you.OK"].exists)
+        shot("word-pairs")
+        app.buttons["pair.see.you.button"].tap()
+        XCTAssertFalse(app.cells["pair.see.you"].waitForExistence(timeout: 1))
+        XCTAssertTrue(app.cells["pair.you.see"].exists)
     }
 
     func testEmojiPanel() {

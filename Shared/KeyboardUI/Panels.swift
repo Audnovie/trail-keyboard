@@ -8,6 +8,7 @@ enum PanelPage: Equatable {
     case home
     case words(String)
     case blocked(String)
+    case pairs(String)
     case results
     case privacy
 }
@@ -57,6 +58,7 @@ enum PanelPages {
         case .home: return home(c)
         case .words(let code): return words(c, code)
         case .blocked(let code): return blocked(c, code)
+        case .pairs(let code): return pairs(c, code)
         case .results: return results(c)
         case .privacy: return privacy(c)
         }
@@ -115,6 +117,9 @@ enum PanelPages {
             wordRows.append(.link(id: "link.blocked.\(L.code)", title: "Never suggest" + suffix, value: String(L.user.blockedWords().count)) {
                 c.openPanel(.blocked(L.code))
             })
+            wordRows.append(.link(id: "link.pairs.\(L.code)", title: "Word pairs" + suffix, value: String(L.user.pairCount)) {
+                c.openPanel(.pairs(L.code))
+            })
         }
         sections.append(PanelSection(title: "Your words", rows: wordRows))
         sections.append(PanelSection(title: "Typing", rows: [
@@ -123,6 +128,7 @@ enum PanelPages {
             .toggle(id: "opt.auto", title: "Fix typos automatically", detail: "When you press space after a word that isn’t one", on: s.autocorrect) { v in c.setSetting { $0.autocorrect = v } },
             .toggle(id: "opt.double", title: "Double space types a period", detail: nil, on: s.doubleSpace) { v in c.setSetting { $0.doubleSpace = v } },
             .toggle(id: "opt.learn", title: "Learn from my typing", detail: "Off: nothing new is remembered", on: s.learn) { v in c.setSetting { $0.learn = v } },
+            .toggle(id: "opt.pairs", title: "Word pairs", detail: "Which word you write after which, for swipes and the next word", on: s.pairs) { v in c.setSetting { $0.pairs = v } },
         ]))
         var langRows: [PanelRow] = [
             .toggle(id: "opt.spanish", title: "Español", detail: "Its own word list, learned words and never-suggest list", on: s.languages.contains("es")) { v in
@@ -194,7 +200,7 @@ enum PanelPages {
             let what = multi ? "\(L.name) words" : "words"
             sections.append(PanelSection(title: nil, rows: [
                 confirming(c, id: "words.clear.\(code)", title: "Clear learned \(what)", confirm: "Tap again: delete all \(all.count) learned \(what)") { L.user.clearLearned() },
-                .text(id: nil, multi ? "Your \(L.name) never-suggest list stays." : "Your never-suggest list stays."),
+                .text(id: nil, multi ? "Your \(L.name) never-suggest list and word pairs stay." : "Your never-suggest list and word pairs stay."),
             ]))
         }
         return PanelContent(title: multi ? "Learned · \(L.name)" : "Learned words", sections: sections)
@@ -221,6 +227,55 @@ enum PanelPages {
             ]),
             PanelSection(title: plural(words.count, "word", "words"), rows: rows),
         ])
+    }
+
+    private static func pairs(_ c: KeyboardController, _ code: String) -> PanelContent {
+        guard let L = c.lex.get(code) else { return PanelContent(title: "", sections: []) }
+        let multi = c.multilingual()
+        let all = L.user.allPairs()
+        let key = "pairs." + code
+        let q = (c.wordFilter[key] ?? "").lowercased()
+        var note = "Which word you write after which, most used first. After the first word, swipes and suggestions lean toward the second, and after a space your usual next words come up in the bar. Learned only from your own typing, in fields where Trail learns; it keeps the \(MAX_PAIRS) most recent."
+        if !c.settings.pairs { note += " Word pairs are off, so these aren’t used or added to." }
+        var top: [PanelRow] = [.text(id: "pairs.note", note)]
+        if !all.isEmpty {
+            top.append(.action(id: "pairs.find", title: "Find a word", style: .normal) {
+                c.beginInput(PanelInput(label: "Find:") { w in c.wordFilter[key] = w.trimmingCharacters(in: .whitespaces) })
+            })
+        }
+        if !q.isEmpty {
+            top.append(.action(id: "pairs.showAll", title: "Showing pairs with “\(q)” · show all", style: .normal) {
+                c.wordFilter[key] = nil
+                c.renderPanel()
+            })
+        }
+        var rows = [PanelRow]()
+        var shown = 0
+        var matching = 0
+        for p in all {
+            if !q.isEmpty && !p.prev.contains(q) && !p.next.lowercased().contains(q) { continue }
+            matching += 1
+            if shown >= 300 { continue }
+            shown += 1
+            rows.append(.word(id: "pair.\(p.prev).\(p.next)", title: p.prev + " " + p.next, detail: "\(formatCount(p.count))×", button: "Forget") {
+                L.user.forgetPair(p.prev, p.next)
+            })
+        }
+        if matching > shown {
+            rows.append(.text(id: nil, "Showing \(shown) of \(matching). Use Find for the others."))
+        } else if all.isEmpty {
+            rows.append(.text(id: "pairs.empty", "Nothing yet. Pairs show up here as you type."))
+        } else if matching == 0 {
+            rows.append(.text(id: nil, "No word pairs with “\(q)”."))
+        }
+        var sections = [PanelSection(title: nil, rows: top),
+                        PanelSection(title: all.isEmpty ? nil : plural(all.count, "pair", "pairs"), rows: rows)]
+        if !all.isEmpty {
+            sections.append(PanelSection(title: nil, rows: [
+                confirming(c, id: "pairs.clear.\(code)", title: "Forget all word pairs", confirm: "Tap again: forget all \(plural(all.count, "word pair", "word pairs"))") { L.user.clearPairs() },
+            ]))
+        }
+        return PanelContent(title: multi ? "Word pairs · \(L.name)" : "Word pairs", sections: sections)
     }
 
     private static func results(_ c: KeyboardController) -> PanelContent {
@@ -269,13 +324,13 @@ enum PanelPages {
         }
         return PanelContent(title: "What the keyboard keeps", sections: [
             PanelSection(title: nil, rows: aside + [
-                .text(id: "privacy.where", "Everything Trail learns stays inside the keyboard on this iPhone: the single words you use and how often, words you rejected or blocked, your swipe profile (running averages, never the swipes themselves), training results, the last \(KeyboardController.recentEmojiLimit) emoji you used (the emoji panel’s first page) and these settings. All of it is on these pages, and you can delete any of it."),
+                .text(id: "privacy.where", "Everything Trail learns stays inside the keyboard on this iPhone: the single words you use and how often, which word you write after which (word pairs, at most \(MAX_PAIRS) per language), words you rejected or blocked, your swipe profile (running averages, never the swipes themselves), training results, the last \(KeyboardController.recentEmojiLimit) emoji you used (the emoji panel’s first page) and these settings. All of it is on these pages, and you can delete any of it."),
                 .text(id: "privacy.network", "Trail can’t connect to anything: Full Access is off, so iOS gives it no network access. Nothing is sent anywhere."),
-                .text(id: "privacy.text", "It doesn’t keep what you write: no sentences, no swipes, no history of your typing. It only counts single words (and remembers the last emoji you picked), and only in ordinary text fields. In email, web address, username, code, phone, address and card fields it doesn’t learn at all, and password fields always use Apple’s keyboard."),
+                .text(id: "privacy.text", "It doesn’t keep what you write: no sentences, no swipes, no history of your typing. It only counts single words and two-word pairs (and remembers the last emoji you picked), and only in ordinary text fields. In email, web address, username, code, phone, address and card fields it doesn’t learn at all, and password fields always use Apple’s keyboard."),
                 .text(id: "privacy.backup", "The saved file (\(kb)) is left out of iCloud and computer backups, so it never leaves this iPhone."),
             ]),
             PanelSection(title: nil, rows: emojiRows + [
-                confirming(c, id: "privacy.erase", title: "Erase everything Trail learned", confirm: "Tap again: erase all words, lists, training, recent emoji and settings") {
+                confirming(c, id: "privacy.erase", title: "Erase everything Trail learned", confirm: "Tap again: erase all words, word pairs, lists, training, recent emoji and settings") {
                     c.eraseEverything()
                 },
             ]),

@@ -8,22 +8,28 @@ import Foundation
 import TrailEngine
 
 struct AppSettings: Codable, Equatable {
+    /// Which version of these settings was saved (see init(from:)).
+    static let currentRev = 2
+
     var swipe = true
     var smartFix = true
-    var autocorrect = false
+    var autocorrect = true
     var doubleSpace = true
     var learn = true
     var useProfile = true
+    /// Learn which word you write after which, and use it.
+    var pairs = true
     /// Languages switched on (English always is).
     var languages = ["en", "es"]
     /// "auto" or a language code.
     var typingLang = "auto"
     var lastLang = "en"
+    var rev = AppSettings.currentRev
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case swipe, smartFix, autocorrect, doubleSpace, learn, useProfile, languages, typingLang, lastLang
+        case swipe, smartFix, autocorrect, doubleSpace, learn, useProfile, pairs, languages, typingLang, lastLang, rev
     }
 
     init(from decoder: Decoder) throws {
@@ -41,6 +47,12 @@ struct AppSettings: Codable, Equatable {
         typingLang = tl == "auto" || KeyboardLanguages.all.contains(tl) ? tl : "auto"
         let ll = (try? c.decodeIfPresent(String.self, forKey: .lastLang)) ?? nil ?? d.lastLang
         lastLang = KeyboardLanguages.all.contains(ll) ? ll : "en"
+        pairs = (try? c.decodeIfPresent(Bool.self, forKey: .pairs)) ?? nil ?? d.pairs
+        // Saved before November 2026 (no rev), when automatic fixes were off by default: they come
+        // on once, with the new default. Switching them off again afterwards sticks.
+        let saved = (try? c.decodeIfPresent(Int.self, forKey: .rev)) ?? nil ?? 1
+        if saved < 2 { autocorrect = true }
+        rev = AppSettings.currentRev
     }
 
     var typing: TypingSettings {
@@ -50,6 +62,7 @@ struct AppSettings: Codable, Equatable {
         t.autocorrect = autocorrect
         t.doubleSpace = doubleSpace
         t.learn = learn
+        t.pairs = pairs
         t.typingLang = typingLang
         t.lastLang = lastLang
         return t

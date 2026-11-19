@@ -302,6 +302,7 @@ final class UserWordsParityTests: XCTestCase {
             XCTAssertEqual(r[3], .number(theirs[3].double), what)
         }
         XCTAssertEqual(s.blocked ?? [], want["blocked"].strings.compactMap { $0 }, what)
+        XCTAssertEqual(pairRows(s.pairs), want["pairs"].array.map { "\($0[0].string!) \($0[1].string!) \($0[2].double)" }, what)
     }
 
     private func checkAll(_ all: [UserWords.Entry], _ want: J, _ what: String) {

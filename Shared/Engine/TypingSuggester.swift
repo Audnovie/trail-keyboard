@@ -88,11 +88,14 @@ public final class TypingSuggester {
     }
 
     /// Ranked suggestions for a word in progress, best first, never blocked words.
-    public func suggest(_ typed: String, _ sources: [Source], max: Int) -> [Suggestion] {
+    /// - Parameter boost: word pairs at work (words you've written after the word before), or nil.
+    public func suggest(_ typed: String, _ sources: [Source], max: Int, boost: PairBoost? = nil) -> [Suggestion] {
         let key = keyOf(typed)
         if key.isEmpty { return [] }
         let keyBytes = Array(key.utf8)
         let P = primaryOf(sources)
+        // A lower-case word that a list has only in capitals ("amd": AMD) may still be a slip.
+        let lowerTyped = typed == typed.lowercased()
         var best = OrderedDict<String, Best>()
 
         func add(_ word: String, _ score: Double, _ kind: SuggestionKind, _ cost: Double, _ lang: String) {
@@ -109,11 +112,14 @@ public final class TypingSuggester {
             let foreign = isForeign(S, P)
             let index = SourceIndex(S, P)
             let shared: SharedMap? = foreign ? sharedWith(W, P!.words) : nil
+            let lifts = liftsFor(S, P, boost)
+            func lift(_ id: Int) -> Double { lifts?[Int32(id)] ?? 0 }
             for id in W.withKey(key) {
                 if let sh = shared, sh[id] { continue }
-                exact = true
+                let d = W.display(id)
+                if !(lowerTyped && d == d.uppercased() && d != d.lowercased()) { exact = true }
                 if index.blocked(id) { continue }
-                add(W.display(id), Double(W.score(id)) / 100 + bias + index.bonus(id) + 2, .exact, 0, S.lang)
+                add(d, Double(W.score(id)) / 100 + bias + index.bonus(id) + lift(id) + 2, .exact, 0, S.lang)
             }
             let range = W.prefixRange(key)
             var scanned = 0
@@ -129,7 +135,7 @@ public final class TypingSuggester {
                 if let sh = shared, sh[id] { continue }
                 if index.blocked(id) { continue }
                 let extra = Double(kl - keyBytes.count)
-                add(W.display(id), Double(W.score(id)) / 100 + bias + index.bonus(id) - 0.4 - 0.05 * extra, .completion, 0, S.lang)
+                add(W.display(id), Double(W.score(id)) / 100 + bias + index.bonus(id) + lift(id) - 0.4 - 0.05 * extra, .completion, 0, S.lang)
             }
             for e in user.activeAdded() {
                 if foreign && P!.words.find(e.word) >= 0 { continue }
@@ -137,10 +143,10 @@ public final class TypingSuggester {
                 if k == key {
                     exact = true
                     if blockedIn(S, P, e.word) { continue }
-                    add(e.word, ADDED_WORD_ZIPF + bias + bonusIn(S, P, e.word) + 2, .exact, 0, S.lang)
+                    add(e.word, ADDED_WORD_ZIPF + bias + bonusIn(S, P, e.word) + liftOfWord(S, P, boost, e.word) + 2, .exact, 0, S.lang)
                 } else if k.hasPrefix(key) {
                     if blockedIn(S, P, e.word) { continue }
-                    add(e.word, ADDED_WORD_ZIPF + bias + bonusIn(S, P, e.word) - 0.4, .completion, 0, S.lang)
+                    add(e.word, ADDED_WORD_ZIPF + bias + bonusIn(S, P, e.word) + liftOfWord(S, P, boost, e.word) - 0.4, .completion, 0, S.lang)
                 }
             }
         }
@@ -153,6 +159,7 @@ public final class TypingSuggester {
                 let bias = S.bias
                 let index = SourceIndex(S, P)
                 let shared: SharedMap? = isForeign(S, P) ? sharedWith(W, P!.words) : nil
+                let lifts = liftsFor(S, P, boost)
                 for f in 0..<26 {
                     if f != first && (!hasGeometry || keyDist[first * 26 + f] > 1.25) { continue }
                     for id32 in W.withFirst(f) {
@@ -163,7 +170,7 @@ public final class TypingSuggester {
                         let cost = editCost(keyBytes, k, limit)
                         if cost > limit { continue }
                         if index.blocked(id) { continue }
-                        add(W.display(id), Double(W.score(id)) / 100 + bias + index.bonus(id) - 1.5 * cost, .correction, cost, S.lang)
+                        add(W.display(id), Double(W.score(id)) / 100 + bias + index.bonus(id) + (lifts?[Int32(id)] ?? 0) - 1.5 * cost, .correction, cost, S.lang)
                     }
                 }
             }

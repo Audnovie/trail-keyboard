@@ -126,6 +126,7 @@ final class ProxyTargetTests: XCTestCase {
             settings.autocorrect = st["autocorrect"].bool
             settings.doubleSpace = st["doubleSpace"].bool
             settings.learn = st["learn"].bool
+            settings.pairs = st["pairs"].bool
             settings.typingLang = st["typingLang"].string ?? "auto"
             settings.lastLang = st["lastLang"].string
             target.sync()
@@ -226,6 +227,8 @@ final class ProxyTargetTests: XCTestCase {
         let doc: FakeDocument
         let engine: InputEngine
         let target: ProxyTarget
+        /// What the bar shows (the engine only holds it weakly).
+        let view: RecordingSurface
         /// Lets this many seconds pass.
         let advance: (Double) -> Void
 
@@ -250,9 +253,7 @@ final class ProxyTargetTests: XCTestCase {
         target.onExternalChange = { [weak engine] in engine?.onExternalChange() }
         target.sync()
         engine.start(TypingSettings())
-        // (The engine holds the view weakly; these tests only look at the text.)
-        _ = view
-        return Rig(doc: doc, engine: engine, target: target, advance: { s in
+        return Rig(doc: doc, engine: engine, target: target, view: view, advance: { s in
             seconds += s
             ms += s * 1000
         })
@@ -280,6 +281,26 @@ final class ProxyTargetTests: XCTestCase {
             ys.append(geo.cy[k])
         }
         engine.onSwipe(xs, ys, xs.count)
+    }
+
+    /// Automatic fixes and red words only where the keyboard learns: not where the app turned
+    /// autocorrection off, nor in user name, address and similar fields.
+    func testNoAutomaticFixesWhereTheKeyboardDoesNotLearn() {
+        let r = rig()
+        r.engine.setField(suggest: true, sentenceCaps: true, allCaps: false, learn: false)
+        type(r.engine, "teh ")
+        XCTAssertEqual(r.doc.text, "Teh ")
+        type(r.engine, "blorf ")
+        XCTAssertEqual(r.doc.text, "Teh blorf ")
+        XCTAssertEqual(r.view.flag, -1, "no red word")
+        // The same in an ordinary field.
+        let s = rig()
+        type(s.engine, "teh ")
+        XCTAssertEqual(s.doc.text, "The ")
+        type(s.engine, "blorf ")
+        XCTAssertEqual(s.doc.text, "The blorf ")
+        XCTAssertEqual(s.view.flag, 0)
+        XCTAssertEqual(s.view.strip, ["blorf", "blood", "blog"])
     }
 
     /// Undo in the app after a word: the keyboard must notice, and not delete real text.

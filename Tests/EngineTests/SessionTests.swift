@@ -10,24 +10,31 @@ final class RecordingSurface: KeyboardSurface {
     var emoji = false
     var strip: [String?] = [nil, nil, nil]
     var bold = 1
+    var flag = -1
     var prompt: String?
+    var buttons: [String] = []
     var shifted = false
     var capsLock = false
     var settingsOpened = 0
 
     func setLayout(_ name: LayoutName) { layout = name }
     func showEmoji(_ show: Bool) { emoji = show }
-    func clearStrip() { setSuggestions(nil, nil, nil, bold: 1) }
+    func clearStrip() { setSuggestions(nil, nil, nil, bold: 1, flag: -1) }
     func setShift(_ s: Bool, _ l: Bool) {
         shifted = s
         capsLock = l
     }
-    func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int) {
+    func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int, flag: Int) {
         strip = [a, b, c]
         self.bold = bold
+        self.flag = flag
         prompt = nil
+        buttons = []
     }
-    func setPrompt(_ text: String?) { prompt = text }
+    func setPrompt(_ text: String?, _ buttons: [PromptButton]) {
+        prompt = text
+        self.buttons = text == nil ? [] : buttons.map { $0.label }
+    }
     var hasPrompt: Bool { prompt != nil }
     func openSettings() { settingsOpened += 1 }
 }
@@ -55,6 +62,7 @@ final class SessionParityTests: XCTestCase {
             settings.autocorrect = st["autocorrect"].bool
             settings.doubleSpace = st["doubleSpace"].bool
             settings.learn = st["learn"].bool
+            settings.pairs = st["pairs"].bool
             settings.typingLang = st["typingLang"].string ?? "auto"
             settings.lastLang = st["lastLang"].string
             engine.start(settings)
@@ -84,7 +92,9 @@ final class SessionParityTests: XCTestCase {
                 XCTAssertEqual(ed.text, want["text"].string!, what)
                 XCTAssertEqual([ed.sel, ed.cs, ed.ce], [want["sel"].int, want["cs"].int, want["ce"].int], what)
                 XCTAssertEqual(view.strip, want["strip"].strings, what)
+                XCTAssertEqual([view.bold, view.flag], [want["bold"].int, want["flag"].int], "\(what): bold and red slots")
                 XCTAssertEqual(view.prompt, want["prompt"].string, what)
+                XCTAssertEqual(view.buttons, want["buttons"].strings.compactMap { $0 }, "\(what): prompt buttons")
                 XCTAssertEqual([view.shifted, view.capsLock], [want["shifted"].bool, want["lock"].bool], what)
                 XCTAssertEqual(view.layout.rawValue, want["layout"].string!, what)
                 XCTAssertEqual(view.emoji, want["emoji"].bool, what)
@@ -105,8 +115,17 @@ final class SessionParityTests: XCTestCase {
                 let exp = rows.map { "\($0[0].string!) \($0[1].double) \($0[2].double) \($0[3].double)" }
                 XCTAssertEqual(got, exp, "\(name): learned \(code)")
                 XCTAssertEqual(saved.blocked ?? [], want["blocked"].strings.compactMap { $0 }, "\(name): blocked \(code)")
+                XCTAssertEqual(pairRows(saved.pairs), want["pairs"].array.map { "\($0[0].string!) \($0[1].string!) \($0[2].double)" }, "\(name): pairs \(code)")
             }
         }
         XCTAssertGreaterThan(count, 300)
+    }
+}
+
+/// Saved word pairs as "prev next times" lines.
+func pairRows(_ rows: [JSONValue]) -> [String] {
+    rows.map { v -> String in
+        guard case .array(let r) = v, r.count == 3, case .string(let a) = r[0], case .string(let b) = r[1], case .number(let n) = r[2] else { return "?" }
+        return "\(a) \(b) \(n)"
     }
 }

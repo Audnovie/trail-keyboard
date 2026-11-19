@@ -75,6 +75,8 @@ enum Metrics {
     static let rowHLandscape: CGFloat = 42
     static let bottomPad: CGFloat = 4
     static let promptButtonW: CGFloat = 84
+    /// The narrowest a prompt's button gets (each is as wide as its label needs).
+    static let promptButtonMinW: CGFloat = 64
     static let longPress = 0.35
     static let spaceLongPress = 0.55
     static let stripLongPress = 0.45

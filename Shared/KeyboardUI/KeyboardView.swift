@@ -83,8 +83,12 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     private(set) var strip: [String?] = [nil, nil, nil]
     private var stripBold = 1
+    /// The slot shown in red as possibly misspelled (-1: none).
+    private(set) var stripFlag = -1
     private(set) var stripMessage: String?
     private(set) var prompt: String?
+    /// The prompt's buttons, left to right.
+    private(set) var promptButtons: [PromptButton] = []
     private(set) var menu: (title: String, items: [(label: String, on: Bool)])?
     private var chip: String?
     private(set) var spaceLabel = ""
@@ -333,29 +337,53 @@ final class KeyboardView: UIView, KeyboardSurface {
         renderPress()
     }
 
-    func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int) {
+    func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int, flag: Int) {
+        let hadPrompt = prompt != nil
         strip = [a, b, c]
         stripBold = bold
+        stripFlag = flag
         stripMessage = nil
         prompt = nil
+        promptButtons = []
+        if hadPrompt { a11yCache = nil }
         stripView.setNeedsDisplay()
         updateStripAccessibility()
     }
 
-    func clearStrip() { setSuggestions(nil, nil, nil, bold: 1) }
+    func clearStrip() { setSuggestions(nil, nil, nil, bold: 1, flag: -1) }
 
     func setStripMessage(_ m: String?) {
+        if prompt != nil { a11yCache = nil }
         strip = [nil, nil, nil]
+        stripFlag = -1
         prompt = nil
+        promptButtons = []
         stripMessage = m
         stripView.setNeedsDisplay()
         updateStripAccessibility()
     }
 
-    func setPrompt(_ text: String?) {
+    func setPrompt(_ text: String?, _ buttons: [PromptButton]) {
         prompt = text
+        promptButtons = text == nil ? [] : buttons
+        a11yCache = nil
         stripView.setNeedsDisplay()
         updateStripAccessibility()
+        // The prompt's buttons came or went: VoiceOver reads the bar again.
+        if UIAccessibility.isVoiceOverRunning { UIAccessibility.post(notification: .layoutChanged, argument: stripView) }
+    }
+
+    /// Where the prompt's buttons sit (left to right), each as wide as its label needs.
+    func promptButtonFrames() -> [CGRect] {
+        let font = UIFont.systemFont(ofSize: 15, weight: .semibold)
+        var x = bounds.width
+        var frames = [CGRect]()
+        for b in promptButtons.reversed() {
+            let w = max(Metrics.promptButtonMinW, ceil((b.label as NSString).size(withAttributes: [.font: font]).width) + 24)
+            x -= w
+            frames.insert(CGRect(x: x, y: 0, width: w, height: Metrics.stripH), at: 0)
+        }
+        return frames
     }
 
     var hasPrompt: Bool { prompt != nil }
@@ -394,8 +422,8 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     // ---- drawing state the subviews read ----
 
-    var stripState: (words: [String?], bold: Int, message: String?, prompt: String?, menu: (title: String, items: [(label: String, on: Bool)])?, chip: String?, pressed: Int) {
-        (strip, stripBold, stripMessage, prompt, menu, chip, pressedStripSlot)
+    var stripState: (words: [String?], bold: Int, flag: Int, message: String?, prompt: String?, menu: (title: String, items: [(label: String, on: Bool)])?, chip: String?, pressed: Int) {
+        (strip, stripBold, stripFlag, stripMessage, prompt, menu, chip, pressedStripSlot)
     }
 
     var keyState: (layout: KeyLayout, pressed: Key?, shifted: Bool, capsLock: Bool, space: String, returnLabel: String?, hideKeys: Bool) {
@@ -476,8 +504,7 @@ final class KeyboardView: UIView, KeyboardSurface {
             return NONE_SLOT
         }
         if prompt != nil {
-            if x >= w - Metrics.promptButtonW { return PROMPT_NO }
-            if x >= w - 2 * Metrics.promptButtonW { return PROMPT_YES }
+            for (b, r) in zip(promptButtons, promptButtonFrames()) where x >= r.minX && x < r.maxX { return b.slot }
             return NONE_SLOT
         }
         if menu != nil {
@@ -824,6 +851,18 @@ final class KeyboardView: UIView, KeyboardSurface {
                 out.append(e)
             } else {
                 out.append(stripCover ?? stripView)
+                // A prompt's buttons, so VoiceOver (and UI tests) can reach each one.
+                if prompt != nil && inputBar == nil && stripCover == nil {
+                    let names = [PROMPT_LESS: "prompt.less", PROMPT_YES: "prompt.yes", PROMPT_NO: "prompt.no"]
+                    for (b, r) in zip(promptButtons, promptButtonFrames()) {
+                        let e = UIAccessibilityElement(accessibilityContainer: self)
+                        e.accessibilityLabel = b.label
+                        e.accessibilityIdentifier = names[b.slot] ?? "prompt.\(b.slot)"
+                        e.accessibilityTraits = .button
+                        e.accessibilityFrameInContainerSpace = r.offsetBy(dx: 0, dy: headerH)
+                        out.append(e)
+                    }
+                }
                 for row in layout.rows {
                     for k in row where k.code != UIKeyCode.globe {
                         let e = UIAccessibilityElement(accessibilityContainer: self)
@@ -854,7 +893,16 @@ final class KeyboardView: UIView, KeyboardSurface {
     }
 
     private func updateStripAccessibility() {
-        stripView.accessibilityValue = [stripMessage, prompt].compactMap { $0 }.first ?? strip.map { $0 ?? "" }.joined(separator: " | ")
+        if let m = stripMessage {
+            stripView.accessibilityValue = m
+        } else if let p = prompt {
+            stripView.accessibilityValue = p + " — " + promptButtons.map { $0.label }.joined(separator: ", ")
+        } else {
+            stripView.accessibilityValue = strip.enumerated().map { (i: Int, w: String?) -> String in
+                guard let w = w else { return "" }
+                return i == stripFlag ? w + " (check spelling)" : w
+            }.joined(separator: " | ")
+        }
     }
 }
 
@@ -971,11 +1019,15 @@ final class StripView: UIView {
         let s = kb.stripState
         let w = bounds.width
         let h = bounds.height
-        func text(_ str: String, in box: CGRect, size: CGFloat = 17, weight: UIFont.Weight = .regular, color: UIColor? = nil, align: NSTextAlignment = .center) {
+        func text(_ str: String, in box: CGRect, size: CGFloat = 17, weight: UIFont.Weight = .regular, color: UIColor? = nil, align: NSTextAlignment = .center, underline: UIColor? = nil) {
             let para = NSMutableParagraphStyle()
             para.alignment = align
             para.lineBreakMode = .byTruncatingTail
-            let attrs: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color ?? t.stripText, .paragraphStyle: para]
+            var attrs: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color ?? t.stripText, .paragraphStyle: para]
+            if let u = underline {
+                attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue
+                attrs[.underlineColor] = u
+            }
             let lineH = UIFont.systemFont(ofSize: size, weight: weight).lineHeight
             (str as NSString).draw(in: CGRect(x: box.minX, y: box.midY - lineH / 2, width: box.width, height: lineH), withAttributes: attrs)
         }
@@ -992,9 +1044,13 @@ final class StripView: UIView {
             return
         }
         if let p = s.prompt {
-            text(p, in: CGRect(x: 10, y: 0, width: w - 2 * Metrics.promptButtonW - 14, height: h), size: 14, align: .left)
-            button("Block", CGRect(x: w - 2 * Metrics.promptButtonW, y: 0, width: Metrics.promptButtonW, height: h), pressed: s.pressed == PROMPT_YES, strong: true)
-            button("Cancel", CGRect(x: w - Metrics.promptButtonW, y: 0, width: Metrics.promptButtonW, height: h), pressed: s.pressed == PROMPT_NO, strong: false)
+            let frames = kb.promptButtonFrames()
+            let textEnd = frames.first?.minX ?? w
+            text(p, in: CGRect(x: 10, y: 0, width: max(0, textEnd - 14), height: h), size: 14, align: .left)
+            for (i, (b, r)) in zip(kb.promptButtons, frames).enumerated() {
+                // The first is the suggested choice; Cancel is plain.
+                button(b.label, CGRect(x: r.minX, y: 0, width: r.width, height: h), pressed: s.pressed == b.slot, strong: i == 0 && b.slot != PROMPT_NO)
+            }
             return
         }
         if let m = s.menu {
@@ -1029,7 +1085,10 @@ final class StripView: UIView {
                     UIRectFill(CGRect(x: box.minX, y: 12, width: 1, height: h - 24))
                 }
                 if let word = s.words[i] {
-                    text(word, in: box.insetBy(dx: 5, dy: 0), size: 17, weight: i == s.bold ? .semibold : .regular)
+                    // A word that may be misspelled is red with a dotted line, like a spelling check.
+                    let red = i == s.flag
+                    text(word, in: box.insetBy(dx: 5, dy: 0), size: 17, weight: i == s.bold ? .semibold : .regular,
+                         color: red ? t.bad : nil, underline: red ? t.bad : nil)
                 }
             }
             return

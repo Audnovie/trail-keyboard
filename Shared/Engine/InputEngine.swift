@@ -9,6 +9,17 @@ public enum LayoutName: String {
     case letters, symbols, symbols2
 }
 
+/// A button of a prompt in the suggestion bar, and the slot tapping it reports.
+public struct PromptButton: Equatable {
+    public let label: String
+    public let slot: Int
+
+    public init(_ label: String, _ slot: Int) {
+        self.label = label
+        self.slot = slot
+    }
+}
+
 /// What the typing logic asks of the keyboard on screen.
 public protocol KeyboardSurface: AnyObject {
     func setLayout(_ name: LayoutName)
@@ -16,9 +27,11 @@ public protocol KeyboardSurface: AnyObject {
     /// Empties the suggestion bar (and takes down any prompt in it).
     func clearStrip()
     func setShift(_ shifted: Bool, _ capsLock: Bool)
-    /// Three suggestions, the `bold` one in the middle as a rule (also takes down any prompt).
-    func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int)
-    func setPrompt(_ text: String?)
+    /// Three suggestions, the `bold` one in the middle as a rule (-1: none), and `flag` the one
+    /// shown in red as possibly misspelled (-1: none). Also takes down any prompt.
+    func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int, flag: Int)
+    /// A question in the bar with its buttons (nil takes it down).
+    func setPrompt(_ text: String?, _ buttons: [PromptButton])
     var hasPrompt: Bool { get }
     func openSettings()
 }
@@ -37,15 +50,21 @@ public enum KeyCode {
 
 /// Suggestion bar targets besides the three slots (0-2).
 public let SLOT_GEAR = -1
+/// A prompt's buttons: Never (or Forget), Cancel, Less often.
 public let PROMPT_YES = 10
 public let PROMPT_NO = 11
+public let PROMPT_LESS = 12
+let WORD_PROMPT = [PromptButton("Less often", PROMPT_LESS), PromptButton("Never", PROMPT_YES), PromptButton("Cancel", PROMPT_NO)]
+let PAIR_PROMPT = [PromptButton("Forget", PROMPT_YES), PromptButton("Cancel", PROMPT_NO)]
 
 public struct TypingSettings: Codable, Equatable {
     public var swipe = true
     public var smartFix = true
-    public var autocorrect = false
+    public var autocorrect = true
     public var doubleSpace = true
     public var learn = true
+    /// Word pairs: learn which word you write after which, and use it.
+    public var pairs = true
     /// "auto" or a language code.
     public var typingLang = "auto"
     public var lastLang: String? = "en"
@@ -68,6 +87,12 @@ private let SHIFT_LOCK = 2
 
 public enum StripKind {
     case none, typed, gesture
+    /// Your usual next words, after a space.
+    case next
+    /// A word that may be misspelled (in red), with fixes, after a space.
+    case flag
+    /// What you typed before an automatic fix, offered after backspacing to the fixed word.
+    case undo
 }
 
 @inline(__always)
@@ -119,11 +144,25 @@ public final class InputEngine {
     public private(set) var stripLang: [String?] = [nil, nil, nil]
     private var blockCandidate: String?
     private var blockLang: String?
+    /// The prompt is about a word pair (forget it) rather than a word (less often or never).
+    private var promptIsPair = false
+    private var promptPrev: String?
+    /// The word before the next-word suggestions.
+    private var nextPrev: String?
+    /// The red word: what you typed, the language then, and the word before it.
+    private var flag: (literal: String, ctx: String?, prev: String?)?
     private var spaceAfterPick = false
     private var lastSpaceTime = -1e9
     private var revertFrom: String?
     private var revertTo: String?
     private var revertLang: String?
+    /// The fix's language, the word before it (for word pairs), and whether what you typed
+    /// started with a capital only because of sentence-start shift.
+    private var revertFixLang: String?
+    private var revertPrev: String?
+    private var revertAutoCap = false
+    /// The last tapped word committed.
+    private var lastCommit: (literal: String, ctx: String?, prev: String?, changed: Bool)?
     private var deletedGestureWord: String?
     private var deletedGestureLang: String?
     private var deletedGestureTime = 0.0
@@ -253,6 +292,43 @@ public final class InputEngine {
         return ctx
     }
 
+    // ---- word pairs ----
+
+    /// The word before the one being composed (tapped or swiped), with a space between.
+    private func prevBeforeComposing() -> String? {
+        wordBefore(ic.contextBefore(limit: 60, beforeComposing: true), needSpace: true)
+    }
+
+    /// The word before the cursor, with a space after it.
+    private func prevAtCursor() -> String? {
+        wordBefore(ic.contextBefore(limit: 60, beforeComposing: false), needSpace: true)
+    }
+
+    /// The word a swipe follows: what's before the cursor, composing or not (a space goes between).
+    private func prevForSwipe() -> String? {
+        wordBefore(ic.contextBefore(limit: 60, beforeComposing: false), needSpace: false)
+    }
+
+    /// What the word before says about the next one, in the language you're writing in (or nil).
+    public func boostFor(_ prev: String?, _ ctx: String?) -> PairBoost? {
+        guard settings.pairs, let prev = prev, !prev.isEmpty, let ctx = ctx, let L = lex.get(ctx), L.words != nil else { return nil }
+        var byWord = [String: Double]()
+        for p in L.user.followers(prev) where !L.user.isBlocked(p.next) {
+            byWord[pairForm(p.next)] = pairBonusOf(p.count)
+        }
+        return byWord.isEmpty ? nil : PairBoost(lang: ctx, byWord: byWord)
+    }
+
+    private func learnPair(_ prev: String?, _ word: String?, _ amount: Double, _ code: String?) {
+        guard let prev = prev, let word = word, !prev.isEmpty, !word.isEmpty, settings.pairs, learning() else { return }
+        lex.get(code)?.user.recordPair(prev, word, amount: amount)
+    }
+
+    private func weakenPair(_ prev: String?, _ word: String?, _ code: String?) {
+        guard let prev = prev, let word = word, !prev.isEmpty, !word.isEmpty, settings.pairs, learning() else { return }
+        lex.get(code)?.user.weakenPair(prev, word)
+    }
+
     /// The typing language or the languages switched on changed: redo the word being tapped out.
     public func refreshSuggestions() {
         if stripKind == .typed && !typed.isEmpty { showTypedSuggestions() }
@@ -333,21 +409,15 @@ public final class InputEngine {
             }
             return
         }
-        if let from = revertFrom, let to = revertTo {
+        if let from = revertFrom, revertTo != nil {
             let b = ic.textBefore(utf16: from.utf16.count + 1)
             if same(b, from + " ") {
-                // Undo the automatic fix: put back exactly what you typed.
-                ic.deleteBefore(utf16: from.utf16.count + 1)
-                ic.commitText(to)
-                if learning() {
-                    recordReject(from, revertLang)
-                    if to.utf16.count >= 2 {
-                        let lang = langOfTyped(to, contextLang())
-                        recordUse(learnForm(to, false, lang), 1, lang)
-                    }
-                }
-                revertFrom = nil
-                revertTo = nil
+                // Back to the fixed word: the space goes as usual, and what you typed is offered.
+                ic.deleteBefore(utf16: 1)
+                afterGesture = false
+                spaceAfterPick = false
+                showUndo()
+                updateShift()
                 return
             }
             revertFrom = nil
@@ -370,7 +440,7 @@ public final class InputEngine {
         ic.beginBatchEdit()
         defer { ic.endBatchEdit() }
         guard let ctx = contextLang() else { return }
-        let res = decoder.decode(xs, ys, count, sources(ctx), max: 8)
+        let res = decoder.decode(xs, ys, count, sources(ctx), max: 8, boost: boostFor(prevForSwipe(), ctx))
         swipeInner(res, ctx)
     }
 
@@ -472,8 +542,8 @@ public final class InputEngine {
             view?.openSettings()
             return
         }
-        if slot == PROMPT_YES || slot == PROMPT_NO {
-            answerPrompt(slot == PROMPT_YES)
+        if slot == PROMPT_YES || slot == PROMPT_NO || slot == PROMPT_LESS {
+            answerPrompt(slot)
             return
         }
         if slot < 0 || slot > 2 || stripText[slot] == nil { return }
@@ -490,6 +560,7 @@ public final class InputEngine {
             if same(chosen, gw) {
                 finalizeGesture()
             } else {
+                let prev = prevBeforeComposing()
                 ic.setComposingText(chosen)
                 ic.finishComposingText()
                 if let cb = onCorrection, let b = base, let g = gestureBase {
@@ -499,6 +570,9 @@ public final class InputEngine {
                     if let b = base { recordUse(b, 2, lang) }
                     // Rejected while writing in gestureCtx: that's where it should come up less.
                     if let g = gestureBase { recordReject(g, gestureCtx ?? gestureLang) }
+                    // After this word, the one you picked is likelier and the guess less likely.
+                    learnPair(prev, base, 2, lang)
+                    weakenPair(prev, gestureBase, gestureCtx ?? gestureLang)
                 }
                 gestureWord = nil
                 gestureBase = nil
@@ -514,15 +588,19 @@ public final class InputEngine {
         }
         if stripKind == .typed && !typed.isEmpty {
             let literal = typed
+            let prev = prevBeforeComposing()
             ic.setComposingText(chosen)
             ic.finishComposingText()
             if learning() {
                 if same(chosen, literal) {
                     if literal.utf16.count >= 2 || inBase(literal, lang) {
-                        recordUse(learnForm(literal, typedFirstAutoCap, lang), 1, lang)
+                        let form = learnForm(literal, typedFirstAutoCap, lang)
+                        recordUse(form, 1, lang)
+                        learnPair(prev, form, 1, lang)
                     }
                 } else if let b = base {
                     recordUse(b, 2, lang)
+                    learnPair(prev, b, 2, lang)
                 }
             }
             typed = ""
@@ -531,29 +609,130 @@ public final class InputEngine {
             stripKind = .none
             view?.clearStrip()
             updateShift()
+            showNextWords()
+            return
+        }
+        if stripKind == .next {
+            // One of your usual next words: typed with a space after.
+            let prev = nextPrev
+            ic.commitText(chosen + " ")
+            if learning(), let b = base {
+                recordUse(b, 1, lang)
+                learnPair(prev, b, 1, lang)
+            }
+            deletedGestureWord = nil
+            afterGesture = false
+            spaceAfterPick = true
+            stripKind = .none
+            view?.clearStrip()
+            updateShift()
+            showNextWords()
+            return
+        }
+        if stripKind == .flag, let f = flag {
+            flag = nil
+            stripKind = .none
+            view?.clearStrip()
+            let litLang = langOfTyped(f.literal, f.ctx)
+            if slot == 0 {
+                // You meant it: it counts as a word from now on.
+                if learning() { recordUse(learnForm(f.literal, false, litLang), 1, litLang) }
+                showNextWords()
+                return
+            }
+            if !same(ic.textBefore(utf16: f.literal.utf16.count + 1), f.literal + " ") { return }
+            ic.deleteBefore(utf16: f.literal.utf16.count + 1)
+            ic.commitText(chosen + " ")
+            if learning() {
+                // Take back what typing it taught, and learn the fix.
+                let form = learnForm(f.literal, false, litLang)
+                if let L = lex.get(litLang), let e = L.user.get(form), e.added, e.uses <= 1 { L.user.remove(form) }
+                weakenPair(f.prev, form, litLang)
+                if let b = base {
+                    recordUse(b, 2, lang)
+                    learnPair(f.prev, b, 2, lang)
+                }
+            }
+            deletedGestureWord = nil
+            afterGesture = false
+            spaceAfterPick = true
+            updateShift()
+            showNextWords()
+            return
+        }
+        if stripKind == .undo, let from = revertFrom, let to = revertTo {
+            revertFrom = nil
+            revertTo = nil
+            stripKind = .none
+            view?.clearStrip()
+            if !same(ic.textBefore(utf16: from.utf16.count), from) { return }
+            if slot == 0 {
+                // Put back exactly what you typed. One undo is enough: it isn't fixed again.
+                ic.deleteBefore(utf16: from.utf16.count)
+                ic.commitText(to + " ")
+                if learning() {
+                    recordReject(from, revertLang)
+                    weakenPair(revertPrev, from, revertFixLang)
+                    if to.utf16.count >= 2 {
+                        let tl = langOfTyped(to, contextLang())
+                        let form = learnForm(to, revertAutoCap, tl)
+                        recordUse(form, 2, tl)
+                        learnPair(revertPrev, form, 1, tl)
+                    }
+                }
+            } else {
+                ic.commitText(" ")
+            }
+            afterGesture = false
+            spaceAfterPick = true
+            updateShift()
+            showNextWords()
         }
     }
 
     public func onStripLongPress(_ slot: Int) {
         if slot < 0 || slot > 2 { return }
         guard let candidate = stripBase[slot] else { return }
+        if stripKind == .next {
+            guard let prev = nextPrev else { return }
+            promptIsPair = true
+            promptPrev = prev
+            blockCandidate = candidate
+            blockLang = stripLang[slot]
+            view?.setPrompt("“" + candidate + "” after “" + prev + "”", PAIR_PROMPT)
+            return
+        }
+        promptIsPair = false
         blockCandidate = candidate
-        // Blocked in the language you're writing in: blocking a Spanish word that turned up in
-        // English leaves it alone for Spanish.
+        // In the language you're writing in: a Spanish word that turned up in English stays as it
+        // is for Spanish.
         blockLang = (stripKind == .gesture ? gestureCtx : nil) ?? contextLang() ?? stripLang[slot]
         let L = lex.get(blockLang)
         let place = lex.enabled().count > 1 && L != nil ? " in " + L!.name : ""
-        view?.setPrompt("Never suggest “" + candidate + "”" + place + "?")
+        view?.setPrompt("“" + candidate + "”" + place, WORD_PROMPT)
     }
 
-    private func answerPrompt(_ yes: Bool) {
+    /// - Parameter choice: PROMPT_LESS, PROMPT_YES (never, or forget a pair) or PROMPT_NO.
+    private func answerPrompt(_ choice: Int) {
         ic.beginBatchEdit()
         defer { ic.endBatchEdit() }
         let word = blockCandidate
         let code = blockLang
         blockCandidate = nil
-        view?.setPrompt(nil)
-        if yes, let w = word {
+        view?.setPrompt(nil, [])
+        if promptIsPair {
+            if choice == PROMPT_YES, let w = word, let prev = promptPrev {
+                lex.get(code)?.user.forgetPair(prev, w)
+            }
+            if stripKind == .next { showNextWords() }
+            return
+        }
+        if choice == PROMPT_LESS, let w = word {
+            // As if you'd corrected it twice; picking it yourself later brings it back.
+            recordReject(w, code)
+            recordReject(w, code)
+        }
+        if choice == PROMPT_YES, let w = word {
             lex.get(code)?.user.block(w)
             if stripKind == .gesture && gestureWord != nil, let results = gestureResults {
                 let gone = { (w: String, lang: String?) -> Bool in self.blockedIn(w, lang) || self.blockedIn(w, code) }
@@ -578,13 +757,16 @@ public final class InputEngine {
         }
         if stripKind == .gesture { showGestureStrip() }
         else if stripKind == .typed { showTypedSuggestions() }
-        else { view?.clearStrip() }
+        else {
+            stripKind = .none
+            view?.clearStrip()
+        }
     }
 
     public func dismissPrompt() {
         if blockCandidate != nil {
             blockCandidate = nil
-            view?.setPrompt(nil)
+            view?.setPrompt(nil, [])
         }
     }
 
@@ -716,6 +898,7 @@ public final class InputEngine {
             afterGesture = false
             lastSpaceTime = t
             updateShift()
+            showNextWords()
             return
         }
         if !typed.isEmpty {
@@ -723,6 +906,8 @@ public final class InputEngine {
             ic.commitText(" ")
             lastSpaceTime = t
             updateShift()
+            if let c = lastCommit, !c.changed, showFlag(c.literal, c.ctx, c.prev) { return }
+            showNextWords()
             return
         }
         if spaceAfterPick {
@@ -738,6 +923,10 @@ public final class InputEngine {
                 ic.commitText(". ")
                 lastSpaceTime = -1e9
                 afterGesture = false
+                if stripKind != .none {
+                    stripKind = .none
+                    view?.clearStrip()
+                }
                 updateShift()
                 return
             }
@@ -746,6 +935,7 @@ public final class InputEngine {
         lastSpaceTime = t
         afterGesture = false
         updateShift()
+        showNextWords()
     }
 
     private func handleEnter() {
@@ -775,12 +965,16 @@ public final class InputEngine {
         if !typed.isEmpty {
             let literal = typed
             let ctx = contextLang()
+            let prev = prevBeforeComposing()
             typed = ""
             ic.finishComposingText()
             if learning() {
                 let lang = langOfTyped(literal, ctx)
                 let base = learnForm(literal, typedFirstAutoCap, lang)
-                if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) { recordUse(base, 1, lang) }
+                if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) {
+                    recordUse(base, 1, lang)
+                    learnPair(prev, base, 1, lang)
+                }
             }
             revertFrom = nil
             revertTo = nil
@@ -792,12 +986,15 @@ public final class InputEngine {
     }
 
     private func finalizeGesture() {
+        let prev = prevBeforeComposing()
         ic.finishComposingText()
         if learning(), let base = gestureBase {
             recordUse(base, 1, gestureLang)
+            learnPair(prev, base, 1, gestureLang)
             if let dw = deletedGestureWord, now() - deletedGestureTime < 20000, !lowerSame(dw, base) {
                 // You deleted a swiped word and swiped again: the first guess was wrong.
                 recordReject(dw, deletedGestureLang)
+                weakenPair(prev, dw, deletedGestureLang)
             }
         }
         deletedGestureWord = nil
@@ -816,14 +1013,18 @@ public final class InputEngine {
     private func commitTyped() {
         let literal = typed
         let ctx = contextLang()
+        let prev = prevBeforeComposing()
         typed = ""
-        let fix = decideTypedCommit(literal, ctx)
+        let fix = decideTypedCommit(literal, ctx, prev: prev)
         let commit = fix.text
         if !same(commit, literal) {
             ic.setComposingText(commit)
             revertFrom = commit
             revertTo = literal
             revertLang = ctx
+            revertFixLang = fix.lang
+            revertPrev = prev
+            revertAutoCap = typedFirstAutoCap
         } else {
             revertFrom = nil
             revertTo = nil
@@ -833,15 +1034,20 @@ public final class InputEngine {
             let unchanged = same(commit, literal)
             let lang = unchanged ? langOfTyped(literal, ctx) : fix.lang
             let base = unchanged ? learnForm(literal, typedFirstAutoCap, lang) : baseFormOf(commit, lang)
-            if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) { recordUse(base, 1, lang) }
+            if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) {
+                recordUse(base, 1, lang)
+                learnPair(prev, base, 1, lang)
+            }
         }
+        lastCommit = (literal, ctx, prev, !same(commit, literal))
         deletedGestureWord = nil
         stripKind = .none
         view?.clearStrip()
     }
 
     /// What pressing space turns the tapped word into (lang nil if unchanged).
-    public func decideTypedCommit(_ literal: String, _ ctx: String?) -> (text: String, lang: String?) {
+    /// - Parameter prev: the word before it (for word pairs), if known.
+    public func decideTypedCommit(_ literal: String, _ ctx: String?, prev: String? = nil) -> (text: String, lang: String?) {
         let plain = (text: literal, lang: String?.none)
         guard canSuggest, let ctx = ctx, !literal.isEmpty else { return plain }
         let srcs = sources(ctx)
@@ -891,16 +1097,61 @@ public final class InputEngine {
                 }
             }
         }
-        if settings.autocorrect && literal.utf16.count >= 2 && !srcs.contains(where: { $0.words.find(literal) >= 0 }) &&
-            !srcs.contains(where: { isActiveAddedIn(literal, $0) }) {
-            let s = suggester.suggest(literal, srcs, max: 3)
-            if let top = s.first {
-                if (top.kind == .correction && top.cost <= 1.0) || top.kind == .exact {
-                    return (withCaps(top.word, caps), top.lang)
+        // Not in fields where the app turned autocorrection off or the keyboard doesn't learn
+        // (user names, addresses and the like; see setField). The JavaScript engine has no such
+        // fields, so this is the one place the two differ.
+        if settings.autocorrect && hostLearns && literal.utf16.count >= 2 && !srcs.contains(where: { isActiveAddedIn(literal, $0) }) {
+            let listed = srcs.filter { $0.words.find(literal) >= 0 }
+            let slip = !listed.isEmpty && isAbbreviationSlip(literal, listed, srcs)
+            if listed.isEmpty || slip {
+                let boost = prev != nil && !prev!.isEmpty ? boostFor(prev, ctx) : nil
+                if slip {
+                    if let fix = slipFix(suggester.suggest(literal, srcs, max: 8, boost: boost), listed, literal) {
+                        return (withCaps(fix.word, caps), fix.lang)
+                    }
+                } else {
+                    for c in suggester.suggest(literal, srcs, max: 3, boost: boost) {
+                        // The likeliest close fix: one passing over fixes that need more than one
+                        // change, but not over a longer word starting with what you typed.
+                        if c.kind == .completion { break }
+                        if c.kind == .exact || c.cost <= 1.0 { return (withCaps(c.word, caps), c.lang) }
+                    }
                 }
             }
         }
         return plain
+    }
+
+    /// A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used.
+    private func isAbbreviationSlip(_ literal: String, _ listed: [Source], _ srcs: [Source]) -> Bool {
+        if literal.utf16.count > 4 || !same(literal, literal.lowercased()) { return false }
+        for S in srcs {
+            if let e = S.user.get(literal), e.uses > 0 { return false }
+        }
+        let key = keyOf(literal)
+        for S in listed {
+            for id in S.words.withKey(key) {
+                let d = S.words.display(id)
+                if same(d.lowercased(), literal) && !same(d, d.uppercased()) { return false }
+            }
+        }
+        return true
+    }
+
+    /// "amd" -> "and": one neighbouring key off a word at least 100 times as common, and clearly
+    /// the likeliest such word; nil if there's none.
+    private func slipFix(_ list: [Suggestion], _ listed: [Source], _ literal: String) -> Suggestion? {
+        var own = -99.0
+        for S in listed {
+            let id = S.words.find(literal)
+            if id >= 0 { own = max(own, Double(S.words.score(id)) / 100 + S.bias) }
+        }
+        let near = list.filter { $0.kind == .correction && $0.cost <= 0.5 }
+        guard let first = near.first else { return nil }
+        let z0 = first.score + 1.5 * first.cost
+        if z0 - own < 2 { return nil }
+        if near.count > 1 && z0 - (near[1].score + 1.5 * near[1].cost) < 1 { return nil }
+        return first
     }
 
     // ---- suggestion strip ----
@@ -925,7 +1176,7 @@ public final class InputEngine {
         setSlot(0, r1?.word, r1.map { withCaps($0.word, gestureCaps) }, r1?.lang)
         setSlot(1, b0, gestureWord, gestureLang)
         setSlot(2, r2?.word, r2.map { withCaps($0.word, gestureCaps) }, r2?.lang)
-        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: 1)
+        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: 1, flag: -1)
     }
 
     private func showTypedSuggestions() {
@@ -941,9 +1192,10 @@ public final class InputEngine {
         stripKind = .typed
         let literal = typed
         let caps = capsOf(literal)
-        let fix = decideTypedCommit(literal, ctx)
+        let prev = prevBeforeComposing()
+        let fix = decideTypedCommit(literal, ctx, prev: prev)
         let onSpace = fix.text
-        let list = suggester.suggest(literal, sources(ctx), max: 6)
+        let list = suggester.suggest(literal, sources(ctx), max: 6, boost: boostFor(prev, ctx))
         var alts = [Suggestion]()
         for s in list {
             if lowerSame(s.word, literal) || lowerSame(s.word, onSpace) { continue }
@@ -955,7 +1207,7 @@ public final class InputEngine {
             setSlot(1, baseFormOf(onSpace, fix.lang), onSpace, fix.lang)
             let a = alts.first
             setSlot(2, a?.word, a.map { withCaps($0.word, caps) }, a?.lang)
-            view?.setSuggestions("“" + literal + "”", onSpace, stripText[2], bold: 1)
+            view?.setSuggestions("“" + literal + "”", onSpace, stripText[2], bold: 1, flag: -1)
             return
         }
         let a0 = alts.count > 0 ? alts[0] : nil
@@ -963,7 +1215,69 @@ public final class InputEngine {
         setSlot(0, a0?.word, a0.map { withCaps($0.word, caps) }, a0?.lang)
         setSlot(1, literal, literal, literalLang)
         setSlot(2, a1?.word, a1.map { withCaps($0.word, caps) }, a1?.lang)
-        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: 1)
+        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: 1, flag: -1)
+    }
+
+    /// Your usual next words after the word before the cursor (or an empty bar).
+    private func showNextWords() {
+        let prev = canSuggest && settings.pairs ? prevAtCursor() : nil
+        let ctx = prev == nil ? nil : contextLang()
+        var words = [String]()
+        if let p = prev, let L = lex.get(ctx), L.words != nil {
+            for f in L.user.followers(p) where !L.user.isBlocked(f.next) {
+                words.append(f.next)
+                if words.count == 3 { break }
+            }
+        }
+        if words.isEmpty {
+            if stripKind != .none {
+                stripKind = .none
+                view?.clearStrip()
+            }
+            return
+        }
+        let caps = capChars || shift == SHIFT_LOCK ? 2 : shift == SHIFT_ON ? 1 : 0
+        stripKind = .next
+        nextPrev = prev
+        // The likeliest in the middle, like the other suggestions.
+        let order: [String?] = [words.count > 1 ? words[1] : nil, words[0], words.count > 2 ? words[2] : nil]
+        for i in 0..<3 { setSlot(i, order[i], order[i].map { withCaps($0, caps) }, ctx) }
+        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: -1, flag: -1)
+    }
+
+    /// After a space: a tapped word that isn't one (not in a list, not yours) is shown in red with
+    /// the closest fixes. False (nothing shown) when it's a word or nothing is close.
+    private func showFlag(_ literal: String, _ ctx: String?, _ prev: String?) -> Bool {
+        // Like the automatic fixes, only in fields where the keyboard learns.
+        guard canSuggest, hostLearns, let ctx = ctx, literal.utf16.count >= 2, isLearnable(literal), capsOf(literal) != 2 else { return false }
+        let srcs = sources(ctx)
+        for S in srcs {
+            if S.words.find(literal) >= 0 { return false }
+            if let e = S.user.get(literal), e.uses >= NEW_WORD_ACTIVE_USES { return false }
+        }
+        let found = suggester.suggest(literal, srcs, max: 6, boost: boostFor(prev, ctx))
+        // Fixes one mistake away first, then the rest, each in the suggester's order.
+        let fixes = found.filter { $0.kind == .correction && $0.cost <= 1.0 } + found.filter { $0.kind == .correction && $0.cost > 1.0 }
+        guard let f1 = fixes.first else { return false }
+        let caps = capsOf(literal)
+        stripKind = .flag
+        flag = (literal, ctx, prev)
+        setSlot(0, nil, literal, nil)
+        setSlot(1, f1.word, withCaps(f1.word, caps), f1.lang)
+        let f2 = fixes.count > 1 ? fixes[1] : nil
+        setSlot(2, f2?.word, f2.map { withCaps($0.word, caps) }, f2?.lang)
+        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: -1, flag: 0)
+        return true
+    }
+
+    /// Backspaced to an automatically fixed word: what you typed, and the fix.
+    private func showUndo() {
+        guard let from = revertFrom, let to = revertTo else { return }
+        stripKind = .undo
+        setSlot(0, nil, to, revertLang)
+        setSlot(1, nil, from, revertLang)
+        setSlot(2, nil, nil, nil)
+        view?.setSuggestions("“" + to + "”", from, nil, bold: 1, flag: -1)
     }
 
     private func setSlot(_ i: Int, _ base: String?, _ text: String?, _ lang: String?) {

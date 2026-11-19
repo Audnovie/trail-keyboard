@@ -116,6 +116,10 @@ final class HarnessViewController: UIViewController {
         case "swipe": swipe(arg)
         case "swipeTraining": swipe(controller.training.current())
         case "tap": tap(arg)
+        case "type":
+            // Each character as a tap on its key (a space on the space bar), one step each.
+            steps.insert(contentsOf: arg.map { $0 == " " ? "tap:space" : "tap:" + String($0) }, at: 0)
+            delay = 0
         case "wait": delay = (Double(arg) ?? 100) / 1000
         default: break
         }

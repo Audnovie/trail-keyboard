@@ -128,6 +128,22 @@ function swipeFor(word, style) {
   return { xs, ys };
 }
 
+/** A plain swipe from halfway between keys a and b to key c (no randomness). */
+function swipeBetween(a, b, c) {
+  const ka = a.charCodeAt(0) - 97;
+  const kb = b.charCodeAt(0) - 97;
+  const kc = c.charCodeAt(0) - 97;
+  const x0 = (CX[ka] + CX[kb]) / 2;
+  const y0 = (CY[ka] + CY[kb]) / 2;
+  const xs = [];
+  const ys = [];
+  for (let i = 0; i <= 12; i++) {
+    xs.push(r3(x0 + ((CX[kc] - x0) * i) / 12));
+    ys.push(r3(y0 + ((CY[kc] - y0) * i) / 12));
+  }
+  return { xs, ys };
+}
+
 // ---- learned-word states used by several fixtures -----------------------------------------------
 
 function userStates() {
@@ -423,17 +439,28 @@ class RecordingView {
     this.emoji = false;
     this.strip = [null, null, null];
     this.bold = 1;
+    this.flag = -1;
     this.prompt = null;
+    this.buttons = [];
     this.shifted = false;
     this.capsLock = false;
     this.settingsOpened = 0;
   }
   setLayout(n) { this.layout = n; }
   showEmoji(s) { this.emoji = s; }
-  clearStrip() { this.setSuggestions(null, null, null, 1); }
+  clearStrip() { this.setSuggestions(null, null, null, 1, -1); }
   setShift(s, l) { this.shifted = s; this.capsLock = l; }
-  setSuggestions(a, b, c, bold) { this.strip = [a, b, c]; this.bold = bold; this.prompt = null; }
-  setPrompt(t) { this.prompt = t; }
+  setSuggestions(a, b, c, bold, flag) {
+    this.strip = [a, b, c];
+    this.bold = bold;
+    this.flag = flag === undefined ? -1 : flag;
+    this.prompt = null;
+    this.buttons = [];
+  }
+  setPrompt(t, buttons) {
+    this.prompt = t;
+    this.buttons = t === null ? [] : (buttons || []).map((b) => b[0]);
+  }
   hasPrompt() { return this.prompt !== null; }
   openSettings() { this.settingsOpened++; }
 }
@@ -441,7 +468,8 @@ class RecordingView {
 function snapshot(ime, ed, view) {
   return {
     text: ed.text, sel: ed.sel, cs: ed.cs, ce: ed.ce,
-    strip: view.strip.slice(), prompt: view.prompt, shifted: view.shifted, lock: view.capsLock,
+    strip: view.strip.slice(), bold: view.bold, flag: view.flag, prompt: view.prompt, buttons: view.buttons.slice(),
+    shifted: view.shifted, lock: view.capsLock,
     layout: view.layout, emoji: view.emoji, settingsOpened: view.settingsOpened,
   };
 }
@@ -471,10 +499,16 @@ function expand(script) {
       const p = swipeFor(arg, { jitter: 0.12 });
       ev.push({ t: 'swipe', word: arg, xs: p.xs, ys: p.ys });
       ev.push({ t: 'wait', ms: 400 });
+    } else if (op === 'swipemid') {
+      // A swipe from halfway between two keys to a third ("io>n": between i and o, then to n).
+      const p = swipeBetween(arg[0], arg[1], arg[3]);
+      ev.push({ t: 'swipe', word: arg, xs: p.xs, ys: p.ys });
+      ev.push({ t: 'wait', ms: 400 });
     } else if (op === 'pick') ev.push({ t: 'strip', slot: Number(arg) });
     else if (op === 'hold') ev.push({ t: 'stripLong', slot: Number(arg) });
     else if (op === 'yes') ev.push({ t: 'strip', slot: T.PROMPT_YES });
     else if (op === 'no') ev.push({ t: 'strip', slot: T.PROMPT_NO });
+    else if (op === 'less') ev.push({ t: 'strip', slot: T.PROMPT_LESS });
     else if (op === 'gear') ev.push({ t: 'strip', slot: T.SLOT_GEAR });
     else if (op === 'del') ev.push({ t: 'del' });
     else if (op === 'wait') ev.push({ t: 'wait', ms: Number(arg) });
@@ -519,6 +553,15 @@ const SESSIONS = [
   { name: 'learned words', users: 'learned', langs: ['en', 'es'], script: ['swipe:haha', 'type: ', 'swipe:sense', 'type: ', 'type:Ter', 'pick:0', 'type:chi', 'type: ', 'swipe:yo'] },
   { name: 'restart mid word', script: ['type:hel', 'start', 'type:lo', 'swipe:there', 'start', 'type:x'] },
   { name: 'delete everything', script: ['type:ab cd', 'del', 'del', 'del', 'del', 'del', 'del', 'del', 'swipe:hi', 'del', 'del'] },
+  // Word pairs, the undo offer, typos in red, less often, abbreviations (Nov 2026).
+  { name: 'next words', script: ['type:see you ', 'type:see you ', 'type:see ', 'pick:1', 'type:later ', 'type:see ', 'hold:1', 'yes', 'type:see '] },
+  { name: 'pairs read swipes', script: ['type:we are ', 'swipemid:io>n', 'type: ', 'type:we are on ', 'type:we are on ', 'type:we are ', 'swipemid:io>n', 'type: ', 'type:so ', 'swipemid:io>n'] },
+  { name: 'pairs from corrections', script: ['type:we are ', 'swipemid:io>n', 'pick:0', 'type: ', 'type:we are ', 'swipemid:io>n', 'type: ', 'type:we are ', 'swipemid:io>n', 'del', 'swipemid:io>n'] },
+  { name: 'pairs off', settings: { pairs: false }, script: ['type:see you ', 'type:see you ', 'type:see ', 'type:you'] },
+  { name: 'undo an automatic fix', settings: { autocorrect: true }, script: ['type:teh ', 'del', 'pick:0', 'type:teh ', 'type:helo ', 'del', 'type: ', 'type:thsi ', 'del', 'pick:1', 'type:ok ', 'type:dont ', 'del', 'del', 'type:x'] },
+  { name: 'typos in red', script: ['type:tyoing ', 'pick:1', 'type:blorf ', 'pick:0', 'type:blorf ', 'type:zzqx ', 'type:recieve ', 'hold:1', 'no', 'type:x ', 'type:helo ', 'pick:2', 'type:Teh '] },
+  { name: 'less often', script: ['swipe:sense', 'hold:0', 'less', 'hold:2', 'no', 'type: ', 'type:hel', 'hold:2', 'less', 'type: ', 'swipe:sense', 'hold:1', 'less'] },
+  { name: 'close fixes and abbreviations', settings: { autocorrect: true }, script: ['type:tyoing ', 'type:amd ', 'del', 'pick:0', 'type:amd ', 'type:omg ', 'type:og ', 'type:lol ', 'type:idk ', 'type:ot ', 'type:likr ', 'type:AMD '] },
 ];
 
 {
@@ -534,7 +577,7 @@ const SESSIONS = [
     const corrections = [];
     ime.onCorrection = (c) => corrections.push([c.picked, c.pickedLang, c.guess, c.guessLang]);
     ime.onGeometry(CX, CY, KW);
-    const settings = Object.assign({ swipe: true, smartFix: true, autocorrect: false, doubleSpace: true, learn: true, typingLang: 'auto', lastLang: 'en' }, sess.settings || {});
+    const settings = Object.assign({ swipe: true, smartFix: true, autocorrect: false, doubleSpace: true, learn: true, pairs: true, typingLang: 'auto', lastLang: 'en' }, sess.settings || {});
     ime.start(settings);
     const events = expand(sess.script);
     const steps = [];
@@ -560,6 +603,94 @@ const SESSIONS = [
     });
   }
   files['sessions.json'] = { geometry: { cx: CX, cy: CY, kw: KW }, users: USERS, sessions: out };
+}
+
+// ---- word pairs ---------------------------------------------------------------------------------------
+
+{
+  rand = mulberry32(20261118);
+  const ops = [
+    ['pair', "You're", 'in', 1], ['pair', 'you’re', 'in', 2], ['pair', "you're", 'on', 1], ['pair', "you're", 'welcome', 1],
+    ['weaken', "you're", 'on'], ['weaken', "you're", 'on'], ['pair', 'I', 'am', 3], ['pair', 'a b', 'c', 1], ['pair', 'x', "it's", 1],
+    ['pair', 'x', "'quoted'", 1], ['block', 'sent'], ['pair', 'was', 'sent', 1], ['forget', 'i', 'am'], ['pair', 'i', 'think', 1],
+    ['pair', 'see', 'you', 1], ['pair', 'see', 'You', 100001], ['weaken', 'nothing', 'here'], ['forget', 'nothing', 'here'],
+    ['pair', "you're", 'in', 1], ['clear'], ['pair', 'see', 'you', 2], ['pair', 'see', 'it', 2], ['pair', 'see', 'them', 2],
+    ['pair', 'see', 'it', 1], ['weaken', 'see', 'you'],
+  ];
+  const U = new T.UserWords(T.LANG_INFO.en.starters);
+  const probes = ["you're", 'i', 'see', 'x', 'was'];
+  const trace = [];
+  for (const op of ops) {
+    if (op[0] === 'pair') U.recordPair(op[1], op[2], op[3]);
+    else if (op[0] === 'weaken') U.weakenPair(op[1], op[2]);
+    else if (op[0] === 'forget') U.forgetPair(op[1], op[2]);
+    else if (op[0] === 'clear') U.clearPairs();
+    else if (op[0] === 'block') U.block(op[1]);
+    trace.push({
+      version: U.version,
+      count: U.pairCount(),
+      followers: probes.map((w) => U.followers(w).map((q) => [q.next, q.count])),
+      all: U.allPairs().map((q) => [q.prev, q.next, q.count]),
+    });
+  }
+  // Only the most recently used pairs are kept.
+  const E = new T.UserWords([]);
+  const name = (i) => 'w' + String.fromCharCode(97 + (i % 26), 97 + (((i / 26) | 0) % 26), 97 + (((i / 676) | 0) % 26));
+  for (let i = 0; i < T.MAX_PAIRS + 5; i++) E.recordPair(name(i), 'next', 1);
+  E.recordPair(name(7), 'next', 1);
+  E.recordPair('one', 'more', 1);
+  const kept = E.toJSON().pairs;
+  const evict = { made: T.MAX_PAIRS + 5, count: E.pairCount(), first: kept.slice(0, 3), last: kept.slice(-3) };
+  const loads = [
+    null, {}, { pairs: 'x' },
+    { pairs: [['a', 'b', 2], ['bad word', 'c', 1], ['A', 'B', 3], ['x', 'y', 0], ['p', 'q', '4'], 'row', ['m'], ['m', 'n', -1], ['big', 'one', 200000], ['Yo', 'Sé', 1.25]] },
+  ].map((d) => {
+    const V = new T.UserWords(T.LANG_INFO.en.starters);
+    V.load(d);
+    return { input: d, saved: V.toJSON() };
+  });
+  const before = [
+    ["you're ", true], ["you're", true], ["you're", false], ['  hello   ', true], ['hello, ', true], ['end. ', true], ['line\n', true],
+    ["'quoted' ", true], ['it’s ', true], ['naïve ', true], ['co-op ', true], ['3 ', true], ['', true], ['x', false], ['a b c ', true],
+    ["don't'", false], ['Ünïcödé ', true], ['😀 ', true], ['word😀 ', true], ["'' ", true], ['abcdefghijklmnopqrstuvwxyzabcdef ', true],
+  ].map(([t, n]) => [t, n, T.wordBefore(t, n)]);
+
+  // Lifts at work: after "are", words you've written next.
+  const lex = lexicon(['en', 'es'], USERS);
+  const pairsSetup = [['are', 'on', 4], ['are', 'in', 1], ['are', 'welcome', 2], ['are', 'Terry', 2], ['are', 'going', 3], ['are', 'sent', 2], ['is', 'in', 9]];
+  for (const [a, b, c] of pairsSetup) lex.get('en').user.recordPair(a, b, c);
+  const ime = new T.Ime(new T.Editor(), new RecordingView(), lex, () => 0);
+  ime.onGeometry(CX, CY, KW);
+  ime.start({ swipe: true, smartFix: true, autocorrect: true, doubleSpace: true, learn: true, pairs: true, typingLang: 'auto', lastLang: 'en' });
+  const boost = ime.boostFor('are', 'en');
+  const sources = sourcesFor(lex, 'en');
+  const dec = new T.SwipeDecoder();
+  dec.setKeyCenters(CX, CY, KW);
+  const decodes = [];
+  const paths = ['in', 'on', 'it', 'of', 'welcome', 'going', 'Terry', 'sent'].map((w) => Object.assign({ word: w }, swipeFor(w, { jitter: 0.15 })));
+  paths.push(Object.assign({ word: 'io>n' }, swipeBetween('i', 'o', 'n')));
+  for (const pth of paths) {
+    const r = (list) => list.map((x) => [x.word, x.cost, x.lang]);
+    decodes.push({
+      word: pth.word, xs: pth.xs, ys: pth.ys,
+      plain: r(dec.decode(pth.xs, pth.ys, pth.xs.length, sources, 8)),
+      boosted: r(dec.decode(pth.xs, pth.ys, pth.xs.length, sources, 8, boost)),
+    });
+  }
+  const sug = new T.TypingSuggester();
+  sug.setKeyCenters(CX, CY, KW);
+  const suggests = ['i', 'o', 'in', 'on', 'wel', 'go', 'Ter', 'se', 'helo', 'amd', 'omg', 'ok', 'tyoing'].map((t) => {
+    const r = (list) => list.map((x) => [x.word, x.score, x.kind, x.cost, x.lang]);
+    return { typed: t, plain: r(sug.suggest(t, sources, 6)), boosted: r(sug.suggest(t, sources, 6, boost)) };
+  });
+  files['pairs.json'] = {
+    geometry: { cx: CX, cy: CY, kw: KW },
+    ops, trace, evict, loads, before,
+    users: USERS, pairsSetup,
+    boost: boost === null ? null : Array.from(boost.byWord.entries()),
+    noBoost: [ime.boostFor('nothing', 'en'), ime.boostFor('are', 'es'), ime.boostFor(null, 'en')],
+    decodes, suggests,
+  };
 }
 
 // ---- write -------------------------------------------------------------------------------------------
