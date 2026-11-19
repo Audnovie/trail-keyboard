@@ -99,7 +99,7 @@ final class SessionParityTests: XCTestCase {
                 XCTAssertEqual([ed.sel, ed.cs, ed.ce], [want["sel"].int, want["cs"].int, want["ce"].int], what)
                 XCTAssertEqual(view.strip, want["strip"].strings, what)
                 XCTAssertEqual([view.bold, view.flag], [want["bold"].int, want["flag"].int], "\(what): bold and red slots")
-                XCTAssertEqual(view.next, want["next"].bool, "\(what): next words
+                XCTAssertEqual(view.next, want["next"].bool, "\(what): next words")
                 XCTAssertEqual(view.prompt, want["prompt"].string, what)
                 XCTAssertEqual(view.buttons, want["buttons"].strings.compactMap { $0 }, "\(what): prompt buttons")
                 XCTAssertEqual([view.shifted, view.capsLock], [want["shifted"].bool, want["lock"].bool], what)
