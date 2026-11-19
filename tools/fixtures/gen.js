@@ -576,7 +576,8 @@ const SESSIONS = [
   { name: 'next word ends the undo offer', settings: { autocorrect: true }, script: ['type:the breathe ', 'type:teh ', 'pick:1', 'del', 'del'] },
   { name: 'red word prompts', script: ['type:blorf ', 'hold:1', 'no', 'hold:2', 'yes', 'hold:1', 'less', 'pick:1', 'type:blorf ', 'hold:1', 'place:2', 'no', 'type:z'] },
   { name: 'prompts where nothing is learned', settings: { learn: false }, script: ['type:hel', 'hold:2', 'less', 'hold:2', 'no', 'swipe:sense', 'hold:0', 'yes'] },
-  { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'type: ', 'del', 'type:so blorf ', 'hold:2', 'place:1', 'type:x'] },
+  // (A pause after the cursor moves, as a tap takes: otherwise the next space would be a double space.)
+  { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
 ];
 
 {
