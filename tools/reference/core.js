@@ -2477,7 +2477,8 @@ var Trail = (function () {
     }
 
     onStripLongPress(slot) {
-      if (slot < 0 || slot > 2 || this.stripBase[slot] == null) return;
+      // (Only words the bar shows: an empty bar's old words don't count.)
+      if (slot < 0 || slot > 2 || this.stripBase[slot] == null || this.stripKind === STRIP_NONE) return;
       if (this.stripKind === STRIP_NEXT) {
         if (this.nextPrev === null) return;
         this.promptKind = 'pair';
@@ -2561,6 +2562,8 @@ var Trail = (function () {
       if (this.blockCandidate !== null) {
         this.blockCandidate = null;
         this.view.setPrompt(null, []);
+        // The bar under it was let go while it was up (the cursor moved): clear that too.
+        if (this.stripKind === STRIP_NONE) this.view.clearStrip();
       }
     }
 

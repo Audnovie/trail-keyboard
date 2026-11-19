@@ -715,7 +715,8 @@ public final class InputEngine {
     }
 
     public func onStripLongPress(_ slot: Int) {
-        if slot < 0 || slot > 2 { return }
+        // (Only words the bar shows: an empty bar's old words don't count.)
+        if slot < 0 || slot > 2 || stripKind == .none { return }
         guard let candidate = stripBase[slot] else { return }
         if stripKind == .next {
             guard let prev = nextPrev else { return }
@@ -801,6 +802,8 @@ public final class InputEngine {
         if blockCandidate != nil {
             blockCandidate = nil
             view?.setPrompt(nil, [])
+            // The bar under it was let go while it was up (the cursor moved): clear that too.
+            if stripKind == .none { view?.clearStrip() }
         }
     }
 

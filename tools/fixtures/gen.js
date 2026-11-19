@@ -571,11 +571,12 @@ const SESSIONS = [
   { name: 'less often', script: ['swipe:sense', 'hold:0', 'less', 'hold:2', 'no', 'type: ', 'type:hel', 'hold:2', 'less', 'type: ', 'swipe:sense', 'hold:1', 'less'] },
   { name: 'close fixes and abbreviations', settings: { autocorrect: true }, script: ['type:tyoing ', 'type:amd ', 'del', 'pick:0', 'type:amd ', 'type:omg ', 'type:og ', 'type:lol ', 'type:idk ', 'type:ot ', 'type:likr ', 'type:AMD '] },
   // After the review (Nov 19, 2026).
-  { name: 'short words and slang', settings: { autocorrect: true }, script: ['type:nah ig omw wyd hbu idc gn tmr nvm plz kk sus ssh ', 'type:fo teh adn yuo nad yse ', 'type:docker ahve alot ', 'type:ur ni th 5th 1st 4th ', 'type:thsi waht jsut becuase tyoing thw snd '] },
+  { name: 'short words and slang', settings: { autocorrect: true }, script: ['type:nah ig omw wyd hbu idc gn tmr nvm plz kk sus ssh ', 'type:fo teh adn yuo nad yse ', 'type:docker ahve alot ', 'type:ur ni th 5th 1st 4th ', 'type:thsi waht jsut becuase tyoing thw snd ', 'type:noob nerf mmo aight imho yaml '] },
   { name: 'kept as typed', settings: { autocorrect: true }, script: ['type:so ios ', 'del', 'pick:0', 'type:ios ', 'type:toronto', 'pick:0', 'type:toronto ', 'type:teh', 'pick:0', 'type:teh ', 'type:so toronto '] },
   { name: 'next word ends the undo offer', settings: { autocorrect: true }, script: ['type:the breathe ', 'type:teh ', 'pick:1', 'del', 'del'] },
   { name: 'red word prompts', script: ['type:blorf ', 'hold:1', 'no', 'hold:2', 'yes', 'hold:1', 'less', 'pick:1', 'type:blorf ', 'hold:1', 'place:2', 'no', 'type:z'] },
   { name: 'prompts where nothing is learned', settings: { learn: false }, script: ['type:hel', 'hold:2', 'less', 'hold:2', 'no', 'swipe:sense', 'hold:0', 'yes'] },
+  { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'type: ', 'del', 'type:so blorf ', 'hold:2', 'place:1', 'type:x'] },
 ];
 
 {
