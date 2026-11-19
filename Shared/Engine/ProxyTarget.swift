@@ -309,6 +309,14 @@ public final class ProxyTarget: TextTarget {
         return String(decoding: u[start...], as: UTF16.self)
     }
 
+    /// False in an app that doesn't show this field's text (the keyboard only has its own picture,
+    /// which may be stale), so nothing is offered that would replace text there.
+    public var showsText: Bool {
+        let b = proxy.textBeforeCursor ?? ""
+        let a = proxy.textAfterCursor ?? ""
+        return !(b.isEmpty && a.isEmpty && proxy.hasText && !seenText)
+    }
+
     public func capsAtCursor() -> Bool {
         if wordCaps {
             guard let last = model.last else { return true }

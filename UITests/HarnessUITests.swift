@@ -153,7 +153,7 @@ final class HarnessUITests: XCTestCase {
     func testHoldingASuggestionOffersLessOftenOrNever() {
         let app = launch("type:hel")
         run(app)
-        XCTAssertEqual(strip(app), "“Hel” | He | Help")
+        XCTAssertEqual(strip(app), "He | Hel | Help")
         let kb = app.otherElements["harness.keyboard"]
         XCTAssertTrue(kb.exists)
         let f = kb.frame
@@ -166,7 +166,7 @@ final class HarnessUITests: XCTestCase {
         shot("word-prompt")
         app.buttons["prompt.less"].tap()
         // Help came down: the next likeliest takes its place.
-        XCTAssertEqual(strip(app), "“Hel” | He | Her")
+        XCTAssertEqual(strip(app), "He | Hel | Her")
         XCTAssertFalse(app.buttons["prompt.less"].exists)
         XCTAssertEqual(text(app), "Hel")
     }
@@ -195,15 +195,19 @@ final class HarnessUITests: XCTestCase {
         XCTAssertEqual(text(app), "Blood ")
     }
 
-    /// After a space, the word you usually write next is in the bar.
+    /// After a space, the word you usually write next is in the bar, and the settings button
+    /// stays at its left.
     func testNextWordAfterASpace() {
-        let app = launch("type:see you see you see |tap:slot1")
+        let app = launch("type:see you see you see |tap:slot1|tap:gear")
         run(app)
         XCTAssertEqual(text(app), "See you see you see ")
         XCTAssertEqual(strip(app), " | you | ")
         shot("next-word")
         run(app)
         XCTAssertEqual(text(app), "See you see you see you ")
+        XCTAssertEqual(strip(app), " | see | ")
+        run(app)
+        XCTAssertTrue(app.tables["panel.table"].waitForExistence(timeout: 5), "settings didn't open beside the next words")
     }
 
     /// Word pairs are listed in the keyboard's settings, and each can be forgotten.
@@ -224,8 +228,8 @@ final class HarnessUITests: XCTestCase {
         let row = app.cells["pair.see.you"]
         XCTAssertTrue(row.waitForExistence(timeout: 5), "see you isn't in the word pairs")
         XCTAssertTrue(app.cells["pair.you.see"].exists)
-        // Kept in the word list's own form.
-        XCTAssertTrue(app.cells["pair.you.OK"].exists)
+        // Kept as typed ("ok", though the word list has "OK").
+        XCTAssertTrue(app.cells["pair.you.ok"].exists)
         shot("word-pairs")
         app.buttons["pair.see.you.button"].tap()
         XCTAssertFalse(app.cells["pair.see.you"].waitForExistence(timeout: 1))

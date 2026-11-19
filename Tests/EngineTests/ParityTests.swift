@@ -230,7 +230,7 @@ final class SuggestParityTests: XCTestCase {
             let lex = TestData.lexicon(cfg["langs"].strings.compactMap { $0 }, users: cfg["learned"].bool ? f["users"] : fresh)
             let src = TestData.sources(lex, ctx: cfg["ctx"].string!)
             let typed = c["typed"].string!
-            let res = sug.suggest(typed, src, max: 6)
+            let res = sug.suggest(typed, src, max: 8)
             let want = c["results"].array
             let what = "\(cfg["name"].string!) suggest(\(typed))"
             XCTAssertEqual(res.count, want.count, "\(what): \(res.map { $0.word }) vs \(want.map { $0[0].string! })")
@@ -260,6 +260,7 @@ final class UserWordsParityTests: XCTestCase {
         for (op, t) in zip(ops, trace) {
             switch op[0].string! {
             case "use": U.recordUse(op[1].string!, amount: op[2].double, inBaseList: op[3].bool)
+            case "keep": U.recordUse(op[1].string!, amount: op[2].double, inBaseList: op[3].bool, keepForm: true)
             case "reject": U.recordReject(op[1].string!)
             case "add": U.addManual(op[1].string!)
             case "block": U.block(op[1].string!)

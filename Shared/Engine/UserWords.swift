@@ -41,6 +41,8 @@ public func wordBefore(_ text: String, needSpace: Bool) -> String? {
         if !isLetterUnit(c) && c != 0x27 && c != 0x2019 { break }
         start -= 1
     }
+    // Letters stuck to a number ("5th") aren't a word.
+    if start > 0 && u[start - 1] >= 0x30 && u[start - 1] <= 0x39 { return nil }
     while start < end && (u[start] == 0x27 || u[start] == 0x2019) { start += 1 }
     while end > start && (u[end - 1] == 0x27 || u[end - 1] == 0x2019) { end -= 1 }
     let w = String(decoding: u[start..<end], as: UTF16.self)
@@ -49,7 +51,7 @@ public func wordBefore(_ text: String, needSpace: Bool) -> String? {
 
 public final class UserWords {
     public final class Entry {
-        public let word: String
+        public internal(set) var word: String
         public internal(set) var uses: Double = 0
         public internal(set) var rejects: Int = 0
         public internal(set) var added = false
@@ -103,12 +105,14 @@ public final class UserWords {
 
     public func get(_ word: String) -> Entry? { entries[word.lowercased()] }
 
-    public func recordUse(_ word: String, amount: Double, inBaseList: Bool) {
+    /// - Parameter keepForm: keep this spelling (you put it back after a fix: "ios", not "iOS").
+    public func recordUse(_ word: String, amount: Double, inBaseList: Bool, keepForm: Bool = false) {
         if !isLearnable(word) || isBlocked(word) { return }
         let k = word.lowercased()
         let e: Entry
         if let old = entries[k] {
             e = old
+            if keepForm { e.word = word }
         } else {
             e = Entry(word)
             e.added = !inBaseList
@@ -161,13 +165,19 @@ public final class UserWords {
         }
     }
 
+    /// Forgets the word, and the word pairs it's in.
     public func remove(_ word: String) {
-        if entries.removeValue(forKey: word.lowercased()) != nil { changed() }
+        let gone = entries.removeValue(forKey: word.lowercased()) != nil
+        let f = pairForm(word)
+        let pairsGone = pairs.removeAll { _, p in p.prev == f || pairForm(p.next) == f }
+        if gone || pairsGone { changed() }
     }
 
+    /// Forgets every learned word, and the word pairs with them.
     public func clearLearned() {
-        if !entries.isEmpty {
+        if !entries.isEmpty || !pairs.isEmpty {
             entries.removeAll()
+            pairs.removeAll()
             changed()
         }
     }

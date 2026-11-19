@@ -85,6 +85,8 @@ final class KeyboardView: UIView, KeyboardSurface {
     private var stripBold = 1
     /// The slot shown in red as possibly misspelled (-1: none).
     private(set) var stripFlag = -1
+    /// The words are your usual next words (the settings button stays at the left).
+    private(set) var stripIsNext = false
     private(set) var stripMessage: String?
     private(set) var prompt: String?
     /// The prompt's buttons, left to right.
@@ -342,6 +344,7 @@ final class KeyboardView: UIView, KeyboardSurface {
         strip = [a, b, c]
         stripBold = bold
         stripFlag = flag
+        stripIsNext = false
         stripMessage = nil
         prompt = nil
         promptButtons = []
@@ -352,10 +355,23 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     func clearStrip() { setSuggestions(nil, nil, nil, bold: 1, flag: -1) }
 
+    func setNextWords(_ a: String?, _ b: String?, _ c: String?) {
+        setSuggestions(a, b, c, bold: -1, flag: -1)
+        stripIsNext = true
+        stripView.setNeedsDisplay()
+    }
+
+    /// With next words: the settings button's width at each side, and each word's width.
+    func nextWordsGeometry() -> (side: CGFloat, slotW: CGFloat) {
+        let side = Metrics.stripH * 1.2
+        return (side, max(0, bounds.width - 2 * side) / 3)
+    }
+
     func setStripMessage(_ m: String?) {
         if prompt != nil { a11yCache = nil }
         strip = [nil, nil, nil]
         stripFlag = -1
+        stripIsNext = false
         prompt = nil
         promptButtons = []
         stripMessage = m
@@ -422,8 +438,8 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     // ---- drawing state the subviews read ----
 
-    var stripState: (words: [String?], bold: Int, flag: Int, message: String?, prompt: String?, menu: (title: String, items: [(label: String, on: Bool)])?, chip: String?, pressed: Int) {
-        (strip, stripBold, stripFlag, stripMessage, prompt, menu, chip, pressedStripSlot)
+    var stripState: (words: [String?], bold: Int, flag: Int, next: Bool, message: String?, prompt: String?, menu: (title: String, items: [(label: String, on: Bool)])?, chip: String?, pressed: Int) {
+        (strip, stripBold, stripFlag, stripIsNext, stripMessage, prompt, menu, chip, pressedStripSlot)
     }
 
     var keyState: (layout: KeyLayout, pressed: Key?, shifted: Bool, capsLock: Bool, space: String, returnLabel: String?, hideKeys: Bool) {
@@ -513,6 +529,12 @@ final class KeyboardView: UIView, KeyboardSurface {
             return MENU_BASE + max(0, min(g.n - 1, Int(floor((x - g.start) / (g.itemW + 4)))))
         }
         if stripMessage != nil { return NONE_SLOT }
+        if stripIsNext {
+            let g = nextWordsGeometry()
+            if x < g.side { return SLOT_GEAR }
+            if x >= w - g.side { return chip != nil ? LANG_CHIP : NONE_SLOT }
+            return max(0, min(2, Int(floor((x - g.side) / max(1, g.slotW)))))
+        }
         let hasWords = strip.contains { $0 != nil }
         if !hasWords {
             if x < Metrics.stripH * 1.2 { return SLOT_GEAR }
@@ -1071,11 +1093,37 @@ final class StripView: UIView {
             text(m, in: bounds.insetBy(dx: 10, dy: 0), size: 15, color: t.stripDim)
             return
         }
+        func gear(_ box: CGRect) {
+            if s.pressed == SLOT_GEAR {
+                t.divider.setFill()
+                UIBezierPath(roundedRect: box.insetBy(dx: 4, dy: 5), cornerRadius: 7).fill()
+            }
+            let cfg = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+            if let img = UIImage(systemName: "slider.horizontal.3", withConfiguration: cfg)?.withTintColor(t.stripDim, renderingMode: .alwaysOriginal) {
+                img.draw(at: CGPoint(x: box.midX - img.size.width / 2, y: box.midY - img.size.height / 2))
+            }
+        }
         let hasWords = s.words.contains { $0 != nil }
         if hasWords {
-            let slotW = w / 3
+            var left: CGFloat = 0
+            var slotW = w / 3
+            if s.next {
+                // Next words: the settings button stays at the left (and the language at the right).
+                let g = kb.nextWordsGeometry()
+                left = g.side
+                slotW = g.slotW
+                gear(CGRect(x: 0, y: 0, width: g.side, height: h))
+                if s.chip != nil {
+                    let box = CGRect(x: w - g.side, y: 0, width: g.side, height: h)
+                    if s.pressed == LANG_CHIP {
+                        t.divider.setFill()
+                        UIBezierPath(roundedRect: box.insetBy(dx: 4, dy: 5), cornerRadius: 7).fill()
+                    }
+                    text("🌐", in: box, size: 15, color: t.stripDim)
+                }
+            }
             for i in 0..<3 {
-                let box = CGRect(x: CGFloat(i) * slotW, y: 0, width: slotW, height: h)
+                let box = CGRect(x: left + CGFloat(i) * slotW, y: 0, width: slotW, height: h)
                 if s.pressed == i && s.words[i] != nil {
                     t.divider.setFill()
                     UIBezierPath(roundedRect: box.insetBy(dx: 3, dy: 5), cornerRadius: 7).fill()
@@ -1094,15 +1142,7 @@ final class StripView: UIView {
             return
         }
         // Empty: the settings button, and the language you're writing in.
-        let gearBox = CGRect(x: 0, y: 0, width: Metrics.stripH * 1.2, height: h)
-        if s.pressed == SLOT_GEAR {
-            t.divider.setFill()
-            UIBezierPath(roundedRect: gearBox.insetBy(dx: 4, dy: 5), cornerRadius: 7).fill()
-        }
-        let cfg = UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
-        if let img = UIImage(systemName: "slider.horizontal.3", withConfiguration: cfg)?.withTintColor(t.stripDim, renderingMode: .alwaysOriginal) {
-            img.draw(at: CGPoint(x: gearBox.midX - img.size.width / 2, y: gearBox.midY - img.size.height / 2))
-        }
+        gear(CGRect(x: 0, y: 0, width: Metrics.stripH * 1.2, height: h))
         if let c = s.chip {
             let box = CGRect(x: w - 88, y: 0, width: 84, height: h)
             if s.pressed == LANG_CHIP {

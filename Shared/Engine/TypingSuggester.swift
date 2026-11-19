@@ -88,14 +88,16 @@ public final class TypingSuggester {
     }
 
     /// Ranked suggestions for a word in progress, best first, never blocked words.
-    /// - Parameter boost: word pairs at work (words you've written after the word before), or nil.
-    public func suggest(_ typed: String, _ sources: [Source], max: Int, boost: PairBoost? = nil) -> [Suggestion] {
+    /// - Parameters:
+    ///   - boost: word pairs at work (words you've written after the word before), or nil.
+    ///   - capsSlips: a lower-case word that a list has only in capitals ("amd": AMD) still gets
+    ///     typo fixes (for the automatic fix; the bar treats it as a word).
+    public func suggest(_ typed: String, _ sources: [Source], max: Int, boost: PairBoost? = nil, capsSlips: Bool = false) -> [Suggestion] {
         let key = keyOf(typed)
         if key.isEmpty { return [] }
         let keyBytes = Array(key.utf8)
         let P = primaryOf(sources)
-        // A lower-case word that a list has only in capitals ("amd": AMD) may still be a slip.
-        let lowerTyped = typed == typed.lowercased()
+        let lowerTyped = capsSlips && typed == typed.lowercased()
         var best = OrderedDict<String, Best>()
 
         func add(_ word: String, _ score: Double, _ kind: SuggestionKind, _ cost: Double, _ lang: String) {

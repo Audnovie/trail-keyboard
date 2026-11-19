@@ -27,6 +27,8 @@ public protocol TextTarget: AnyObject {
     func capsAtCursor() -> Bool
     /// Moves the cursor by whole characters.
     func moveCursor(_ chars: Int)
+    /// Whether the keyboard can see the app's text here (some apps never show it).
+    var showsText: Bool { get }
 }
 
 /// A model text field (Android InputConnection style), ported from Editor in core.js.
@@ -129,6 +131,8 @@ public final class Editor: TextTarget {
     }
 
     public func capsAtCursor() -> Bool { capsAtEnd(units: units, sel) }
+
+    public var showsText: Bool { true }
 
     @inline(__always) private func isHigh(_ c: UInt16) -> Bool { c >= 0xD800 && c <= 0xDBFF }
     @inline(__always) private func isLow(_ c: UInt16) -> Bool { c >= 0xDC00 && c <= 0xDFFF }

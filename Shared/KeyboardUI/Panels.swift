@@ -199,8 +199,8 @@ enum PanelPages {
         if !all.isEmpty {
             let what = multi ? "\(L.name) words" : "words"
             sections.append(PanelSection(title: nil, rows: [
-                confirming(c, id: "words.clear.\(code)", title: "Clear learned \(what)", confirm: "Tap again: delete all \(all.count) learned \(what)") { L.user.clearLearned() },
-                .text(id: nil, multi ? "Your \(L.name) never-suggest list and word pairs stay." : "Your never-suggest list and word pairs stay."),
+                confirming(c, id: "words.clear.\(code)", title: "Clear learned \(what)", confirm: "Tap again: delete all \(all.count) learned \(what) and the word pairs") { L.user.clearLearned() },
+                .text(id: nil, multi ? "Removing a word also forgets its word pairs. Your \(L.name) never-suggest list stays." : "Removing a word also forgets its word pairs. Your never-suggest list stays."),
             ]))
         }
         return PanelContent(title: multi ? "Learned · \(L.name)" : "Learned words", sections: sections)
@@ -235,7 +235,7 @@ enum PanelPages {
         let all = L.user.allPairs()
         let key = "pairs." + code
         let q = (c.wordFilter[key] ?? "").lowercased()
-        var note = "Which word you write after which, most used first. After the first word, swipes and suggestions lean toward the second, and after a space your usual next words come up in the bar. Learned only from your own typing, in fields where Trail learns; it keeps the \(MAX_PAIRS) most recent."
+        var note = "Which word you write after which, most used first. After the first word, swipes and suggestions lean toward the second, and after a space your usual next words come up in the bar. Learned from what you type (the word you type, and the word just before it) in fields where Trail learns; it keeps the \(MAX_PAIRS) most recent."
         if !c.settings.pairs { note += " Word pairs are off, so these aren’t used or added to." }
         var top: [PanelRow] = [.text(id: "pairs.note", note)]
         if !all.isEmpty {

@@ -104,16 +104,19 @@ what it keeps.
 - **Shift** right after a swipe cycles the word: lowercase, Capitalized, ALL CAPS.
 - **Hold a suggestion** for *Less often* (it comes up less; picking it yourself later brings it
   back), *Never* (it goes on the never-suggest list) or *Cancel*.
-- **Typos:** a clear typo is fixed when you press space (*tyoing* → *typing*, *amd* → *and*).
-  Press **delete** straight after: the space goes and the bar shows what you typed in quotes; tap
-  it to put it back, and that word isn't fixed again. A word Trail doesn't know and can't fix for
-  sure shows in **red** in the bar with fixes to tap; tap the red word itself to keep it (it's
-  learned). A keyboard can't draw on an app's text, so the red is in the bar rather than an
-  underline. Switch the automatic fixes off in Settings → *Fix typos automatically*.
-- **Word pairs:** Trail learns which word you write after which, from your own typing (fixing a
-  word from the bar counts double, and the wrong guess counts less). After *you're*, a swipe
-  between *i* and *o* then leans to the one you usually write there, and after a space your usual
-  next words show in the bar; tap one to type it. Hold one there to *Forget* that pair.
+- **Typos:** a clear typo is fixed when you press space (*tyoing* → *typing*, *teh* → *the*,
+  *amd* → *and*). Short words only get sure fixes, and two-letter words, words you've used before
+  and abbreviations like *nvm* are left alone. Press **delete** straight after a fix: the space
+  goes and the bar shows what you typed in quotes; tap it to put it back, and that word isn't
+  fixed (or capitalized) again. A word Trail doesn't know and can't fix for sure shows in **red**
+  in the bar with fixes to tap; tap the red word itself to keep it (it's learned). A keyboard
+  can't draw on an app's text, so the red is in the bar rather than an underline. Switch the
+  automatic fixes off in Settings → *Fix typos automatically*.
+- **Word pairs:** Trail learns which word you write after which, from what you type (the word
+  you type and the word just before it; fixing a word from the bar counts double, and the wrong
+  guess counts less). After *you're*, a swipe between *i* and *o* then leans to the one you
+  usually write there, and after a space your usual next words show in the bar (the settings
+  button stays at the left); tap one to type it. Hold one there to *Forget* that pair.
   Settings → *Word pairs* switches it off.
 - **Hold a key** for accents (á é í ó ú ü ñ) and the top row's numbers; hold **.** for ? ! ¿ ¡ …
 - **Drag the space bar** to move the cursor. With Spanish on, **hold the space bar** to pick the
@@ -143,8 +146,8 @@ summary shows how many it got right with your profile and without it.
 - **Not in sensitive fields.** Password fields always get Apple's keyboard. In email, web
   address, username, one-time code, phone, address and card fields Trail doesn't learn at all
   (and in email, web address, code and card fields it doesn't suggest either). Where it doesn't
-  learn, and where the app has turned autocorrection off, it doesn't fix typos or show red words
-  either.
+  learn, and where the app has turned autocorrection off, it doesn't fix typos automatically or
+  show red words either (the smart fixes such as *dont* → *don't* still apply).
 - **Only on this iPhone, and visible.** It's one file inside the keyboard's own storage, left out
   of iCloud and computer backups. Settings → *Learned words*, *Never suggest*, *Word pairs*,
   *Training results* and *What the keyboard keeps* show all of it, with buttons to delete any of

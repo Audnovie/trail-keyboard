@@ -303,6 +303,30 @@ final class ProxyTargetTests: XCTestCase {
         XCTAssertEqual(s.view.strip, ["blorf", "blood", "blog"])
     }
 
+    /// In an app that doesn't show its text, the keyboard can't tell what's before the cursor, so
+    /// it offers nothing that would replace text: no undo after an automatic fix (delete is just
+    /// delete), and no red word.
+    func testNoUndoOfferOrRedWordWhereTheAppHidesItsText() {
+        let r = rig()
+        r.doc.hidesText = true
+        type(r.engine, "so teh ")
+        XCTAssertEqual(r.doc.text, "So the ")
+        r.advance(1.5)
+        r.engine.onDelete()
+        XCTAssertEqual(r.doc.text, "So the")
+        XCTAssertEqual(r.view.strip, [nil, nil, nil], "no undo offer")
+        type(r.engine, " blorf ")
+        XCTAssertEqual(r.doc.text, "So the blorf ")
+        XCTAssertEqual(r.view.flag, -1, "no red word")
+        // The same in an app that shows its text.
+        let s = rig()
+        type(s.engine, "so teh ")
+        s.advance(1.5)
+        s.engine.onDelete()
+        XCTAssertEqual(s.doc.text, "So the")
+        XCTAssertEqual(s.view.strip, ["“teh”", "the", nil])
+    }
+
     /// Undo in the app after a word: the keyboard must notice, and not delete real text.
     func testUndoInTheAppIsNoticed() {
         let r = rig("I like ")

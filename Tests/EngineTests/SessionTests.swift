@@ -11,6 +11,7 @@ final class RecordingSurface: KeyboardSurface {
     var strip: [String?] = [nil, nil, nil]
     var bold = 1
     var flag = -1
+    var next = false
     var prompt: String?
     var buttons: [String] = []
     var shifted = false
@@ -28,8 +29,13 @@ final class RecordingSurface: KeyboardSurface {
         strip = [a, b, c]
         self.bold = bold
         self.flag = flag
+        next = false
         prompt = nil
         buttons = []
+    }
+    func setNextWords(_ a: String?, _ b: String?, _ c: String?) {
+        setSuggestions(a, b, c, bold: -1, flag: -1)
+        next = true
     }
     func setPrompt(_ text: String?, _ buttons: [PromptButton]) {
         prompt = text
@@ -93,6 +99,7 @@ final class SessionParityTests: XCTestCase {
                 XCTAssertEqual([ed.sel, ed.cs, ed.ce], [want["sel"].int, want["cs"].int, want["ce"].int], what)
                 XCTAssertEqual(view.strip, want["strip"].strings, what)
                 XCTAssertEqual([view.bold, view.flag], [want["bold"].int, want["flag"].int], "\(what): bold and red slots")
+                XCTAssertEqual(view.next, want["next"].bool, "\(what): next words
                 XCTAssertEqual(view.prompt, want["prompt"].string, what)
                 XCTAssertEqual(view.buttons, want["buttons"].strings.compactMap { $0 }, "\(what): prompt buttons")
                 XCTAssertEqual([view.shifted, view.capsLock], [want["shifted"].bool, want["lock"].bool], what)

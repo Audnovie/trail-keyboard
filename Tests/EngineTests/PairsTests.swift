@@ -20,6 +20,8 @@ final class PairsParityTests: XCTestCase {
             case "forget": U.forgetPair(op[1].string!, op[2].string!)
             case "clear": U.clearPairs()
             case "block": U.block(op[1].string!)
+            case "remove": U.remove(op[1].string!)
+            case "clearLearned": U.clearLearned()
             default: XCTFail("unknown op")
             }
             let what = "after \(op.array.map { "\($0.raw ?? "nil")" })"
@@ -110,8 +112,9 @@ final class PairsParityTests: XCTestCase {
         sug.setKeyCenters(geo.cx, geo.cy, geo.kw)
         for c in f["suggests"].array {
             let typed = c["typed"].string!
-            for (key, b) in [("plain", nil), ("boosted", boost)] as [(String, PairBoost?)] {
-                let res = sug.suggest(typed, sources, max: 6, boost: b)
+            // Plain, with the lifts, and with capitals-only words counted as slips.
+            for (key, b, slips) in [("plain", nil, false), ("boosted", boost, false), ("slips", nil, true)] as [(String, PairBoost?, Bool)] {
+                let res = sug.suggest(typed, sources, max: 8, boost: b, capsSlips: slips)
                 let exp = c[key].array
                 XCTAssertEqual(res.map { $0.word }, exp.map { $0[0].string! }, "\(key) suggest(\(typed))")
                 for (r, e) in zip(res, exp) {

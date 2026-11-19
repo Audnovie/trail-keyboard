@@ -375,7 +375,7 @@ const SWIPE_WORDS_ES = ['hola', 'yo', 'que', 'jaja', 'gracias', 'mañana', 'tamb
   for (const cfg of configs) {
     const lex = lexicon(cfg.langs, cfg.users);
     for (const t of typed) {
-      const res = sug.suggest(t, sourcesFor(lex, cfg.ctx), 6);
+      const res = sug.suggest(t, sourcesFor(lex, cfg.ctx), 8);
       cases.push({ config: cfg.name, typed: t, results: res.map((r) => [r.word, r.score, r.kind, r.cost, r.lang]) });
     }
   }
@@ -400,11 +400,13 @@ const SWIPE_WORDS_ES = ['hola', 'yo', 'que', 'jaja', 'gracias', 'mañana', 'tamb
     ['reject', 'brand'], ['use', 'brand', 1, true], ['setBase', 'Terry', true], ['setBase', 'Terry', false], ['remove', 'hello'],
     ['use', "it's", 1, true], ['use', 'naïve', 4, true], ['use', '12', 1, true], ['use', 'a b', 1, true], ['add', 'zzz'],
     ['use', 'Zzz', 0.5, false], ['use', 'apple', 100001, true], ['reject', 'Audnovie'],
+    ['use', 'iOS', 1, true], ['keep', 'ios', 2, true], ['use', 'IOS', 1, true], ['keep', 'Brand', 1, true], ['keep', 'newword', 2, false],
   ];
   const U = new T.UserWords(T.LANG_INFO.en.starters);
   const trace = [];
   for (const op of ops) {
     if (op[0] === 'use') U.recordUse(op[1], op[2], op[3]);
+    else if (op[0] === 'keep') U.recordUse(op[1], op[2], op[3], true);
     else if (op[0] === 'reject') U.recordReject(op[1]);
     else if (op[0] === 'add') U.addManual(op[1]);
     else if (op[0] === 'block') U.block(op[1]);
@@ -440,6 +442,7 @@ class RecordingView {
     this.strip = [null, null, null];
     this.bold = 1;
     this.flag = -1;
+    this.next = false;
     this.prompt = null;
     this.buttons = [];
     this.shifted = false;
@@ -453,9 +456,14 @@ class RecordingView {
   setSuggestions(a, b, c, bold, flag) {
     this.strip = [a, b, c];
     this.bold = bold;
-    this.flag = flag === undefined ? -1 : flag;
+    this.flag = flag;
+    this.next = false;
     this.prompt = null;
     this.buttons = [];
+  }
+  setNextWords(a, b, c) {
+    this.setSuggestions(a, b, c, -1, -1);
+    this.next = true;
   }
   setPrompt(t, buttons) {
     this.prompt = t;
@@ -468,7 +476,7 @@ class RecordingView {
 function snapshot(ime, ed, view) {
   return {
     text: ed.text, sel: ed.sel, cs: ed.cs, ce: ed.ce,
-    strip: view.strip.slice(), bold: view.bold, flag: view.flag, prompt: view.prompt, buttons: view.buttons.slice(),
+    strip: view.strip.slice(), bold: view.bold, flag: view.flag, next: view.next, prompt: view.prompt, buttons: view.buttons.slice(),
     shifted: view.shifted, lock: view.capsLock,
     layout: view.layout, emoji: view.emoji, settingsOpened: view.settingsOpened,
   };
@@ -562,6 +570,12 @@ const SESSIONS = [
   { name: 'typos in red', script: ['type:tyoing ', 'pick:1', 'type:blorf ', 'pick:0', 'type:blorf ', 'type:zzqx ', 'type:recieve ', 'hold:1', 'no', 'type:x ', 'type:helo ', 'pick:2', 'type:Teh '] },
   { name: 'less often', script: ['swipe:sense', 'hold:0', 'less', 'hold:2', 'no', 'type: ', 'type:hel', 'hold:2', 'less', 'type: ', 'swipe:sense', 'hold:1', 'less'] },
   { name: 'close fixes and abbreviations', settings: { autocorrect: true }, script: ['type:tyoing ', 'type:amd ', 'del', 'pick:0', 'type:amd ', 'type:omg ', 'type:og ', 'type:lol ', 'type:idk ', 'type:ot ', 'type:likr ', 'type:AMD '] },
+  // After the review (Nov 19, 2026).
+  { name: 'short words and slang', settings: { autocorrect: true }, script: ['type:nah ig omw wyd hbu idc gn tmr nvm plz kk sus ssh ', 'type:fo teh adn yuo nad yse ', 'type:docker ahve alot ', 'type:ur ni th 5th 1st 4th ', 'type:thsi waht jsut becuase tyoing thw snd '] },
+  { name: 'kept as typed', settings: { autocorrect: true }, script: ['type:so ios ', 'del', 'pick:0', 'type:ios ', 'type:toronto', 'pick:0', 'type:toronto ', 'type:teh', 'pick:0', 'type:teh ', 'type:so toronto '] },
+  { name: 'next word ends the undo offer', settings: { autocorrect: true }, script: ['type:the breathe ', 'type:teh ', 'pick:1', 'del', 'del'] },
+  { name: 'red word prompts', script: ['type:blorf ', 'hold:1', 'no', 'hold:2', 'yes', 'hold:1', 'less', 'pick:1', 'type:blorf ', 'hold:1', 'place:2', 'no', 'type:z'] },
+  { name: 'prompts where nothing is learned', settings: { learn: false }, script: ['type:hel', 'hold:2', 'less', 'hold:2', 'no', 'swipe:sense', 'hold:0', 'yes'] },
 ];
 
 {
@@ -616,12 +630,16 @@ const SESSIONS = [
     ['pair', 'see', 'you', 1], ['pair', 'see', 'You', 100001], ['weaken', 'nothing', 'here'], ['forget', 'nothing', 'here'],
     ['pair', "you're", 'in', 1], ['clear'], ['pair', 'see', 'you', 2], ['pair', 'see', 'it', 2], ['pair', 'see', 'them', 2],
     ['pair', 'see', 'it', 1], ['weaken', 'see', 'you'],
+    ['remove', 'them'], ['pair', 'see', 'them', 1], ['pair', 'them', 'all', 1], ['pair', 'x', 'y', 1], ['remove', 'Them'], ['remove', 'nothing'],
+    ['clearLearned'], ['clearLearned'], ['pair', 'was', 'here', 1],
   ];
   const U = new T.UserWords(T.LANG_INFO.en.starters);
   const probes = ["you're", 'i', 'see', 'x', 'was'];
   const trace = [];
   for (const op of ops) {
     if (op[0] === 'pair') U.recordPair(op[1], op[2], op[3]);
+    else if (op[0] === 'remove') U.remove(op[1]);
+    else if (op[0] === 'clearLearned') U.clearLearned();
     else if (op[0] === 'weaken') U.weakenPair(op[1], op[2]);
     else if (op[0] === 'forget') U.forgetPair(op[1], op[2]);
     else if (op[0] === 'clear') U.clearPairs();
@@ -653,6 +671,7 @@ const SESSIONS = [
     ["you're ", true], ["you're", true], ["you're", false], ['  hello   ', true], ['hello, ', true], ['end. ', true], ['line\n', true],
     ["'quoted' ", true], ['it’s ', true], ['naïve ', true], ['co-op ', true], ['3 ', true], ['', true], ['x', false], ['a b c ', true],
     ["don't'", false], ['Ünïcödé ', true], ['😀 ', true], ['word😀 ', true], ["'' ", true], ['abcdefghijklmnopqrstuvwxyzabcdef ', true],
+    ['the 5th ', true], ['4ever ', true], ["2's ", true], ['1st time ', true], ['x2y ', true],
   ].map(([t, n]) => [t, n, T.wordBefore(t, n)]);
 
   // Lifts at work: after "are", words you've written next.
@@ -679,9 +698,12 @@ const SESSIONS = [
   }
   const sug = new T.TypingSuggester();
   sug.setKeyCenters(CX, CY, KW);
-  const suggests = ['i', 'o', 'in', 'on', 'wel', 'go', 'Ter', 'se', 'helo', 'amd', 'omg', 'ok', 'tyoing'].map((t) => {
+  const suggests = ['i', 'o', 'in', 'on', 'wel', 'go', 'Ter', 'se', 'helo', 'amd', 'omg', 'ok', 'tyoing', 'AMD', 'cd'].map((t) => {
     const r = (list) => list.map((x) => [x.word, x.score, x.kind, x.cost, x.lang]);
-    return { typed: t, plain: r(sug.suggest(t, sources, 6)), boosted: r(sug.suggest(t, sources, 6, boost)) };
+    return {
+      typed: t, plain: r(sug.suggest(t, sources, 8)), boosted: r(sug.suggest(t, sources, 8, boost)),
+      slips: r(sug.suggest(t, sources, 8, null, true)),
+    };
   });
   files['pairs.json'] = {
     geometry: { cx: CX, cy: CY, kw: KW },

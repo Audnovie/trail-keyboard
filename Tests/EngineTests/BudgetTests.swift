@@ -56,7 +56,7 @@ final class BudgetTests: XCTestCase {
         var worstType = 0.0
         for typed in ["a", "s", "t", "th", "de", "qu", "helo", "thnaks", "definately", "co", "m"] {
             let t0 = Date()
-            _ = sug.suggest(typed, src, max: 6)
+            _ = sug.suggest(typed, src, max: 8)
             worstType = max(worstType, Date().timeIntervalSince(t0) * 1000)
         }
         let after = footprintMB()
@@ -136,7 +136,7 @@ final class BudgetTests: XCTestCase {
         var worstType = 0.0
         for typed in ["a", "s", "t", "th", "de", "qu", "helo", "thnaks", "definately", "co", "m"] {
             t0 = Date()
-            _ = sug.suggest(typed, src, max: 6, boost: boost)
+            _ = sug.suggest(typed, src, max: 8, boost: boost)
             worstType = max(worstType, Date().timeIntervalSince(t0) * 1000)
         }
         print(String(format: "BUDGET word pairs: %d loaded in %.1f ms; lifts after a word with %d words after it in %.2f ms",
@@ -165,7 +165,7 @@ final class BudgetTests: XCTestCase {
         XCTAssertEqual(L.user.count, 3000)
         let sug = TypingSuggester()
         let t0 = Date()
-        _ = sug.suggest("th", [Source(words: W, user: L.user, bias: 0, lang: "en")], max: 6)
+        _ = sug.suggest("th", [Source(words: W, user: L.user, bias: 0, lang: "en")], max: 8)
         let ms = Date().timeIntervalSince(t0) * 1000
         print(String(format: "BUDGET suggestions with 3000 learned words: %.1f ms (includes building the lookup)", ms))
         #if !DEBUG

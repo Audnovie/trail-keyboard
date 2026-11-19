@@ -30,6 +30,9 @@ public protocol KeyboardSurface: AnyObject {
     /// Three suggestions, the `bold` one in the middle as a rule (-1: none), and `flag` the one
     /// shown in red as possibly misspelled (-1: none). Also takes down any prompt.
     func setSuggestions(_ a: String?, _ b: String?, _ c: String?, bold: Int, flag: Int)
+    /// Your usual next words after a space (the middle one likeliest). The settings button stays
+    /// reachable with these. Also takes down any prompt.
+    func setNextWords(_ a: String?, _ b: String?, _ c: String?)
     /// A question in the bar with its buttons (nil takes it down).
     func setPrompt(_ text: String?, _ buttons: [PromptButton])
     var hasPrompt: Bool { get }
@@ -56,6 +59,13 @@ public let PROMPT_NO = 11
 public let PROMPT_LESS = 12
 let WORD_PROMPT = [PromptButton("Less often", PROMPT_LESS), PromptButton("Never", PROMPT_YES), PromptButton("Cancel", PROMPT_NO)]
 let PAIR_PROMPT = [PromptButton("Forget", PROMPT_YES), PromptButton("Cancel", PROMPT_NO)]
+/// Where nothing is learned, "Less often" (a learned dislike) isn't offered.
+let NEVER_PROMPT = [PromptButton("Never", PROMPT_YES), PromptButton("Cancel", PROMPT_NO)]
+
+/// A word written only in capitals ("TM", "NASA"), not "I".
+func isAllCaps(_ word: String) -> Bool {
+    word.utf16.count > 1 && word == word.uppercased() && word != word.lowercased()
+}
 
 public struct TypingSettings: Codable, Equatable {
     public var swipe = true
@@ -162,7 +172,7 @@ public final class InputEngine {
     private var revertPrev: String?
     private var revertAutoCap = false
     /// The last tapped word committed.
-    private var lastCommit: (literal: String, ctx: String?, prev: String?, changed: Bool)?
+    private var lastCommit: (literal: String, ctx: String?, prev: String?, changed: Bool, glued: Bool)?
     private var deletedGestureWord: String?
     private var deletedGestureLang: String?
     private var deletedGestureTime = 0.0
@@ -272,8 +282,8 @@ public final class InputEngine {
         return W.find(word) >= 0
     }
 
-    private func recordUse(_ word: String, _ amount: Double, _ code: String?) {
-        if let L = lex.get(code) { L.user.recordUse(word, amount: amount, inBaseList: inBase(word, code)) }
+    private func recordUse(_ word: String, _ amount: Double, _ code: String?, keepForm: Bool = false) {
+        if let L = lex.get(code) { L.user.recordUse(word, amount: amount, inBaseList: inBase(word, code), keepForm: keepForm) }
     }
 
     private func recordReject(_ word: String, _ code: String?) {
@@ -409,7 +419,8 @@ public final class InputEngine {
             }
             return
         }
-        if let from = revertFrom, revertTo != nil {
+        // (Not in an app that doesn't show its text: the keyboard couldn't tell what it'd replace.)
+        if let from = revertFrom, revertTo != nil, ic.showsText {
             let b = ic.textBefore(utf16: from.utf16.count + 1)
             if same(b, from + " ") {
                 // Back to the fixed word: the space goes as usual, and what you typed is offered.
@@ -527,13 +538,16 @@ public final class InputEngine {
         updateShift()
     }
 
+    /// Nothing tied to the old spot carries over (a prompt that's up stays until answered).
     private func forgetSpot() {
         afterGesture = false
         spaceAfterPick = false
         revertFrom = nil
-        if !(view?.hasPrompt ?? false) && stripKind != .none {
+        revertTo = nil
+        flag = nil
+        if stripKind != .none {
             stripKind = .none
-            view?.clearStrip()
+            if !(view?.hasPrompt ?? false) { view?.clearStrip() }
         }
     }
 
@@ -592,11 +606,18 @@ public final class InputEngine {
             ic.setComposingText(chosen)
             ic.finishComposingText()
             if learning() {
-                if same(chosen, literal) {
-                    if literal.utf16.count >= 2 || inBase(literal, lang) {
-                        let form = learnForm(literal, typedFirstAutoCap, lang)
-                        recordUse(form, 1, lang)
+                if same(chosen, literal) && slot == 0 {
+                    // The word as you typed it, picked over the fix: kept as typed, and like an
+                    // undo, it isn't fixed again.
+                    if literal.utf16.count >= 2 {
+                        let form = typedForm(literal, typedFirstAutoCap)
+                        recordUse(form, 2, lang, keepForm: true)
                         learnPair(prev, form, 1, lang)
+                    }
+                } else if same(chosen, literal) {
+                    if literal.utf16.count >= 2 || inBase(literal, lang) {
+                        recordUse(learnForm(literal, typedFirstAutoCap, lang), 1, lang)
+                        learnPair(prev, nextForm(literal, typedFirstAutoCap, lang), 1, lang)
                     }
                 } else if let b = base {
                     recordUse(b, 2, lang)
@@ -613,8 +634,10 @@ public final class InputEngine {
             return
         }
         if stripKind == .next {
-            // One of your usual next words: typed with a space after.
+            // One of your usual next words: typed with a space after (which ends any undo offer).
             let prev = nextPrev
+            revertFrom = nil
+            revertTo = nil
             ic.commitText(chosen + " ")
             if learning(), let b = base {
                 recordUse(b, 1, lang)
@@ -674,9 +697,10 @@ public final class InputEngine {
                     recordReject(from, revertLang)
                     weakenPair(revertPrev, from, revertFixLang)
                     if to.utf16.count >= 2 {
+                        // Kept as you typed it ("ios" stays "ios", not the list's "iOS").
                         let tl = langOfTyped(to, contextLang())
-                        let form = learnForm(to, revertAutoCap, tl)
-                        recordUse(form, 2, tl)
+                        let form = typedForm(to, revertAutoCap)
+                        recordUse(form, 2, tl, keepForm: true)
                         learnPair(revertPrev, form, 1, tl)
                     }
                 }
@@ -709,7 +733,7 @@ public final class InputEngine {
         blockLang = (stripKind == .gesture ? gestureCtx : nil) ?? contextLang() ?? stripLang[slot]
         let L = lex.get(blockLang)
         let place = lex.enabled().count > 1 && L != nil ? " in " + L!.name : ""
-        view?.setPrompt("“" + candidate + "”" + place, WORD_PROMPT)
+        view?.setPrompt("“" + candidate + "”" + place, learning() ? WORD_PROMPT : NEVER_PROMPT)
     }
 
     /// - Parameter choice: PROMPT_LESS, PROMPT_YES (never, or forget a pair) or PROMPT_NO.
@@ -724,10 +748,15 @@ public final class InputEngine {
             if choice == PROMPT_YES, let w = word, let prev = promptPrev {
                 lex.get(code)?.user.forgetPair(prev, w)
             }
-            if stripKind == .next { showNextWords() }
+            if stripKind == .next {
+                showNextWords()
+            } else {
+                stripKind = .none
+                view?.clearStrip()
+            }
             return
         }
-        if choice == PROMPT_LESS, let w = word {
+        if choice == PROMPT_LESS, let w = word, learning() {
             // As if you'd corrected it twice; picking it yourself later brings it back.
             recordReject(w, code)
             recordReject(w, code)
@@ -755,10 +784,15 @@ public final class InputEngine {
                 return
             }
         }
-        if stripKind == .gesture { showGestureStrip() }
-        else if stripKind == .typed { showTypedSuggestions() }
-        else {
+        if stripKind == .gesture {
+            showGestureStrip()
+        } else if stripKind == .typed {
+            showTypedSuggestions()
+        } else if stripKind == .flag, let f = flag, showFlag(f.literal, f.ctx, f.prev) {
+            // Back to the red word (its fixes worked out again).
+        } else {
             stripKind = .none
+            flag = nil
             view?.clearStrip()
         }
     }
@@ -777,6 +811,8 @@ public final class InputEngine {
         finalizeAll()
         ic.commitText(text)
         ic.endBatchEdit()
+        revertFrom = nil
+        revertTo = nil
         afterGesture = false
         spaceAfterPick = false
         updateShift()
@@ -906,7 +942,7 @@ public final class InputEngine {
             ic.commitText(" ")
             lastSpaceTime = t
             updateShift()
-            if let c = lastCommit, !c.changed, showFlag(c.literal, c.ctx, c.prev) { return }
+            if let c = lastCommit, !c.changed, !c.glued, showFlag(c.literal, c.ctx, c.prev) { return }
             showNextWords()
             return
         }
@@ -966,14 +1002,15 @@ public final class InputEngine {
             let literal = typed
             let ctx = contextLang()
             let prev = prevBeforeComposing()
+            let glued = gluedToNumber()
             typed = ""
             ic.finishComposingText()
-            if learning() {
+            if learning() && !glued {
                 let lang = langOfTyped(literal, ctx)
                 let base = learnForm(literal, typedFirstAutoCap, lang)
                 if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) {
                     recordUse(base, 1, lang)
-                    learnPair(prev, base, 1, lang)
+                    learnPair(prev, nextForm(literal, typedFirstAutoCap, lang), 1, lang)
                 }
             }
             revertFrom = nil
@@ -1014,6 +1051,7 @@ public final class InputEngine {
         let literal = typed
         let ctx = contextLang()
         let prev = prevBeforeComposing()
+        let glued = gluedToNumber()
         typed = ""
         let fix = decideTypedCommit(literal, ctx, prev: prev)
         let commit = fix.text
@@ -1030,16 +1068,16 @@ public final class InputEngine {
             revertTo = nil
         }
         ic.finishComposingText()
-        if learning() {
+        if learning() && !glued {
             let unchanged = same(commit, literal)
             let lang = unchanged ? langOfTyped(literal, ctx) : fix.lang
             let base = unchanged ? learnForm(literal, typedFirstAutoCap, lang) : baseFormOf(commit, lang)
             if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) {
                 recordUse(base, 1, lang)
-                learnPair(prev, base, 1, lang)
+                learnPair(prev, unchanged ? nextForm(literal, typedFirstAutoCap, lang) : base, 1, lang)
             }
         }
-        lastCommit = (literal, ctx, prev, !same(commit, literal))
+        lastCommit = (literal, ctx, prev, !same(commit, literal), glued)
         deletedGestureWord = nil
         stripKind = .none
         view?.clearStrip()
@@ -1050,6 +1088,8 @@ public final class InputEngine {
     public func decideTypedCommit(_ literal: String, _ ctx: String?, prev: String? = nil) -> (text: String, lang: String?) {
         let plain = (text: literal, lang: String?.none)
         guard canSuggest, let ctx = ctx, !literal.isEmpty else { return plain }
+        // Letters stuck to a number ("5th", "1st") are left as typed.
+        if gluedToNumber() { return plain }
         let srcs = sources(ctx)
         let caps = capsOf(literal)
         if settings.smartFix {
@@ -1084,15 +1124,16 @@ public final class InputEngine {
                 }
                 if let b = best, bestScore - literalScore >= 1.5 { return (withCaps(b.word, caps), b.lang) }
             }
-            // "i" -> "I", "toronto" -> "Toronto", "méxico" -> "México"
-            if same(literal, literal.lowercased()) {
+            // "i" -> "I", "toronto" -> "Toronto", "méxico" -> "México"; not two-letter words ("ur",
+            // "ni" stay), nor a word you've put back in lower case.
+            if same(literal, literal.lowercased()) && !keptLower(literal, srcs) {
                 let P = primaryOf(srcs)
                 for S in srcs {
                     let id = S.words.find(literal)
                     if id < 0 { continue }
                     let d = S.words.display(id)
-                    if !same(d, literal) && !same(d, d.uppercased()) && !Lexicon_blockedIn(S, P, d) { return (d, S.lang) }
                     if same(d, "I") { return (d, S.lang) }
+                    if literal.utf16.count > 2 && !same(d, literal) && !same(d, d.uppercased()) && !Lexicon_blockedIn(S, P, d) { return (d, S.lang) }
                     break
                 }
             }
@@ -1105,21 +1146,53 @@ public final class InputEngine {
             let slip = !listed.isEmpty && isAbbreviationSlip(literal, listed, srcs)
             if listed.isEmpty || slip {
                 let boost = prev != nil && !prev!.isEmpty ? boostFor(prev, ctx) : nil
-                if slip {
-                    if let fix = slipFix(suggester.suggest(literal, srcs, max: 8, boost: boost), listed, literal) {
-                        return (withCaps(fix.word, caps), fix.lang)
-                    }
-                } else {
-                    for c in suggester.suggest(literal, srcs, max: 3, boost: boost) {
-                        // The likeliest close fix: one passing over fixes that need more than one
-                        // change, but not over a longer word starting with what you typed.
-                        if c.kind == .completion { break }
-                        if c.kind == .exact || c.cost <= 1.0 { return (withCaps(c.word, caps), c.lang) }
-                    }
-                }
+                let fix = slip
+                    ? slipFix(suggester.suggest(literal, srcs, max: 8, boost: boost, capsSlips: true), listed, literal)
+                    : typoFix(suggester.suggest(literal, srcs, max: 8, boost: boost), literal)
+                if let f = fix { return (withCaps(f.word, caps), f.lang) }
             }
         }
         return plain
+    }
+
+    /// The fix for a word that isn't one, or nil: the likeliest close fix, if it's clearly the
+    /// likeliest, and not past a longer word starting with what you typed. Only to a lower-case
+    /// word ("tmr" isn't "TM", "ahve" isn't "Ave"). How close depends on the length: three
+    /// letters, one neighbouring key or two letters swapped, to a common word that beats the next
+    /// fix by 1; four or five, one change; longer, up to two neighbouring keys; and those beat the
+    /// next by 0.5. Words of two letters aren't fixed ("ig", "ur").
+    private func typoFix(_ list: [Suggestion], _ literal: String) -> Suggestion? {
+        let n = keyOf(literal).utf16.count
+        let maxCost = n == 3 ? 0.7 : n <= 5 ? 0.8 : 1.0
+        var near = [Suggestion]()
+        for s in list {
+            if s.kind == .completion { break }
+            if s.kind == .exact {
+                // Same letters, other accents or apostrophes ("cafe": café).
+                if near.isEmpty { return s }
+                break
+            }
+            if n < 3 || s.cost > maxCost || !same(s.word, s.word.lowercased()) { continue }
+            near.append(s)
+        }
+        guard let best = near.first else { return nil }
+        if near.count > 1 && best.score - near[1].score < (n == 3 ? 1 : 0.5) { return nil }
+        if n == 3 && best.score + 1.5 * best.cost < 5 { return nil }
+        return best
+    }
+
+    /// You put this lower-case word back after it was capitalized ("ios").
+    private func keptLower(_ literal: String, _ srcs: [Source]) -> Bool {
+        srcs.contains { S in
+            guard let e = S.user.get(literal) else { return false }
+            return same(e.word, literal) && e.uses > 0
+        }
+    }
+
+    /// The word being typed comes right after a digit ("5th").
+    private func gluedToNumber() -> Bool {
+        let u = Array(ic.contextBefore(limit: 1, beforeComposing: true).utf16)
+        return u.count == 1 && u[0] >= 0x30 && u[0] <= 0x39
     }
 
     /// A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used.
@@ -1141,15 +1214,17 @@ public final class InputEngine {
     /// "amd" -> "and": one neighbouring key off a word at least 100 times as common, and clearly
     /// the likeliest such word; nil if there's none.
     private func slipFix(_ list: [Suggestion], _ listed: [Source], _ literal: String) -> Suggestion? {
+        // Two-letter words ("og", "ur") are left alone, like other short-word slips.
+        if keyOf(literal).utf16.count < 3 { return nil }
         var own = -99.0
         for S in listed {
             let id = S.words.find(literal)
             if id >= 0 { own = max(own, Double(S.words.score(id)) / 100 + S.bias) }
         }
-        let near = list.filter { $0.kind == .correction && $0.cost <= 0.5 }
+        let near = list.filter { $0.kind == .correction && $0.cost <= 0.5 && same($0.word, $0.word.lowercased()) }
         guard let first = near.first else { return nil }
         let z0 = first.score + 1.5 * first.cost
-        if z0 - own < 2 { return nil }
+        if z0 - own < 2 || z0 < 5 { return nil }
         if near.count > 1 && z0 - (near[1].score + 1.5 * near[1].cost) < 1 { return nil }
         return first
     }
@@ -1195,7 +1270,7 @@ public final class InputEngine {
         let prev = prevBeforeComposing()
         let fix = decideTypedCommit(literal, ctx, prev: prev)
         let onSpace = fix.text
-        let list = suggester.suggest(literal, sources(ctx), max: 6, boost: boostFor(prev, ctx))
+        let list = suggester.suggest(literal, sources(ctx), max: 8, boost: boostFor(prev, ctx))
         var alts = [Suggestion]()
         for s in list {
             if lowerSame(s.word, literal) || lowerSame(s.word, onSpace) { continue }
@@ -1242,20 +1317,21 @@ public final class InputEngine {
         // The likeliest in the middle, like the other suggestions.
         let order: [String?] = [words.count > 1 ? words[1] : nil, words[0], words.count > 2 ? words[2] : nil]
         for i in 0..<3 { setSlot(i, order[i], order[i].map { withCaps($0, caps) }, ctx) }
-        view?.setSuggestions(stripText[0], stripText[1], stripText[2], bold: -1, flag: -1)
+        view?.setNextWords(stripText[0], stripText[1], stripText[2])
     }
 
     /// After a space: a tapped word that isn't one (not in a list, not yours) is shown in red with
     /// the closest fixes. False (nothing shown) when it's a word or nothing is close.
     private func showFlag(_ literal: String, _ ctx: String?, _ prev: String?) -> Bool {
-        // Like the automatic fixes, only in fields where the keyboard learns.
-        guard canSuggest, hostLearns, let ctx = ctx, literal.utf16.count >= 2, isLearnable(literal), capsOf(literal) != 2 else { return false }
+        // Like the automatic fixes, only in fields where the keyboard learns; and not in an app that
+        // doesn't show its text (the keyboard couldn't tell what a fix would replace).
+        guard canSuggest, hostLearns, ic.showsText, let ctx = ctx, literal.utf16.count >= 2, isLearnable(literal), capsOf(literal) != 2 else { return false }
         let srcs = sources(ctx)
         for S in srcs {
             if S.words.find(literal) >= 0 { return false }
             if let e = S.user.get(literal), e.uses >= NEW_WORD_ACTIVE_USES { return false }
         }
-        let found = suggester.suggest(literal, srcs, max: 6, boost: boostFor(prev, ctx))
+        let found = suggester.suggest(literal, srcs, max: 8, boost: boostFor(prev, ctx)).filter { !isAllCaps($0.word) }
         // Fixes one mistake away first, then the rest, each in the suggester's order.
         let fixes = found.filter { $0.kind == .correction && $0.cost <= 1.0 } + found.filter { $0.kind == .correction && $0.cost > 1.0 }
         guard let f1 = fixes.first else { return false }
@@ -1301,6 +1377,24 @@ public final class InputEngine {
             if id >= 0 { return W.display(id) }
         }
         return L?.user.get(word)?.word ?? word
+    }
+
+    /// A word exactly as typed, less a capital that only came from sentence-start shift.
+    private func typedForm(_ literal: String, _ firstFromAutoCap: Bool) -> String {
+        if firstFromAutoCap && literal.utf16.count > 1 && !same(literal, literal.uppercased()) {
+            let u = Array(literal.utf16)
+            let first = String(decoding: u[0..<1], as: UTF16.self).lowercased()
+            return first + String(decoding: u[1...], as: UTF16.self)
+        }
+        return literal
+    }
+
+    /// A typed word as the second word of a pair (what the next-word bar offers): the list's
+    /// spelling, except capitals the list has that you didn't type ("ur", not "Ur"; "og", not "OG").
+    private func nextForm(_ literal: String, _ firstFromAutoCap: Bool, _ code: String?) -> String {
+        let typed = typedForm(literal, firstFromAutoCap)
+        let listed = learnForm(literal, firstFromAutoCap, code)
+        return same(typed, typed.lowercased()) && !same(listed, listed.lowercased()) ? typed : listed
     }
 
     /// How to store a typed word: drop a capital that only came from sentence-start shift.

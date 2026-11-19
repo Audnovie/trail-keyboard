@@ -206,6 +206,8 @@ var Trail = (function () {
       if (!isLetter(c) && c !== "'" && c !== '’') break;
       start--;
     }
+    // Letters stuck to a number ("5th") aren't a word.
+    if (start > 0 && text[start - 1] >= '0' && text[start - 1] <= '9') return null;
     while (start < end && (text[start] === "'" || text[start] === '’')) start++;
     while (end > start && (text[end - 1] === "'" || text[end - 1] === '’')) end--;
     const w = text.slice(start, end);
@@ -279,7 +281,8 @@ var Trail = (function () {
       return this.entries.get(word.toLowerCase()) || null;
     }
 
-    recordUse(word, amount, inBaseList) {
+    /** @param keepForm keep this spelling (you put it back after a fix: "ios", not "iOS") */
+    recordUse(word, amount, inBaseList, keepForm) {
       if (!isLearnable(word) || this.isBlocked(word)) return;
       const k = word.toLowerCase();
       let e = this.entries.get(k);
@@ -287,6 +290,8 @@ var Trail = (function () {
         e = new Entry(word);
         e.added = !inBaseList;
         this.entries.set(k, e);
+      } else if (keepForm === true) {
+        e.word = word;
       }
       e.uses = Math.min(e.uses + amount, 100000);
       if (e.rejects > 0 && amount >= 2) e.rejects--;
@@ -331,13 +336,25 @@ var Trail = (function () {
       }
     }
 
+    /** Forgets the word, and the word pairs it's in. */
     remove(word) {
-      if (this.entries.delete(word.toLowerCase())) this.changed();
+      const gone = this.entries.delete(word.toLowerCase());
+      const f = pairForm(word);
+      let pairsGone = false;
+      for (const [k, p] of this.pairs) {
+        if (p.prev === f || pairForm(p.next) === f) {
+          this.pairs.delete(k);
+          pairsGone = true;
+        }
+      }
+      if (gone || pairsGone) this.changed();
     }
 
+    /** Forgets every learned word, and the word pairs with them. */
     clearLearned() {
-      if (this.entries.size > 0) {
+      if (this.entries.size > 0 || this.pairs.size > 0) {
         this.entries.clear();
+        this.pairs.clear();
         this.changed();
       }
     }
@@ -1526,14 +1543,17 @@ var Trail = (function () {
      * Ranked suggestions for a word in progress, best first, never blocked words.
      * @param sources one per language: {words, user, bias, lang}
      */
-    /** @param boost word pairs at work (see liftsFor), or null */
-    suggest(typed, sources, max, boost) {
+    /**
+     * @param boost word pairs at work (see liftsFor), or null
+     * @param capsSlips a lower-case word that a list has only in capitals ("amd": AMD) still gets
+     *   typo fixes (for the automatic fix; the bar treats it as a word)
+     */
+    suggest(typed, sources, max, boost, capsSlips) {
       const key = keyOf(typed);
       if (!key) return [];
       const P = primaryOf(sources);
       boost = boost || null;
-      // A lower-case word that a list has only in capitals ("amd": AMD) may still be a slip.
-      const lowerTyped = typed === typed.toLowerCase();
+      const lowerTyped = capsSlips === true && typed === typed.toLowerCase();
       const best = new Map();
       const add = (S, word, score, kind, cost) => {
         if (blockedIn(S, P, word)) return;
@@ -1796,6 +1816,13 @@ var Trail = (function () {
   /** The buttons of the two prompts: [label, slot]. */
   const WORD_PROMPT = [['Less often', PROMPT_LESS], ['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
   const PAIR_PROMPT = [['Forget', PROMPT_YES], ['Cancel', PROMPT_NO]];
+  /** Where nothing is learned, "Less often" (a learned dislike) isn't offered. */
+  const NEVER_PROMPT = [['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
+
+  /** A word written only in capitals ("TM", "NASA"), not "I". */
+  function isAllCaps(word) {
+    return word.length > 1 && word === word.toUpperCase() && word !== word.toLowerCase();
+  }
   const SHIFT_OFF = 0;
   const SHIFT_ON = 1;
   const SHIFT_LOCK = 2;
@@ -1986,9 +2013,9 @@ var Trail = (function () {
       return !!(L && L.words && L.words.find(word) >= 0);
     }
 
-    recordUse(word, amount, code) {
+    recordUse(word, amount, code, keepForm) {
       const L = this.lex.get(code);
-      if (L) L.user.recordUse(word, amount, this.inBase(word, code));
+      if (L) L.user.recordUse(word, amount, this.inBase(word, code), keepForm === true);
     }
 
     recordReject(word, code) {
@@ -2261,12 +2288,15 @@ var Trail = (function () {
         this.resetComposing();
         this.view.clearStrip();
       } else {
+        // Nothing tied to the old spot carries over (a prompt that's up stays until answered).
         this.afterGesture = false;
         this.spaceAfterPick = false;
         this.revertFrom = null;
-        if (!this.view.hasPrompt() && this.stripKind !== STRIP_NONE) {
+        this.revertTo = null;
+        this.flag = null;
+        if (this.stripKind !== STRIP_NONE) {
           this.stripKind = STRIP_NONE;
-          this.view.clearStrip();
+          if (!this.view.hasPrompt()) this.view.clearStrip();
         }
       }
       this.ic.setCursor(index);
@@ -2335,11 +2365,18 @@ var Trail = (function () {
         ic.setComposingText(chosen);
         ic.finishComposingText();
         if (this.learning()) {
-          if (chosen === literal) {
-            if (literal.length >= 2 || this.inBase(literal, lang)) {
-              const form = this.learnForm(literal, this.typedFirstAutoCap, lang);
-              this.recordUse(form, 1, lang);
+          if (chosen === literal && slot === 0) {
+            // The word as you typed it, picked over the fix: kept as typed, and like an undo,
+            // it isn't fixed again.
+            if (literal.length >= 2) {
+              const form = this.typedForm(literal, this.typedFirstAutoCap);
+              this.recordUse(form, 2, lang, true);
               this.learnPair(prev, form, 1, lang);
+            }
+          } else if (chosen === literal) {
+            if (literal.length >= 2 || this.inBase(literal, lang)) {
+              this.recordUse(this.learnForm(literal, this.typedFirstAutoCap, lang), 1, lang);
+              this.learnPair(prev, this.nextForm(literal, this.typedFirstAutoCap, lang), 1, lang);
             }
           } else {
             this.recordUse(base, 2, lang);
@@ -2356,8 +2393,10 @@ var Trail = (function () {
         return;
       }
       if (this.stripKind === STRIP_NEXT) {
-        // One of your usual next words: typed with a space after.
+        // One of your usual next words: typed with a space after (which ends any undo offer).
         const prev = this.nextPrev;
+        this.revertFrom = null;
+        this.revertTo = null;
         ic.commitText(chosen + ' ');
         if (this.learning()) {
           this.recordUse(base, 1, lang);
@@ -2420,9 +2459,10 @@ var Trail = (function () {
             this.recordReject(from, this.revertLang);
             this.weakenPair(this.revertPrev, from, this.revertFixLang);
             if (to.length >= 2) {
+              // Kept as you typed it ("ios" stays "ios", not the list's "iOS").
               const tl = this.langOfTyped(to, this.contextLang());
-              const form = this.learnForm(to, this.revertAutoCap, tl);
-              this.recordUse(form, 2, tl);
+              const form = this.typedForm(to, this.revertAutoCap);
+              this.recordUse(form, 2, tl, true);
               this.learnPair(this.revertPrev, form, 1, tl);
             }
           }
@@ -2454,7 +2494,7 @@ var Trail = (function () {
       this.blockLang = (this.stripKind === STRIP_GESTURE && this.gestureCtx) || this.contextLang() || this.stripLang[slot];
       const L = this.lex.get(this.blockLang);
       const where = this.lex.enabled().length > 1 && L ? ' in ' + L.name : '';
-      this.view.setPrompt('“' + this.blockCandidate + '”' + where, WORD_PROMPT);
+      this.view.setPrompt('“' + this.blockCandidate + '”' + where, this.learning() ? WORD_PROMPT : NEVER_PROMPT);
     }
 
     /** @param choice PROMPT_LESS, PROMPT_YES (never / forget) or PROMPT_NO */
@@ -2468,10 +2508,15 @@ var Trail = (function () {
           const L = this.lex.get(code);
           if (L) L.user.forgetPair(this.promptPrev, word);
         }
-        if (this.stripKind === STRIP_NEXT) this.showNextWords();
+        if (this.stripKind === STRIP_NEXT) {
+          this.showNextWords();
+        } else {
+          this.stripKind = STRIP_NONE;
+          this.view.clearStrip();
+        }
         return;
       }
-      if (choice === PROMPT_LESS && word !== null) {
+      if (choice === PROMPT_LESS && word !== null && this.learning()) {
         // As if you'd corrected it twice; picking it yourself later brings it back.
         this.recordReject(word, code);
         this.recordReject(word, code);
@@ -2499,10 +2544,15 @@ var Trail = (function () {
           return;
         }
       }
-      if (this.stripKind === STRIP_GESTURE) this.showGestureStrip();
-      else if (this.stripKind === STRIP_TYPED) this.showTypedSuggestions();
-      else {
+      if (this.stripKind === STRIP_GESTURE) {
+        this.showGestureStrip();
+      } else if (this.stripKind === STRIP_TYPED) {
+        this.showTypedSuggestions();
+      } else if (this.stripKind === STRIP_FLAG && this.flag !== null && this.showFlag(this.flag.literal, this.flag.ctx, this.flag.prev)) {
+        // Back to the red word (its fixes worked out again).
+      } else {
         this.stripKind = STRIP_NONE;
+        this.flag = null;
         this.view.clearStrip();
       }
     }
@@ -2522,6 +2572,8 @@ var Trail = (function () {
       } finally {
         this.ic.endBatchEdit();
       }
+      this.revertFrom = null;
+      this.revertTo = null;
       this.afterGesture = false;
       this.spaceAfterPick = false;
       this.updateShift();
@@ -2652,7 +2704,7 @@ var Trail = (function () {
         this.lastSpaceTime = now;
         this.updateShift();
         const c = this.lastCommit;
-        if (c === null || c.changed || !this.showFlag(c.literal, c.ctx, c.prev)) this.showNextWords();
+        if (c === null || c.changed || c.glued || !this.showFlag(c.literal, c.ctx, c.prev)) this.showNextWords();
         return;
       }
       if (this.spaceAfterPick) {
@@ -2738,6 +2790,7 @@ var Trail = (function () {
       const literal = this.typed;
       const ctx = this.contextLang();
       const prev = this.prevBeforeComposing();
+      const glued = this.gluedToNumber();
       this.typed = '';
       const fix = this.decideTypedCommit(literal, ctx, prev);
       const commit = fix.text;
@@ -2754,15 +2807,15 @@ var Trail = (function () {
         this.revertTo = null;
       }
       ic.finishComposingText();
-      if (this.learning()) {
+      if (this.learning() && !glued) {
         const lang = commit === literal ? this.langOfTyped(literal, ctx) : fix.lang;
         const base = commit === literal ? this.learnForm(literal, this.typedFirstAutoCap, lang) : this.baseFormOf(commit, lang);
         if (isLearnable(base) && (base.length >= 2 || this.inBase(base, lang))) {
           this.recordUse(base, 1, lang);
-          this.learnPair(prev, base, 1, lang);
+          this.learnPair(prev, commit === literal ? this.nextForm(literal, this.typedFirstAutoCap, lang) : base, 1, lang);
         }
       }
-      this.lastCommit = { literal, ctx, prev, changed: commit !== literal };
+      this.lastCommit = { literal, ctx, prev, changed: commit !== literal, glued };
       this.deletedGestureWord = null;
       this.stripKind = STRIP_NONE;
       this.view.clearStrip();
@@ -2774,6 +2827,8 @@ var Trail = (function () {
       const plain = { text: literal, lang: null };
       if (ctx === undefined) ctx = this.contextLang();
       if (!this.canSuggest || !ctx || !literal) return plain;
+      // Letters stuck to a number ("5th", "1st") are left as typed.
+      if (this.gluedToNumber()) return plain;
       const srcs = this.sources(ctx);
       const caps = capsOf(literal);
       if (this.settings.smartFix) {
@@ -2805,38 +2860,76 @@ var Trail = (function () {
           }
           if (best && bestScore - literalScore >= 1.5) return { text: withCaps(best.word, caps), lang: best.lang };
         }
-        // "i" -> "I", "toronto" -> "Toronto", "mexico" handled above, "méxico" -> "México"
-        if (literal === literal.toLowerCase()) {
+        // "i" -> "I", "toronto" -> "Toronto", "mexico" handled above, "méxico" -> "México"; not
+        // two-letter words ("ur", "ni" stay), nor a word you've put back in lower case.
+        if (literal === literal.toLowerCase() && !this.keptLower(literal, srcs)) {
           const P = primaryOf(srcs);
           for (const S of srcs) {
             const id = S.words.find(literal);
             if (id < 0) continue;
             const d = S.words.display[id];
-            if (d !== literal && d !== d.toUpperCase() && !blockedIn(S, P, d)) return { text: d, lang: S.lang };
             if (d === 'I') return { text: d, lang: S.lang };
+            if (literal.length > 2 && d !== literal && d !== d.toUpperCase() && !blockedIn(S, P, d)) return { text: d, lang: S.lang };
             break;
           }
         }
       }
+      // Typo fixes (not for words you've used).
       if (this.settings.autocorrect && literal.length >= 2 && !srcs.some((S) => this.isActiveAddedIn(literal, S))) {
         const listed = srcs.filter((S) => S.words.find(literal) >= 0);
         const slip = listed.length > 0 && this.isAbbreviationSlip(literal, listed, srcs);
         if (listed.length === 0 || slip) {
           const boost = prev ? this.boostFor(prev, ctx) : null;
-          if (slip) {
-            const fix = this.slipFix(this.suggester.suggest(literal, srcs, 8, boost), listed, literal);
-            if (fix !== null) return { text: withCaps(fix.word, caps), lang: fix.lang };
-          } else {
-            for (const s of this.suggester.suggest(literal, srcs, 3, boost)) {
-              // The likeliest close fix: one passing over fixes that need more than one change,
-              // but not over a longer word starting with what you typed.
-              if (s.kind === COMPLETION) break;
-              if (s.kind === EXACT || s.cost <= 1.0) return { text: withCaps(s.word, caps), lang: s.lang };
-            }
-          }
+          const fix = slip
+            ? this.slipFix(this.suggester.suggest(literal, srcs, 8, boost, true), listed, literal)
+            : this.typoFix(this.suggester.suggest(literal, srcs, 8, boost), literal);
+          if (fix !== null) return { text: withCaps(fix.word, caps), lang: fix.lang };
         }
       }
       return plain;
+    }
+
+    /**
+     * The fix for a word that isn't one, or null: the likeliest close fix, if it's clearly the
+     * likeliest, and not past a longer word starting with what you typed. Only to a lower-case
+     * word ("tmr" isn't "TM", "ahve" isn't "Ave"). How close depends on the length: three letters,
+     * one neighbouring key or two letters swapped, to a common word that beats the next fix by 1;
+     * four or five, one change; longer, up to two neighbouring keys; and those beat the next by
+     * 0.5. Words of two letters aren't fixed ("ig", "ur").
+     */
+    typoFix(list, literal) {
+      const n = keyOf(literal).length;
+      const maxCost = n === 3 ? 0.7 : n <= 5 ? 0.8 : 1.0;
+      const near = [];
+      for (const s of list) {
+        if (s.kind === COMPLETION) break;
+        if (s.kind === EXACT) {
+          // Same letters, other accents or apostrophes ("cafe": café).
+          if (near.length === 0) return s;
+          break;
+        }
+        if (n < 3 || s.cost > maxCost || s.word !== s.word.toLowerCase()) continue;
+        near.push(s);
+      }
+      if (near.length === 0) return null;
+      const best = near[0];
+      if (near.length > 1 && best.score - near[1].score < (n === 3 ? 1 : 0.5)) return null;
+      if (n === 3 && best.score + 1.5 * best.cost < 5) return null;
+      return best;
+    }
+
+    /** You put this lower-case word back after it was capitalized ("ios"). */
+    keptLower(literal, srcs) {
+      return srcs.some((S) => {
+        const e = S.user.get(literal);
+        return e !== null && e.word === literal && e.uses > 0;
+      });
+    }
+
+    /** The word being typed comes right after a digit ("5th"). */
+    gluedToNumber() {
+      const c = this.textBefore(true, 1);
+      return c.length === 1 && c >= '0' && c <= '9';
     }
 
     /** A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used. */
@@ -2859,15 +2952,17 @@ var Trail = (function () {
     /** "amd" -> "and": one neighbouring key off a word at least 100 times as common, and
      *  clearly the likeliest such word; null if there's none. */
     slipFix(list, listed, literal) {
+      // Two-letter words ("og", "ur") are left alone, like other short-word slips.
+      if (keyOf(literal).length < 3) return null;
       let own = -99;
       for (const S of listed) {
         const id = S.words.find(literal);
         if (id >= 0) own = Math.max(own, S.words.score[id] / 100 + S.bias);
       }
-      const near = list.filter((s) => s.kind === CORRECTION && s.cost <= 0.5);
+      const near = list.filter((s) => s.kind === CORRECTION && s.cost <= 0.5 && s.word === s.word.toLowerCase());
       if (near.length === 0) return null;
       const z0 = near[0].score + 1.5 * near[0].cost;
-      if (z0 - own < 2) return null;
+      if (z0 - own < 2 || z0 < 5) return null;
       if (near.length > 1 && z0 - (near[1].score + 1.5 * near[1].cost) < 1) return null;
       return near[0];
     }
@@ -2895,7 +2990,7 @@ var Trail = (function () {
       this.setSlot(0, r1 && r1.word, r1 === null ? null : withCaps(r1.word, this.gestureCaps), r1 && r1.lang);
       this.setSlot(1, b0, this.gestureWord, this.gestureLang);
       this.setSlot(2, r2 && r2.word, r2 === null ? null : withCaps(r2.word, this.gestureCaps), r2 && r2.lang);
-      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], 1);
+      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], 1, -1);
     }
 
     showTypedSuggestions() {
@@ -2915,7 +3010,7 @@ var Trail = (function () {
       const prev = this.prevBeforeComposing();
       const fix = this.decideTypedCommit(literal, ctx, prev);
       const onSpace = fix.text;
-      const list = this.suggester.suggest(literal, this.sources(ctx), 6, this.boostFor(prev, ctx));
+      const list = this.suggester.suggest(literal, this.sources(ctx), 8, this.boostFor(prev, ctx));
       const alts = [];
       for (const s of list) {
         if (s.word.toLowerCase() === literal.toLowerCase() || s.word.toLowerCase() === onSpace.toLowerCase()) continue;
@@ -2927,7 +3022,7 @@ var Trail = (function () {
         this.setSlot(1, this.baseFormOf(onSpace, fix.lang), onSpace, fix.lang);
         const a = alts.length ? alts[0] : null;
         this.setSlot(2, a && a.word, a === null ? null : withCaps(a.word, caps), a && a.lang);
-        this.view.setSuggestions('“' + literal + '”', onSpace, this.stripText[2], 1);
+        this.view.setSuggestions('“' + literal + '”', onSpace, this.stripText[2], 1, -1);
         return;
       }
       const a0 = alts.length > 0 ? alts[0] : null;
@@ -2935,7 +3030,7 @@ var Trail = (function () {
       this.setSlot(0, a0 && a0.word, a0 === null ? null : withCaps(a0.word, caps), a0 && a0.lang);
       this.setSlot(1, literal, literal, literalLang);
       this.setSlot(2, a1 && a1.word, a1 === null ? null : withCaps(a1.word, caps), a1 && a1.lang);
-      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], 1);
+      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], 1, -1);
     }
 
     /** Your usual next words after the word before the cursor (or an empty bar). */
@@ -2964,7 +3059,7 @@ var Trail = (function () {
       // The likeliest in the middle, like the other suggestions.
       const order = [words.length > 1 ? words[1] : null, words[0], words.length > 2 ? words[2] : null];
       for (let i = 0; i < 3; i++) this.setSlot(i, order[i], order[i] === null ? null : withCaps(order[i], caps), ctx);
-      this.view.setSuggestions(this.stripText[0], this.stripText[1], this.stripText[2], -1, -1);
+      this.view.setNextWords(this.stripText[0], this.stripText[1], this.stripText[2]);
     }
 
     /**
@@ -2979,7 +3074,7 @@ var Trail = (function () {
         const e = S.user.get(literal);
         if (e !== null && e.uses >= NEW_WORD_ACTIVE_USES) return false;
       }
-      const found = this.suggester.suggest(literal, srcs, 6, this.boostFor(prev, ctx));
+      const found = this.suggester.suggest(literal, srcs, 8, this.boostFor(prev, ctx)).filter((x) => !isAllCaps(x.word));
       // Fixes one mistake away first, then the rest, each in the suggester's order.
       const fixes = found.filter((x) => x.kind === CORRECTION && x.cost <= 1.0)
         .concat(found.filter((x) => x.kind === CORRECTION && x.cost > 1.0));
@@ -3026,6 +3121,24 @@ var Trail = (function () {
       }
       const e = L ? L.user.get(word) : null;
       return e ? e.word : word;
+    }
+
+    /** A word exactly as typed, less a capital that only came from sentence-start shift. */
+    typedForm(literal, firstFromAutoCap) {
+      if (firstFromAutoCap && literal.length > 1 && literal !== literal.toUpperCase()) {
+        return literal[0].toLowerCase() + literal.slice(1);
+      }
+      return literal;
+    }
+
+    /**
+     * A typed word as the second word of a pair (what the next-word bar offers): the list's
+     * spelling, except capitals the list has that you didn't type ("ur", not "Ur"; "og", not "OG").
+     */
+    nextForm(literal, firstFromAutoCap, code) {
+      const typed = this.typedForm(literal, firstFromAutoCap);
+      const listed = this.learnForm(literal, firstFromAutoCap, code);
+      return typed === typed.toLowerCase() && listed !== listed.toLowerCase() ? typed : listed;
     }
 
     /** How to store a typed word: drop a capital that only came from sentence-start shift. */

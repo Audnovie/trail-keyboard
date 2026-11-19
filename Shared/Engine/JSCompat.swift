@@ -76,6 +76,23 @@ struct OrderedDict<Key: Hashable, Value> {
         values.removeAll()
     }
 
+    /// Removes the entries `gone` picks, keeping the others in order. True if any went.
+    @discardableResult
+    mutating func removeAll(where gone: (Key, Value) -> Bool) -> Bool {
+        var k2 = [Key]()
+        var v2 = [Value]()
+        for (k, v) in zip(keys, values) where !gone(k, v) {
+            k2.append(k)
+            v2.append(v)
+        }
+        if k2.count == keys.count { return false }
+        keys = k2
+        values = v2
+        index.removeAll()
+        for (i, k) in keys.enumerated() { index[k] = i }
+        return true
+    }
+
     /// Values in insertion order.
     var orderedValues: [Value] { values }
 
