@@ -2391,11 +2391,13 @@ var Trail = (function () {
       } finally {
         this.ic.endBatchEdit();
       }
-      // The cursor is going somewhere new: forget anything tied to the old spot.
+      // The cursor is going somewhere new: forget anything tied to the old spot (a space
+      // there and a space here aren't a double space).
       this.afterGesture = false;
       this.spaceAfterPick = false;
       this.revertFrom = null;
       this.revertTo = null;
+      this.lastSpaceTime = -1e9;
       this.ic.moveCursor(chars);
       this.updateShift();
     }
@@ -2422,6 +2424,7 @@ var Trail = (function () {
 
     /** You tapped somewhere in the text (onUpdateSelection on Android). */
     onCursorPlaced(index) {
+      this.lastSpaceTime = -1e9;
       if (this.composing()) {
         if (index === this.ic.ce) return;
         // Leave the half-done word exactly as it is.

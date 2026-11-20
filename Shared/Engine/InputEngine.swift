@@ -541,11 +541,13 @@ public final class InputEngine {
         ic.beginBatchEdit()
         finalizeAll()
         ic.endBatchEdit()
-        // The cursor is going somewhere new: forget anything tied to the old spot.
+        // The cursor is going somewhere new: forget anything tied to the old spot (a space
+        // there and a space here aren't a double space).
         afterGesture = false
         spaceAfterPick = false
         revertFrom = nil
         revertTo = nil
+        lastSpaceTime = -1e9
         ic.moveCursor(chars)
         updateShift()
     }
@@ -571,6 +573,7 @@ public final class InputEngine {
 
     /// You tapped somewhere in the text (the model field used in tests).
     public func onCursorPlaced(_ index: Int, editor: Editor) {
+        lastSpaceTime = -1e9
         if composing() {
             if index == editor.ce { return }
             // Leave the half-done word exactly as it is.
