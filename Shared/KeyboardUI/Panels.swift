@@ -405,6 +405,8 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
     }
 
     func show(_ c: PanelContent, canGoBack: Bool, theme t: Theme) {
+        // Another page starts at its top (the same page keeps its place when it refreshes).
+        let newPage = c.title != content.title
         theme = t
         content = c
         backgroundColor = t.panel
@@ -416,6 +418,7 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
         back.tintColor = t.accent
         table.overrideUserInterfaceStyle = t.dark ? .dark : .light
         table.reloadData()
+        if newPage { table.setContentOffset(CGPoint(x: 0, y: -table.adjustedContentInset.top), animated: false) }
     }
 
     @objc private func tapBack() { onBack?() }
