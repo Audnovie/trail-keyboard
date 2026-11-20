@@ -18,8 +18,9 @@ final class HarnessViewController: UIViewController {
     private let doneLabel = UILabel()
     private let runButton = UIButton(type: .system)
     private var kbView: KeyboardView!
-    /// iOS's own keyboard background, as behind the real keyboard (the System theme lets it show).
-    private let backdrop = UIInputView(frame: .zero, inputViewStyle: .keyboard)
+    /// A stand-in for iOS's own keyboard background, which shows through the System theme in the
+    /// real keyboard (inside an app there's none: the app's white would show instead).
+    private let backdrop = UIView()
     private var controller: KeyboardController!
     private var heightConstraint: NSLayoutConstraint!
     private var steps = [String]()
@@ -77,7 +78,9 @@ final class HarnessViewController: UIViewController {
             backdrop.topAnchor.constraint(equalTo: kbView.topAnchor),
             backdrop.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
-        controller.fieldChanged(FieldTraits(dark: traitCollection.userInterfaceStyle == .dark))
+        let dark = traitCollection.userInterfaceStyle == .dark
+        backdrop.backgroundColor = Theme.make(dark: dark).background
+        controller.fieldChanged(FieldTraits(dark: dark))
         render()
         if let i = args.firstIndex(of: "-HarnessScript"), i + 1 < args.count {
             batches = args[i + 1].split(separator: "|").map { $0.split(separator: ";").map(String.init) }

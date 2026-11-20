@@ -276,7 +276,8 @@ final class HarnessUITests: XCTestCase {
     /// Each theme (screenshots), and the list in the settings with the current one ticked.
     func testThemes() {
         let ids = ["midnight", "ocean", "forest", "sunset", "rose", "lavender", "paper", "system", "graphite"]
-        let app = launch("type:the quick brown fox|" + ids.map { "theme:" + $0 }.joined(separator: "|") + "|tap:gear")
+        // (After a space, so the settings button is in the bar.)
+        let app = launch("type:the quick brown fox |" + ids.map { "theme:" + $0 }.joined(separator: "|") + "|tap:gear")
         run(app)
         for id in ids {
             run(app)
@@ -301,7 +302,7 @@ final class HarnessUITests: XCTestCase {
         XCTAssertTrue(app.cells["theme.system"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.cells["theme.system"].isSelected)
         XCTAssertFalse(app.cells["theme.graphite"].isSelected)
-        XCTAssertEqual(text(app), "The quick brown fox", "picking a theme types nothing")
+        XCTAssertEqual(text(app), "The quick brown fox ", "picking a theme types nothing")
     }
 
     /// Word pairs are listed in the keyboard's settings, and each can be forgotten.
