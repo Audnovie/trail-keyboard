@@ -180,6 +180,20 @@ func unitsFor(_ line: ArraySlice<UInt16>, _ chars: Int) -> Int {
     return i
 }
 
+/// Characters that letters right after belong to an address or code rather than a sentence
+/// ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"); digits count too ("5th").
+let glueUnits: Set<UInt16> = Set(".@/:_\\#=&~".utf16)
+
+/// Whether letters starting at `at` in u are stuck to what comes before them (see glueUnits); an
+/// ellipsis ("well...i") doesn't count. Same as core.js.
+func gluedAt(_ u: [UInt16], _ at: Int) -> Bool {
+    if at <= 0 { return false }
+    let c = u[at - 1]
+    if c >= 0x30 && c <= 0x39 { return true }
+    if !glueUnits.contains(c) { return false }
+    return !(c == 0x2E && at >= 2 && u[at - 2] == 0x2E)
+}
+
 /// The UTF-16 length of the first `chars` characters of u (surrogate pairs as one), with a unit for
 /// each character asked for past its end.
 func unitsAhead(_ u: [UInt16], _ chars: Int) -> Int {

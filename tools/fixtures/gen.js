@@ -519,6 +519,8 @@ function expand(script) {
     else if (op === 'less') ev.push({ t: 'strip', slot: T.PROMPT_LESS });
     else if (op === 'gear') ev.push({ t: 'strip', slot: T.SLOT_GEAR });
     else if (op === 'del') ev.push({ t: 'del' });
+    else if (op === 'delHeld') ev.push({ t: 'delHeld' });
+    else if (op === 'delEnd') ev.push({ t: 'delEnd' });
     else if (op === 'wait') ev.push({ t: 'wait', ms: Number(arg) });
     else if (op === 'move') ev.push({ t: 'move', chars: Number(arg) });
     else if (op === 'lines') ev.push({ t: 'lines', n: Number(arg), w: LINE_WIDTH });
@@ -592,6 +594,13 @@ const SESSIONS = [
     script: ['place:11', 'moveEnd', 'move:-2', 'move:100', 'moveEnd', 'type:, see example.com ', 'del', 'del', 'type:m and bob@gmail.com ok'] },
   { name: 'deleted back into a word that was there', settings: { autocorrect: true }, text: 'I use xcode and i ',
     script: ['del', 'type:,', 'del', 'del', 'del', 'del', 'del', 'del', 'type: ', 'del', 'del', 'type:,'] },
+  // Holding delete: the first press is a plain delete (it shows the undo offer, removes a swiped
+  // word); the repeats don't pick words back up; letting go does.
+  { name: 'holding delete', settings: { autocorrect: true },
+    script: ['type:i like teh ', 'del', 'delHeld', 'delHeld', 'delHeld', 'delHeld', 'delEnd', 'type:s ', 'swipe:hello', 'del', 'delHeld', 'delHeld', 'delEnd', 'type:x'] },
+  // After an ellipsis it's still a sentence; after an address it isn't (no fixes, no word pairs).
+  { name: 'ellipsis and addresses', settings: { autocorrect: true },
+    script: ['type:well...i guess so, mail sam@example.com and ', 'type:bob@gmail.com '] },
   // A long paragraph wraps on screen: up and down go a line's worth (LINE_WIDTH) along it.
   { name: 'trackpad wrapped lines', script: ['type:the quick brown fox jumps over the lazy dog and keeps on running', 'lines:-1', 'moveEnd', 'type:x', 'lines:-2', 'moveEnd', 'lines:1', 'moveEnd', 'type:y', 'lines:9', 'moveEnd', 'type:z'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
@@ -623,6 +632,8 @@ const SESSIONS = [
       if (e.t === 'key') ime.onKey({ code: e.code });
       else if (e.t === 'alt') ime.typeAlt(e.ch);
       else if (e.t === 'del') ime.onDelete();
+      else if (e.t === 'delHeld') ime.onDelete(true);
+      else if (e.t === 'delEnd') ime.onDeleteEnd();
       else if (e.t === 'swipe') ime.onSwipe(e.xs, e.ys, e.xs.length, null);
       else if (e.t === 'strip') ime.onStripTap(e.slot);
       else if (e.t === 'stripLong') ime.onStripLongPress(e.slot);
@@ -698,6 +709,7 @@ const SESSIONS = [
     ["'quoted' ", true], ['it’s ', true], ['naïve ', true], ['co-op ', true], ['3 ', true], ['', true], ['x', false], ['a b c ', true],
     ["don't'", false], ['Ünïcödé ', true], ['😀 ', true], ['word😀 ', true], ["'' ", true], ['abcdefghijklmnopqrstuvwxyzabcdef ', true],
     ['the 5th ', true], ['4ever ', true], ["2's ", true], ['1st time ', true], ['x2y ', true],
+    ['mail gmail.com ', true], ['sam@example ', true], ['and/or ', true], ['well...so ', true], ['wait.. ok ', true], ['#tag ', true],
   ].map(([t, n]) => [t, n, T.wordBefore(t, n)]);
 
   // Lifts at work: after "are", words you've written next.

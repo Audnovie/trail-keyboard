@@ -32,7 +32,8 @@ public protocol TextTarget: AnyObject {
     func capsAtCursor() -> Bool
     /// Moves the cursor by whole characters.
     func moveCursor(_ chars: Int)
-    /// Moves the cursor by n UTF-16 units (to the end of a character that n ends inside).
+    /// Moves the cursor by n UTF-16 units. Callers pass counts that don't split a character; on
+    /// the iPhone (ProxyTarget) a character that n would end inside is crossed whole.
     func moveCursor(utf16 n: Int)
     /// Whether the keyboard can see the app's text here (some apps never show it).
     var showsText: Bool { get }

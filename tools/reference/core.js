@@ -196,6 +196,22 @@ var Trail = (function () {
    * something other than spaces comes between (punctuation and new lines end a pair).
    * @param needSpace the word must be followed by at least one space
    */
+  /** Characters that letters right after belong to an address or code rather than a sentence
+   *  ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"); digits count too ("5th"). */
+  const GLUE = '.@/:_\\#=&~';
+
+  /**
+   * Whether letters starting at `at` in `text` are stuck to what comes before them (see GLUE);
+   * an ellipsis ("well...i") doesn't count.
+   */
+  function gluedAt(text, at) {
+    if (at <= 0) return false;
+    const c = text[at - 1];
+    if (c >= '0' && c <= '9') return true;
+    if (GLUE.indexOf(c) < 0) return false;
+    return !(c === '.' && at >= 2 && text[at - 2] === '.');
+  }
+
   function wordBefore(text, needSpace) {
     let end = text.length;
     while (end > 0 && text[end - 1] === ' ') end--;
@@ -206,8 +222,8 @@ var Trail = (function () {
       if (!isLetter(c) && c !== "'" && c !== '’') break;
       start--;
     }
-    // Letters stuck to a number ("5th") aren't a word.
-    if (start > 0 && text[start - 1] >= '0' && text[start - 1] <= '9') return null;
+    // Letters stuck to a number or an address ("5th", "gmail.com") aren't a word.
+    if (gluedAt(text, start)) return null;
     while (start < end && (text[start] === "'" || text[start] === '’')) start++;
     while (end > start && (text[end - 1] === "'" || text[end - 1] === '’')) end--;
     const w = text.slice(start, end);
@@ -1893,10 +1909,6 @@ var Trail = (function () {
   const PAIR_PROMPT = [['Forget', PROMPT_YES], ['Cancel', PROMPT_NO]];
   /** The longest word that going back into it picks up again (as long as a word can be learned). */
   const RESUME_LIMIT = 30;
-  /** Characters that letters right after belong to an address or code rather than a sentence
-   *  ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"): such letters are left as typed. */
-  const GLUE = '.@/:_\\#=&~';
-  const gluesOn = (c) => c.length === 1 && ((c >= '0' && c <= '9') || GLUE.indexOf(c) >= 0);
   /** How much text around the cursor a move up or down a line looks at. */
   const LINE_CONTEXT = 2000;
 
@@ -2326,7 +2338,7 @@ var Trail = (function () {
       while (s < before.length && (before[s] === "'" || before[s] === '’')) s++;
       const word = before.slice(s);
       if (!isLearnable(word)) return false;
-      if (s > 0 && gluesOn(before[s - 1])) return false;
+      if (gluedAt(before, s)) return false;
       const next = this.textAfter(1);
       if (next.length > 0 && (isLetter(next) || next === "'" || next === '’' || (next >= '0' && next <= '9'))) return false;
       this.ic.setComposingRegion(this.ic.sel - word.length, this.ic.sel);
@@ -3090,10 +3102,10 @@ var Trail = (function () {
       });
     }
 
-    /** The word being typed comes right after a digit ("5th"). */
     /** The word in progress is stuck to a number ("5th") or an address (".com", "@sam"): see GLUE. */
     isGlued() {
-      return gluesOn(this.textBefore(true, 1));
+      const b = this.textBefore(true, 2);
+      return gluedAt(b, b.length);
     }
 
     /** A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used. */

@@ -464,7 +464,7 @@ public final class InputEngine {
     /// Back into a word (a delete, or a cursor move that ends at it): the letters right before the
     /// cursor become the word being typed again, so the bar suggests for all of it and typing goes
     /// on with it. Only at the end of a word (no letter or digit right after the cursor), not for
-    /// letters stuck to a number or an address (see glueUnits), only where suggestions are on, and
+    /// letters stuck to a number or an address (see gluedAt), only where suggestions are on, and
     /// not in an app that doesn't show its text (the keyboard couldn't be sure what it would replace).
     @discardableResult
     private func resumeWord() -> Bool {
@@ -476,7 +476,7 @@ public final class InputEngine {
         while s < b.count && (b[s] == apos || b[s] == rsq) { s += 1 }
         let word = String(decoding: b[s...], as: UTF16.self)
         if !isLearnable(word) { return false }
-        if s > 0 && gluesOn(b[s - 1]) { return false }
+        if gluedAt(b, s) { return false }
         if let n = ic.contextAfter(limit: 1).utf16.first, isLetterUnit(n) || n == apos || n == rsq || (n >= 0x30 && n <= 0x39) { return false }
         let n = word.utf16.count
         // (The app's text may not be certain just then: the word is left as it is.)
@@ -1277,19 +1277,10 @@ public final class InputEngine {
         }
     }
 
-    /// The word being typed comes right after a digit ("5th").
-    /// The word in progress is stuck to a number ("5th") or an address (".com", "@sam").
+    /// The word in progress is stuck to a number ("5th") or an address (".com", "@sam"): see glueUnits.
     private func isGlued() -> Bool {
-        let u = Array(ic.contextBefore(limit: 1, beforeComposing: true).utf16)
-        return u.count == 1 && gluesOn(u[0])
-    }
-
-    /// Characters that letters right after belong to an address or code rather than a sentence
-    /// ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"), as well as digits.
-    static let glueUnits: Set<UInt16> = Set(".@/:_\\#=&~".utf16)
-
-    private func gluesOn(_ u: UInt16) -> Bool {
-        (u >= 0x30 && u <= 0x39) || InputEngine.glueUnits.contains(u)
+        let u = Array(ic.contextBefore(limit: 2, beforeComposing: true).utf16)
+        return gluedAt(u, u.count)
     }
 
     /// A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used.

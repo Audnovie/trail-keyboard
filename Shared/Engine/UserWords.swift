@@ -41,8 +41,8 @@ public func wordBefore(_ text: String, needSpace: Bool) -> String? {
         if !isLetterUnit(c) && c != 0x27 && c != 0x2019 { break }
         start -= 1
     }
-    // Letters stuck to a number ("5th") aren't a word.
-    if start > 0 && u[start - 1] >= 0x30 && u[start - 1] <= 0x39 { return nil }
+    // Letters stuck to a number or an address ("5th", "gmail.com") aren't a word.
+    if gluedAt(u, start) { return nil }
     while start < end && (u[start] == 0x27 || u[start] == 0x2019) { start += 1 }
     while end > start && (u[end - 1] == 0x27 || u[end - 1] == 0x2019) { end -= 1 }
     let w = String(decoding: u[start..<end], as: UTF16.self)

@@ -138,6 +138,8 @@ final class ProxyTargetTests: XCTestCase {
                 case "key": engine.onKey(e["code"].int)
                 case "alt": engine.typeAlt(e["ch"].string!)
                 case "del": engine.onDelete()
+                case "delHeld": engine.onDelete(repeating: true)
+                case "delEnd": engine.onDeleteEnd()
                 case "swipe":
                     let xs = e["xs"].doubles
                     engine.onSwipe(xs, e["ys"].doubles, xs.count)
