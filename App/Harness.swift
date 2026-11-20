@@ -18,6 +18,8 @@ final class HarnessViewController: UIViewController {
     private let doneLabel = UILabel()
     private let runButton = UIButton(type: .system)
     private var kbView: KeyboardView!
+    /// iOS's own keyboard background, as behind the real keyboard (the System theme lets it show).
+    private let backdrop = UIInputView(frame: .zero, inputViewStyle: .keyboard)
     private var controller: KeyboardController!
     private var heightConstraint: NSLayoutConstraint!
     private var steps = [String]()
@@ -51,7 +53,7 @@ final class HarnessViewController: UIViewController {
         controller.onUpdate = { [weak self] in self?.render() }
         editor.onChange = { [weak self] in self?.render() }
 
-        for v in [textLabel, memoryLabel, doneLabel, runButton, kbView] as [UIView] {
+        for v in [textLabel, memoryLabel, doneLabel, runButton, backdrop, kbView] as [UIView] {
             v.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview(v)
         }
@@ -70,6 +72,10 @@ final class HarnessViewController: UIViewController {
             kbView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             kbView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
             heightConstraint,
+            backdrop.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            backdrop.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            backdrop.topAnchor.constraint(equalTo: kbView.topAnchor),
+            backdrop.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
         controller.fieldChanged(FieldTraits(dark: traitCollection.userInterfaceStyle == .dark))
         render()
@@ -121,6 +127,16 @@ final class HarnessViewController: UIViewController {
             steps.insert(contentsOf: arg.map { $0 == " " ? "tap:space" : "tap:" + String($0) }, at: 0)
             delay = 0
         case "wait": delay = (Double(arg) ?? 100) / 1000
+        case "trackpad":
+            // The space bar held and moved: "chars,lines" (negative is left or up).
+            let n = arg.split(separator: ",").map { Double($0) ?? 0 }
+            let chars = CGFloat(n.first ?? 0)
+            let lines = CGFloat(n.count > 1 ? n[1] : 0)
+            let stepX = Metrics.trackpadStep * kbView.keyUnit
+            let stepY = Metrics.trackpadLine * kbView.rowH
+            func nudge(_ v: CGFloat, _ step: CGFloat) -> CGFloat { v == 0 ? 0 : v * step + (v > 0 ? 0.3 : -0.3) * step }
+            kbView.simulateTrackpad(dx: nudge(chars, stepX), dy: nudge(lines, stepY))
+        case "theme": controller.setTheme(arg)
         default: break
         }
         render()

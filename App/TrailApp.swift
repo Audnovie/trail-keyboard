@@ -78,6 +78,18 @@ struct HomeView: View {
                             .font(.footnote).foregroundColor(.secondary)
                     }
 
+                    Card(title: "Moving the cursor", status: nil) {
+                        Text("Hold the space bar (or drag it sideways) and it works as a trackpad: the cursor follows your finger, sideways a character at a time and up or down a line at a time. Let go right after a word and its suggestions come up. Deleting back into a word does the same.")
+                        Text("A keyboard can’t see where an app wraps a long paragraph, so up and down move about a line’s worth of characters for your screen’s width; nudge sideways to land exactly.")
+                            .font(.footnote).foregroundColor(.secondary)
+                    }
+
+                    Card(title: "Themes", status: nil) {
+                        Text("On Trail’s suggestion bar, tap the sliders button, then Theme. System matches Apple’s keyboard in light and dark mode; there are also five dark themes and three light ones.")
+                        Text("In apps with iOS 26’s new look, iOS adds a thin strip of its own keyboard colour around the top of other apps’ keyboards, which a keyboard can’t draw on. System matches it; with a colour theme it shows as a band above the keys.")
+                            .font(.footnote).foregroundColor(.secondary)
+                    }
+
                     Card(title: "What it keeps", status: nil) {
                         Text("Single words you use (and how often), which word you write after which (word pairs), words you rejected or blocked, a running summary of how you swipe, training results, per language, and the last 30 emoji you picked. Never sentences, never your swipes, nothing from password, email, web address, username, code, address or card fields.")
                         Text("It’s all in Trail’s settings on the keyboard (sliders button) under Learned words, Never suggest, Word pairs and What the keyboard keeps, where you can delete any of it. It stays on this iPhone: no network access, and left out of backups.")

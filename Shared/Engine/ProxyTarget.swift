@@ -69,6 +69,9 @@ public final class ProxyTarget: TextTarget {
     public var onExternalChange: (() -> Void)?
     /// Capitals at the start of every word, not just sentences.
     public var wordCaps = false
+    /// The cursor was moved past the text the app had shown (see moveCursor): the keyboard's
+    /// picture is unsure until the app shows the text there.
+    private var blind = false
 
     /// - Parameter now: seconds, steadily increasing.
     public init(proxy: @escaping () -> TextDocument, now: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime }) {
@@ -83,6 +86,7 @@ public final class ProxyTarget: TextTarget {
         after = proxy.textAfterCursor ?? ""
         recent = []
         composing = nil
+        blind = false
         if newField { seenText = false }
         if !model.isEmpty || !after.isEmpty { seenText = true }
     }
@@ -145,7 +149,10 @@ public final class ProxyTarget: TextTarget {
             if !b.isEmpty || !a.isEmpty { seenText = true }
             matches = { mb, ma in ProxyTarget.beforeAgrees(b, mb) && ProxyTarget.afterAgrees(a, ma) }
         }
-        if matches(model, after) { return .same }
+        if matches(model, after) {
+            blind = false
+            return .same
+        }
         let t = now()
         if recent.contains(where: { t - $0.time < ProxyTarget.lagWindow && matches($0.before, $0.after) }) {
             return .behind
@@ -309,6 +316,23 @@ public final class ProxyTarget: TextTarget {
         return String(decoding: u[start...], as: UTF16.self)
     }
 
+    public func contextAfter(limit: Int) -> String {
+        let u = after.utf16
+        let end = u.index(u.startIndex, offsetBy: min(limit, u.count))
+        return String(decoding: u[..<end], as: UTF16.self)
+    }
+
+    /// The word already before the cursor becomes the word in progress again (it's replaced, when
+    /// it changes, the way the keyboard's own word is: deleting back over it and typing anew).
+    @discardableResult public func setComposingRegion(utf16 n: Int) -> Bool {
+        // Not while the picture is unsure: the word might not be what's before the cursor.
+        if blind && fit() != .same { return false }
+        let word = textBefore(utf16: n)
+        guard !word.isEmpty, model.hasSuffix(word) else { return false }
+        composing = word
+        return true
+    }
+
     /// False in an app that doesn't show this field's text (the keyboard only has its own picture,
     /// which may be stale), so nothing is offered that would replace text there.
     public var showsText: Bool {
@@ -326,7 +350,10 @@ public final class ProxyTarget: TextTarget {
     }
 
     /// Moves the cursor by whole characters, and moves them across in the keyboard's picture
-    /// of the text too (the app may show the move a moment late).
+    /// of the text too (the app may show the move a moment late). Past the text the app has shown
+    /// (some apps show only the current paragraph) it moves on anyway, counting a character as one
+    /// unit: the app stops at the start or end of its text, and once it shows the text there the
+    /// keyboard takes that as its picture (see checkExternal).
     public func moveCursor(_ chars: Int) {
         edit {
             noteState()
@@ -341,6 +368,10 @@ public final class ProxyTarget: TextTarget {
                     n += 1
                 }
                 after = moved + after
+                if n < -chars {
+                    offset -= -chars - n
+                    blind = true
+                }
             } else {
                 var rest = Substring(after)
                 var moved = ""
@@ -353,6 +384,10 @@ public final class ProxyTarget: TextTarget {
                 }
                 after = String(rest)
                 model += moved
+                if n < chars {
+                    offset += chars - n
+                    blind = true
+                }
             }
             trimModel()
             if offset != 0 { proxy.adjustTextPosition(byCharacterOffset: offset) }

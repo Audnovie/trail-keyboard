@@ -157,7 +157,6 @@ final class KeyboardController: KeyboardViewDelegate {
         if settings.typingLang != "auto" && !settings.languages.contains(settings.typingLang) { settings.typingLang = "auto" }
         engine.applySettings(settings.typing)
         updateSwipeEnabled()
-        view.spaceHold = multilingual()
         if !multilingual() { view.clearMenu() }
         updateLangLabel()
     }
@@ -228,16 +227,29 @@ final class KeyboardController: KeyboardViewDelegate {
 
     // ---- swipe profiles (one per keyboard shape: upright and sideways differ) ----
 
-    func profileKey() -> String {
+    func profileKey() -> String { profileKey(rowH: view.rowH) }
+
+    /// The shape of the keys with rows this tall on this screen.
+    private func profileKey(rowH: CGFloat) -> String {
         // Before the first layout there's no shape yet: use the usual upright one.
         if view.keyUnit <= 1 { return "14" }
-        let ratio = Double(view.rowH / view.keyUnit)
+        let ratio = Double(rowH / view.keyUnit)
         return String(Int(jsRoundUI(ratio * 10)))
     }
 
     func profile() -> SwipeProfile {
         let key = profileKey()
         if let P = profiles[key] { return P }
+        // Upright rows were a little taller before November 2026: on screens where that gives a
+        // different shape, the profile learned then carries over.
+        if view.rowH == Metrics.rowH {
+            let old = profileKey(rowH: Metrics.oldRowH)
+            if old != key, let P = profiles[old] {
+                profiles[old] = nil
+                profiles[key] = P
+                return P
+            }
+        }
         let P = SwipeProfile()
         profiles[key] = P
         return P
@@ -264,7 +276,7 @@ final class KeyboardController: KeyboardViewDelegate {
     /// A new text field (or the keyboard just appeared).
     func fieldChanged(_ t: FieldTraits) {
         traits = t
-        view.applyTheme(Theme.make(dark: t.dark))
+        view.applyTheme(Theme.named(settings.theme, dark: t.dark))
         view.setReturnLabel(t.returnLabel)
         engine.setField(suggest: t.suggest, sentenceCaps: t.sentenceCaps || t.wordCaps, allCaps: t.allCaps, learn: t.learn)
         if mode == .type && input == nil {
@@ -272,6 +284,15 @@ final class KeyboardController: KeyboardViewDelegate {
         }
         updateSwipeEnabled()
         updateLangLabel()
+    }
+
+    /// A theme picked in the settings (see Theme.all).
+    func setTheme(_ id: String) {
+        settings.theme = id
+        view.applyTheme(Theme.named(id, dark: traits.dark))
+        renderPanel()
+        if mode == .training { renderTraining() }
+        changed()
     }
 
     /// Swiping is on in training, and otherwise when it's switched on and the field takes words
@@ -366,9 +387,7 @@ final class KeyboardController: KeyboardViewDelegate {
             return
         }
         guard mode == .type else { return }
-        if key.code == KeyCode.space {
-            openLangMenu()
-        } else if let ch = key.alts?.first {
+        if let ch = key.alts?.first {
             engine.typeAlt(ch)
             afterAction()
         }
@@ -423,6 +442,28 @@ final class KeyboardController: KeyboardViewDelegate {
         guard mode == .type, input == nil else { return }
         engine.onCursorMove(steps)
         afterAction()
+    }
+
+    func kbCursorLines(_ lines: Int) {
+        view.clearMenu()
+        guard mode == .type, input == nil else { return }
+        engine.onCursorLines(lines, width: charsPerLine())
+        afterAction()
+    }
+
+    func kbCursorMoveEnd() {
+        guard mode == .type, input == nil else { return }
+        engine.onCursorMoveEnd()
+        afterAction()
+    }
+
+    func kbTrackpadAllowed() -> Bool { mode == .type && input == nil }
+
+    /// About how many characters fit on a line of the app's text. A keyboard can't see the app's
+    /// layout, so this goes by the screen's width less the usual margins, at the width of an
+    /// average character of the iPhone's usual text size.
+    func charsPerLine() -> Int {
+        max(20, Int(((view.bounds.width - Metrics.textMargins) / Metrics.textCharWidth).rounded()))
     }
 
     func kbStripTap(_ slot: Int) {
@@ -763,6 +804,7 @@ final class KeyboardController: KeyboardViewDelegate {
         recentEmoji = []
         view.emojiRecent = []
         settings = AppSettings()
+        view.applyTheme(Theme.named(settings.theme, dark: traits.dark))
         applyLanguages()
         applyProfile()
         store.eraseAll()

@@ -521,6 +521,8 @@ function expand(script) {
     else if (op === 'del') ev.push({ t: 'del' });
     else if (op === 'wait') ev.push({ t: 'wait', ms: Number(arg) });
     else if (op === 'move') ev.push({ t: 'move', chars: Number(arg) });
+    else if (op === 'lines') ev.push({ t: 'lines', n: Number(arg), w: LINE_WIDTH });
+    else if (op === 'moveEnd') ev.push({ t: 'moveEnd' });
     else if (op === 'place') ev.push({ t: 'place', index: Number(arg) });
     else if (op === 'emoji') ev.push({ t: 'emoji', text: arg });
     else if (op === 'key') ev.push({ t: 'key', code: Number(arg) });
@@ -530,6 +532,9 @@ function expand(script) {
   }
   return ev;
 }
+
+// Characters a line on screen in the trackpad sessions (the keyboard works it out from the screen).
+const LINE_WIDTH = 12;
 
 const SESSIONS = [
   { name: 'typing basics', script: ['type:hello there. how are you', 'type: ', 'type:i think so'] },
@@ -577,6 +582,11 @@ const SESSIONS = [
   { name: 'red word prompts', script: ['type:blorf ', 'hold:1', 'no', 'hold:2', 'yes', 'hold:1', 'less', 'pick:1', 'type:blorf ', 'hold:1', 'place:2', 'no', 'type:z'] },
   { name: 'prompts where nothing is learned', settings: { learn: false }, script: ['type:hel', 'hold:2', 'less', 'hold:2', 'no', 'swipe:sense', 'hold:0', 'yes'] },
   // (A pause after the cursor moves, as a tap takes: otherwise the next space would be a double space.)
+  // Nov 20, 2026: back into a word, and the space bar as a trackpad.
+  { name: 'back into a word', settings: { autocorrect: true }, script: ['type:then it will start ', 'del', 'del', 'del', 'del', 'type:ar ', 'type:so teh ', 'del', 'del', 'type:n ', 'type:the 5th', 'del', 'type:th ', 'type:done. ', 'del', 'del', 'type:x ', 'place:3', 'del', 'type:q', 'move:100', 'type: ok', 'del', 'del', 'del', 'del', 'swipe:hello', 'del'] },
+  { name: 'trackpad lines', script: ['type:one\ntwo words\nthree', 'lines:-1', 'moveEnd', 'type:x', 'lines:-1', 'lines:-1', 'lines:2', 'move:-1', 'moveEnd', 'lines:-5', 'move:3', 'moveEnd', 'type:s', 'move:100', 'moveEnd', 'type:y'] },
+  // A long paragraph wraps on screen: up and down go a line's worth (LINE_WIDTH) along it.
+  { name: 'trackpad wrapped lines', script: ['type:the quick brown fox jumps over the lazy dog and keeps on running', 'lines:-1', 'moveEnd', 'type:x', 'lines:-2', 'moveEnd', 'lines:1', 'moveEnd', 'type:y', 'lines:9', 'moveEnd', 'type:z'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
 ];
 
@@ -605,6 +615,8 @@ const SESSIONS = [
       else if (e.t === 'strip') ime.onStripTap(e.slot);
       else if (e.t === 'stripLong') ime.onStripLongPress(e.slot);
       else if (e.t === 'move') ime.onCursorMove(e.chars);
+      else if (e.t === 'lines') ime.onCursorLines(e.n, e.w);
+      else if (e.t === 'moveEnd') ime.onCursorMoveEnd();
       else if (e.t === 'place') ime.onCursorPlaced(e.index);
       else if (e.t === 'emoji') ime.onEmoji(e.text);
       else if (e.t === 'emojiBack') ime.onEmojiBack();
@@ -715,6 +727,26 @@ const SESSIONS = [
     noBoost: [ime.boostFor('nothing', 'en'), ime.boostFor('are', 'es'), ime.boostFor(null, 'en')],
     decodes, suggests,
   };
+}
+
+// ---- the cursor up and down lines (the space bar as a trackpad) ------------------------------------
+
+{
+  const texts = [
+    ['one\ntwo words\nthr', 'ee'], ['one\ntwo', ' words\nthree'], ['', 'abc\ndef'], ['abc', ''], ['ab\n', '\ncd'],
+    ['\nxy', ''], ['long line here\nab', 'c\nshort\n'], ['😀😀\n😀a😀b', 'c'], ['x\n😀😀😀', '😀\nyy😀z'], ['a\n\n\nbc', 'd'],
+    ['first\r\nsecond', ''], ['no breaks at all', ' here'],
+    // Wrapped on screen (at 8 or 12 characters a line).
+    ['the quick brown fox jum', 'ps over the lazy dog'], ['the quick', ' brown'], ['abcdefghijklmnopqrst\nab', 'c'],
+    ['abcdefghijkl\nabcdefgh', 'ijklmnopqrstu\nxyz'], ['ab', 'cdefghijklmnop\nq'], ['😀😀😀😀😀😀😀😀😀😀😀😀😀', '😀😀😀😀😀'],
+    ['x\n', ''], ['', ''], ['abc\r\nde', 'f\r\nghijk\r\n'], ['abcdefghi\r\nab', 'c\r\n'],
+  ];
+  const cases = [];
+  for (const width of [8, 12, 40]) {
+    for (const [b, a] of texts) for (const dir of [-1, 1]) cases.push([b, a, dir, width, T.lineMove(b, a, dir, width)]);
+  }
+  const caps = ['', 'Hello. ', 'Hi', 'Hi ', 'one\n', '¿', 'Sr. ', 'e.g. ', '(', 'end!" ', 'a ¿'].map((t) => [t, T.capsAtEnd(t)]);
+  files['cursor.json'] = { lines: cases, caps };
 }
 
 // ---- write -------------------------------------------------------------------------------------------

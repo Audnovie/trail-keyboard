@@ -143,6 +143,8 @@ final class ProxyTargetTests: XCTestCase {
                 case "strip": engine.onStripTap(e["slot"].int)
                 case "stripLong": engine.onStripLongPress(e["slot"].int)
                 case "move": engine.onCursorMove(e["chars"].int)
+                case "lines": engine.onCursorLines(e["n"].int, width: e["w"].int)
+                case "moveEnd": engine.onCursorMoveEnd()
                 case "place":
                     doc.place(e["index"].int)
                     if target.checkExternal() { engine.onExternalChange() }
@@ -473,6 +475,65 @@ final class ProxyTargetTests: XCTestCase {
         r.tick()
         r.engine.onDelete()
         XCTAssertEqual(r.doc.text, String(full.prefix(9)) + String(full.dropFirst(10)))
+    }
+
+    /// An app that shows only the current paragraph: the trackpad still takes the cursor into the
+    /// paragraph above, and once the app shows the text there it's the keyboard's picture, so the
+    /// word the cursor stops after is picked back up.
+    func testTrackpadGoesPastTheParagraphTheAppShows() {
+        let r = rig("First line here\nSecond")
+        r.doc.paragraphOnly = true
+        r.target.sync()
+        XCTAssertEqual(r.target.contextBefore(limit: 100, beforeComposing: false), "Second")
+        r.engine.onCursorMove(-10)
+        XCTAssertEqual(r.doc.cursor, 12, "First line h|ere")
+        r.tick()
+        XCTAssertEqual(r.target.contextBefore(limit: 100, beforeComposing: false), "First line h")
+        r.engine.onCursorMove(3)
+        r.engine.onCursorMoveEnd()
+        XCTAssertEqual(r.doc.cursor, 15)
+        XCTAssertEqual(r.view.strip[1], "here", "the word is picked back up")
+        type(r.engine, "s")
+        XCTAssertEqual(r.doc.text, "First line heres\nSecond")
+        // Up a line from the paragraph below.
+        r.engine.onCursorMove(1)
+        r.tick()
+        r.engine.onCursorLines(-1, width: 40)
+        XCTAssertEqual(r.doc.cursor, 0, "from the start of the line below to the start of the line above")
+    }
+
+    /// Moved past the text the app had shown, and let go before the app shows the text there: the
+    /// word at the old spot in the keyboard's picture isn't picked up, and keys act where the
+    /// cursor really is.
+    func testNothingPickedUpWhileTheTextThereIsUnknown() {
+        let r = rig("one two\nthree four")
+        r.doc.paragraphOnly = true
+        r.doc.place(3)
+        r.tick()
+        XCTAssertEqual(r.target.contextAfter(limit: 100), " two")
+        r.engine.onCursorMove(10)
+        XCTAssertEqual(r.doc.cursor, 13, "one two\nthree| four")
+        r.engine.onCursorMoveEnd()
+        XCTAssertNil(r.target.composing, "“two” isn't before the cursor any more")
+        XCTAssertEqual(r.view.strip, [nil, nil, nil])
+        r.engine.onDelete()
+        XCTAssertEqual(r.doc.text, "one two\nthre four")
+        type(r.engine, "x")
+        XCTAssertEqual(r.doc.text, "one two\nthrex four")
+    }
+
+    /// Past the start or end of the text, the cursor just stops there.
+    func testTrackpadStopsAtTheEnds() {
+        let r = rig("Hi there")
+        r.engine.onCursorMove(-50)
+        XCTAssertEqual(r.doc.cursor, 0)
+        r.tick()
+        r.engine.onCursorMove(50)
+        XCTAssertEqual(r.doc.cursor, 8)
+        r.engine.onCursorMoveEnd()
+        XCTAssertEqual(r.view.strip[1], "there", "picked back up at the end")
+        type(r.engine, "s")
+        XCTAssertEqual(r.doc.text, "Hi theres")
     }
 
     /// The four ways what the app shows can fit the keyboard's picture.

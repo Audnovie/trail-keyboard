@@ -23,6 +23,18 @@ final class HarnessUITests: XCTestCase {
         app.staticTexts["harness.text"].value as? String ?? ""
     }
 
+    /// The text with the cursor shown as |.
+    private func caret(_ app: XCUIApplication) -> String {
+        app.staticTexts["harness.text"].label
+    }
+
+    /// Where the cursor is, in characters from the start.
+    private func caretIndex(_ app: XCUIApplication) -> Int {
+        let shown = caret(app)
+        guard let i = shown.firstIndex(of: "|") else { return -1 }
+        return shown.distance(from: shown.startIndex, to: i)
+    }
+
     /// Plays the next batch of the launch script and waits for it to finish.
     private func run(_ app: XCUIApplication) {
         app.buttons["harness.run"].tap()
@@ -158,7 +170,7 @@ final class HarnessUITests: XCTestCase {
         XCTAssertTrue(kb.exists)
         let f = kb.frame
         // The suggestion bar's right slot, held.
-        kb.coordinate(withNormalizedOffset: CGVector(dx: 2.5 / 3, dy: 22 / f.height)).press(forDuration: 0.9)
+        kb.coordinate(withNormalizedOffset: CGVector(dx: 2.5 / 3, dy: 18 / f.height)).press(forDuration: 0.9)
         XCTAssertEqual(strip(app), "“help” in English — Less often, Never, Cancel")
         for id in ["prompt.less", "prompt.yes", "prompt.no"] {
             XCTAssertTrue(app.buttons[id].exists, "no \(id) button")
@@ -208,6 +220,88 @@ final class HarnessUITests: XCTestCase {
         XCTAssertEqual(strip(app), " | see | ")
         run(app)
         XCTAssertTrue(app.tables["panel.table"].waitForExistence(timeout: 5), "settings didn't open beside the next words")
+    }
+
+    /// Deleting back into a word picks it up again: "start", space, back to "st", then "ar": the
+    /// bar suggests for "star", not for "ar".
+    func testDeletingBackIntoAWordPicksItUp() {
+        let app = launch("type:then it will start |tap:delete;tap:delete;tap:delete;tap:delete|type:ar")
+        run(app)
+        XCTAssertEqual(text(app), "Then it will start ")
+        run(app)
+        XCTAssertEqual(text(app), "Then it will st")
+        XCTAssertEqual(strip(app).components(separatedBy: " | ").dropFirst().first, "st", strip(app))
+        run(app)
+        XCTAssertEqual(text(app), "Then it will star")
+        XCTAssertEqual(strip(app).components(separatedBy: " | ").dropFirst().first, "star", "suggestions for the whole word: \(strip(app))")
+        shot("back-into-a-word")
+    }
+
+    /// Holding the space bar makes it a trackpad: the cursor follows the finger (a real hold and
+    /// drag), and no space is typed.
+    func testHoldingTheSpaceBarMovesTheCursor() {
+        let app = launch("type:hello world")
+        run(app)
+        XCTAssertEqual(caret(app), "Hello world|")
+        let from = key(app, "space").coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        // About 9 characters' worth to the left.
+        from.press(forDuration: 0.9, thenDragTo: from.withOffset(CGVector(dx: -80, dy: 0)))
+        XCTAssertEqual(text(app), "Hello world", "nothing typed")
+        let at = caretIndex(app)
+        XCTAssertTrue((1...4).contains(at), "the cursor should have moved about 9 characters left: \(caret(app))")
+    }
+
+    /// Up and down: across line breaks, keeping the place along the line, and a line's worth along
+    /// a long paragraph (a keyboard can't see where the app wraps it, so it goes by the screen's width).
+    func testTrackpadUpAndDown() {
+        let app = launch("type:one;tap:enter;type:two words|trackpad:0,-1|trackpad:2,0|trackpad:0,1")
+        run(app)
+        XCTAssertEqual(caret(app), "One\nTwo words|")
+        run(app)
+        XCTAssertEqual(caret(app), "One|\nTwo words")
+        run(app)
+        XCTAssertEqual(caret(app), "One\nT|wo words")
+        run(app)
+        XCTAssertEqual(caret(app), "One\nTwo words|", "down from the last line goes to the end")
+
+        let long = launch("type:the quick brown fox jumps over the lazy dog and runs off|trackpad:0,-1")
+        run(long)
+        XCTAssertEqual(caretIndex(long), 56)
+        run(long)
+        let at = caretIndex(long)
+        XCTAssertTrue((10...22).contains(at), "up a line's worth (about 40 characters): \(caret(long))")
+        shot("trackpad-up")
+    }
+
+    /// Each theme (screenshots), and the list in the settings with the current one ticked.
+    func testThemes() {
+        let ids = ["midnight", "ocean", "forest", "sunset", "rose", "lavender", "paper", "system", "graphite"]
+        let app = launch("type:the quick brown fox|" + ids.map { "theme:" + $0 }.joined(separator: "|") + "|tap:gear")
+        run(app)
+        for id in ids {
+            run(app)
+            shot("theme-" + id)
+        }
+        run(app)
+        let table = app.tables["panel.table"]
+        XCTAssertTrue(table.waitForExistence(timeout: 5), "settings didn't open")
+        let link = app.cells["link.theme"]
+        var tries = 0
+        while !link.exists && tries < 8 {
+            table.swipeUp(velocity: .slow)
+            tries += 1
+        }
+        XCTAssertTrue(link.waitForExistence(timeout: 3), "no Theme link")
+        link.tap()
+        let graphite = app.cells["theme.graphite"]
+        XCTAssertTrue(graphite.waitForExistence(timeout: 5), "theme list didn't open")
+        XCTAssertTrue(graphite.isSelected, "the theme in use is ticked")
+        shot("theme-list")
+        app.cells["theme.system"].tap()
+        XCTAssertTrue(app.cells["theme.system"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.cells["theme.system"].isSelected)
+        XCTAssertFalse(app.cells["theme.graphite"].isSelected)
+        XCTAssertEqual(text(app), "The quick brown fox", "picking a theme types nothing")
     }
 
     /// Word pairs are listed in the keyboard's settings, and each can be forgotten.

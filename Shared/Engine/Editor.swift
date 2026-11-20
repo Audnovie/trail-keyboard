@@ -23,6 +23,11 @@ public protocol TextTarget: AnyObject {
     func textBefore(utf16 n: Int) -> String
     /// Up to `limit` UTF-16 units before the cursor, or before the composing text.
     func contextBefore(limit: Int, beforeComposing: Bool) -> String
+    /// Up to `limit` UTF-16 units after the cursor.
+    func contextAfter(limit: Int) -> String
+    /// The last n UTF-16 units before the cursor (text already there) become the composing text.
+    /// False if the field can't be sure what's there just now (then nothing changes).
+    @discardableResult func setComposingRegion(utf16 n: Int) -> Bool
     /// Whether the cursor is at the start of a sentence.
     func capsAtCursor() -> Bool
     /// Moves the cursor by whole characters.
@@ -128,6 +133,18 @@ public final class Editor: TextTarget {
     public func contextBefore(limit: Int, beforeComposing: Bool) -> String {
         let end = beforeComposing && cs >= 0 ? cs : sel
         return String(decoding: units[max(0, end - limit)..<end], as: UTF16.self)
+    }
+
+    public func contextAfter(limit: Int) -> String {
+        String(decoding: units[sel..<min(units.count, sel + limit)], as: UTF16.self)
+    }
+
+    /// Android's setComposingRegion, for the n units before the cursor.
+    @discardableResult public func setComposingRegion(utf16 n: Int) -> Bool {
+        cs = max(0, sel - n)
+        ce = sel
+        changed()
+        return true
     }
 
     public func capsAtCursor() -> Bool { capsAtEnd(units: units, sel) }

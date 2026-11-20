@@ -36,7 +36,7 @@ final class EmojiSearchField: UIView {
 
     func apply(_ t: Theme) {
         theme = t
-        backgroundColor = t.background
+        backgroundColor = t.surface
         box.backgroundColor = t.key
         glass.tintColor = t.hint
         close.tintColor = t.accent
@@ -106,7 +106,7 @@ final class EmojiResultsRow: UIView, UICollectionViewDataSource, UICollectionVie
 
     func apply(_ t: Theme) {
         theme = t
-        backgroundColor = t.background
+        backgroundColor = t.surface
         note.textColor = t.hint
     }
 

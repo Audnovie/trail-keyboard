@@ -1639,6 +1639,97 @@ var Trail = (function () {
     }
   }
 
+  /** Android's sentence-start rule (TextUtils.getCapsMode) at the end of the text, also skipping Spanish ¿ and ¡. */
+  function capsAtEnd(cs) {
+    let i = cs.length;
+    for (; i > 0; i--) {
+      const c = cs[i - 1];
+      if (c !== '"' && c !== "'" && c !== '¿' && c !== '¡' && !OPEN_PUNCT.test(c)) break;
+    }
+    let j = i;
+    while (j > 0 && (cs[j - 1] === ' ' || cs[j - 1] === '\t')) j--;
+    if (j === 0 || cs[j - 1] === '\n') return true;
+    if (i === j) return false;
+    for (; j > 0; j--) {
+      const c = cs[j - 1];
+      if (c !== '"' && c !== "'" && !CLOSE_PUNCT.test(c)) break;
+    }
+    if (j > 0) {
+      const c = cs[j - 1];
+      if (c === '.' || c === '?' || c === '!') {
+        if (c === '.') {
+          for (let k = j - 2; k >= 0; k--) {
+            const d = cs[k];
+            if (d === '.') return false;
+            if (!isLetter(d)) break;
+          }
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Characters as the cursor moves over them (a surrogate pair counts as one). */
+  function charCount(s) {
+    let n = 0;
+    for (let i = 0; i < s.length; i++) {
+      if (!(i > 0 && isLow(s.charCodeAt(i)) && isHigh(s.charCodeAt(i - 1)))) n++;
+    }
+    return n;
+  }
+
+  /** The UTF-16 length of the first `chars` characters of line (all of it if it's shorter). */
+  function unitsFor(line, chars) {
+    let i = 0;
+    for (let n = 0; n < chars && i < line.length; n++) {
+      i++;
+      if (i < line.length && isLow(line.charCodeAt(i)) && isHigh(line.charCodeAt(i - 1))) i++;
+    }
+    return i;
+  }
+
+  /**
+   * How many characters the cursor moves to go one line up (dir < 0) or down (dir > 0) on screen,
+   * keeping its place along the line. A keyboard can't see where the app wraps a long paragraph,
+   * so a line on screen is taken to be `width` characters (worked out from the screen's width);
+   * line breaks in the text count as they are (a \r\n as one). With no line there in the text
+   * the keyboard has, it moves a whole line's worth anyway (the app stops at the start or end of
+   * the text).
+   */
+  function lineMove(before, after, dir, width) {
+    const w = Math.max(8, Math.floor(width));
+    // Where a line's text ends, short of the \r of a \r\n.
+    const textEnd = (s, from, end) => (end > from && s.charCodeAt(end - 1) === 13 ? end - 1 : end);
+    const paraStart = before.lastIndexOf('\n') + 1;
+    const col = charCount(before.slice(paraStart));
+    // Along the line on screen.
+    const along = col % w;
+    if (dir < 0) {
+      // A later line of a wrapped paragraph: straight up.
+      if (col >= w) return -w;
+      if (paraStart === 0) return -w;
+      // The first line: to the last line of the paragraph above, as far along.
+      const prevEnd = paraStart - 1;
+      const prevStart = prevEnd > 0 ? before.lastIndexOf('\n', prevEnd - 1) + 1 : 0;
+      const prev = before.slice(prevStart, textEnd(before, prevStart, prevEnd));
+      const prevLen = charCount(prev);
+      const lastLine = prevLen > 0 ? Math.floor((prevLen - 1) / w) * w : 0;
+      const target = prevStart + unitsFor(prev, lastLine + Math.min(along, prevLen - lastLine));
+      return -charCount(before.slice(target));
+    }
+    const br = after.indexOf('\n');
+    const rest = charCount(after.slice(0, br < 0 ? after.length : textEnd(after, 0, br)));
+    // The paragraph goes on to the next line on screen: straight down (or to its end).
+    if (rest >= w - along) return Math.min(w, rest);
+    if (br < 0) return w;
+    // Its last line: to the first line of the paragraph below, as far along.
+    let nextEnd = after.indexOf('\n', br + 1);
+    if (nextEnd < 0) nextEnd = after.length;
+    const target = br + 1 + unitsFor(after.slice(br + 1, textEnd(after, br + 1, nextEnd)), along);
+    return charCount(after.slice(0, target));
+  }
+
   // ---- a text field --------------------------------------------------------------------------
 
   /** The few things a keyboard does to a text field, modelled on Android's InputConnection. */
@@ -1716,36 +1807,20 @@ var Trail = (function () {
       return this.text.slice(Math.max(0, this.sel - n), this.sel);
     }
 
+    getTextAfterCursor(n) {
+      return this.text.slice(this.sel, this.sel + n);
+    }
+
+    /** Text already in the field becomes the composing text (Android's setComposingRegion). */
+    setComposingRegion(start, end) {
+      this.cs = start;
+      this.ce = end;
+      this.changed();
+    }
+
     /** Android's sentence-start rule (TextUtils.getCapsMode), also skipping Spanish ¿ and ¡. */
     capsAtCursor() {
-      const cs = this.text;
-      let i = this.sel;
-      for (; i > 0; i--) {
-        const c = cs[i - 1];
-        if (c !== '"' && c !== "'" && c !== '¿' && c !== '¡' && !OPEN_PUNCT.test(c)) break;
-      }
-      let j = i;
-      while (j > 0 && (cs[j - 1] === ' ' || cs[j - 1] === '\t')) j--;
-      if (j === 0 || cs[j - 1] === '\n') return true;
-      if (i === j) return false;
-      for (; j > 0; j--) {
-        const c = cs[j - 1];
-        if (c !== '"' && c !== "'" && !CLOSE_PUNCT.test(c)) break;
-      }
-      if (j > 0) {
-        const c = cs[j - 1];
-        if (c === '.' || c === '?' || c === '!') {
-          if (c === '.') {
-            for (let k = j - 2; k >= 0; k--) {
-              const d = cs[k];
-              if (d === '.') return false;
-              if (!isLetter(d)) break;
-            }
-          }
-          return true;
-        }
-      }
-      return false;
+      return capsAtEnd(this.text.slice(0, this.sel));
     }
 
     /** Moves the cursor by whole characters (an emoji counts as one). */
@@ -1816,6 +1891,11 @@ var Trail = (function () {
   /** The buttons of the two prompts: [label, slot]. */
   const WORD_PROMPT = [['Less often', PROMPT_LESS], ['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
   const PAIR_PROMPT = [['Forget', PROMPT_YES], ['Cancel', PROMPT_NO]];
+  /** The longest word that going back into it picks up again (as long as a word can be learned). */
+  const RESUME_LIMIT = 30;
+  /** How much text around the cursor a move up or down a line looks at. */
+  const LINE_CONTEXT = 2000;
+
   /** Where nothing is learned, "Less often" (a learned dislike) isn't offered. */
   const NEVER_PROMPT = [['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
 
@@ -1880,6 +1960,8 @@ var Trail = (function () {
       this.lastShiftTap = 0;
       this.typed = '';
       this.typedFirstAutoCap = false;
+      /** A finished word you went back into, as it was then (not learned again if it stays so). */
+      this.resumed = null;
       this.gestureWord = null;
       this.gestureBase = null;
       this.gestureLang = null;
@@ -1956,6 +2038,7 @@ var Trail = (function () {
 
     resetComposing() {
       this.typed = '';
+      this.resumed = null;
       this.gestureWord = null;
       this.gestureBase = null;
       this.gestureLang = null;
@@ -2042,6 +2125,11 @@ var Trail = (function () {
     textBefore(beforeComposing, limit) {
       const end = beforeComposing && this.ic.cs >= 0 ? this.ic.cs : this.ic.sel;
       return this.ic.text.slice(Math.max(0, end - limit), end);
+    }
+
+    /** Up to `limit` characters after the cursor. */
+    textAfter(limit) {
+      return this.ic.getTextAfterCursor(limit);
     }
 
     /** The word before the one being composed (tapped or swiped), with a space between. */
@@ -2209,6 +2297,39 @@ var Trail = (function () {
         this.view.clearStrip();
       }
       this.updateShift();
+      // Deleted back into a word: it's the word being typed again.
+      this.resumeWord();
+    }
+
+    /**
+     * Back into a word (a delete, or a cursor move that ends at it): the letters right before the
+     * cursor become the word being typed again, so the bar suggests for all of it and typing goes
+     * on with it. Only at the end of a word (no letter or digit right after the cursor), not for
+     * letters stuck to a number, and only where suggestions are on.
+     */
+    resumeWord() {
+      if (!this.canSuggest || this.composing()) return false;
+      const before = this.textBefore(false, RESUME_LIMIT + 200);
+      let s = before.length;
+      while (s > 0 && (isLetter(before[s - 1]) || before[s - 1] === "'" || before[s - 1] === '’')) s--;
+      while (s < before.length && (before[s] === "'" || before[s] === '’')) s++;
+      const word = before.slice(s);
+      if (!isLearnable(word)) return false;
+      if (s > 0 && before[s - 1] >= '0' && before[s - 1] <= '9') return false;
+      const next = this.textAfter(1);
+      if (next.length > 0 && (isLetter(next) || next === "'" || next === '’' || (next >= '0' && next <= '9'))) return false;
+      this.ic.setComposingRegion(this.ic.sel - word.length, this.ic.sel);
+      this.typed = word;
+      this.resumed = word;
+      // A capital at the start of a sentence most likely came from the automatic shift.
+      this.typedFirstAutoCap = word.length > 1 && isUpper(word[0]) && word.slice(1) === word.slice(1).toLowerCase() && capsAtEnd(before.slice(0, s));
+      this.afterGesture = false;
+      this.spaceAfterPick = false;
+      this.revertFrom = null;
+      this.revertTo = null;
+      this.updateShift();
+      this.showTypedSuggestions();
+      return true;
     }
 
     /** @param path the raw swipe ({xs, ys, ts, n}) kept for correction reports */
@@ -2277,6 +2398,26 @@ var Trail = (function () {
       this.revertTo = null;
       this.ic.moveCursor(chars);
       this.updateShift();
+    }
+
+    /**
+     * The cursor up (lines < 0) or down by lines on screen, keeping its place along the line;
+     * `width` is about how many characters fit on a line of the app's text (see lineMove).
+     */
+    onCursorLines(lines, width) {
+      // Like any cursor move, it ends the word in progress first.
+      this.onCursorMove(0);
+      for (let i = 0; i < Math.abs(lines); i++) {
+        const d = lineMove(this.textBefore(false, LINE_CONTEXT), this.textAfter(LINE_CONTEXT), lines < 0 ? -1 : 1, width);
+        if (d === 0) break;
+        this.ic.moveCursor(d);
+      }
+      this.updateShift();
+    }
+
+    /** The space bar let go after moving the cursor: back into the word there, if any. */
+    onCursorMoveEnd() {
+      this.resumeWord();
     }
 
     /** You tapped somewhere in the text (onUpdateSelection on Android). */
@@ -2374,7 +2515,7 @@ var Trail = (function () {
               this.learnPair(prev, form, 1, lang);
             }
           } else if (chosen === literal) {
-            if (literal.length >= 2 || this.inBase(literal, lang)) {
+            if (literal !== this.resumed && (literal.length >= 2 || this.inBase(literal, lang))) {
               this.recordUse(this.learnForm(literal, this.typedFirstAutoCap, lang), 1, lang);
               this.learnPair(prev, this.nextForm(literal, this.typedFirstAutoCap, lang), 1, lang);
             }
@@ -2810,7 +2951,9 @@ var Trail = (function () {
         this.revertTo = null;
       }
       ic.finishComposingText();
-      if (this.learning() && !glued) {
+      const asBefore = this.resumed !== null && commit === this.resumed;
+      this.resumed = null;
+      if (this.learning() && !glued && !asBefore) {
         const lang = commit === literal ? this.langOfTyped(literal, ctx) : fix.lang;
         const base = commit === literal ? this.learnForm(literal, this.typedFirstAutoCap, lang) : this.baseFormOf(commit, lang);
         if (isLearnable(base) && (base.length >= 2 || this.inBase(base, lang))) {
@@ -3185,6 +3328,8 @@ var Trail = (function () {
     wordBefore,
     pairForm,
     MAX_PAIRS,
+    lineMove,
+    capsAtEnd,
   };
 })();
 

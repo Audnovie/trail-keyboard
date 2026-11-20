@@ -24,12 +24,14 @@ struct AppSettings: Codable, Equatable {
     /// "auto" or a language code.
     var typingLang = "auto"
     var lastLang = "en"
+    /// The keyboard's colours (see Theme.all); "system" follows the app's light or dark keyboard.
+    var theme = "system"
     var rev = AppSettings.currentRev
 
     init() {}
 
     enum CodingKeys: String, CodingKey {
-        case swipe, smartFix, autocorrect, doubleSpace, learn, useProfile, pairs, languages, typingLang, lastLang, rev
+        case swipe, smartFix, autocorrect, doubleSpace, learn, useProfile, pairs, languages, typingLang, lastLang, theme, rev
     }
 
     init(from decoder: Decoder) throws {
@@ -48,6 +50,8 @@ struct AppSettings: Codable, Equatable {
         let ll = (try? c.decodeIfPresent(String.self, forKey: .lastLang)) ?? nil ?? d.lastLang
         lastLang = KeyboardLanguages.all.contains(ll) ? ll : "en"
         pairs = (try? c.decodeIfPresent(Bool.self, forKey: .pairs)) ?? nil ?? d.pairs
+        let th = (try? c.decodeIfPresent(String.self, forKey: .theme)) ?? nil ?? d.theme
+        theme = Theme.all.contains { $0.id == th } ? th : d.theme
         // Saved before November 2026 (no rev), when automatic fixes were off by default: they come
         // on once, with the new default. Switching them off again afterwards sticks.
         let saved = (try? c.decodeIfPresent(Int.self, forKey: .rev)) ?? nil ?? 1

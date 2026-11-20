@@ -101,6 +101,9 @@ what it keeps.
   the wrong guess less).
 - **Delete** right after a swipe removes the whole word. Swiping again soon after counts the
   first guess as wrong.
+- **Delete back into a word** and it's the word in progress again: type *start*, a space, delete
+  back to *st* and type *ar*, and the bar suggests for *star* (and tapping a suggestion replaces
+  the whole word). The same when the cursor stops right after a word.
 - **Shift** right after a swipe cycles the word: lowercase, Capitalized, ALL CAPS.
 - **Hold a suggestion** for *Less often* (it comes up less; picking it yourself later brings it
   back), *Never* (it goes on the never-suggest list) or *Cancel*.
@@ -119,8 +122,18 @@ what it keeps.
   button stays at the left); tap one to type it. Hold one there to *Forget* that pair.
   Settings → *Word pairs* switches it off.
 - **Hold a key** for accents (á é í ó ú ü ñ) and the top row's numbers; hold **.** for ? ! ¿ ¡ …
-- **Drag the space bar** to move the cursor. With Spanish on, **hold the space bar** to pick the
-  language (Auto picks it from the words before the cursor).
+- **Hold the space bar** (or drag it sideways) and it's a trackpad: the keys go blank and the
+  cursor follows your finger, a character at a time sideways and a line at a time up and down.
+  A keyboard can't see where an app wraps a long paragraph, so up and down move about a line's
+  worth of characters for the screen's width (line breaks you typed count exactly); nudge
+  sideways to land exactly. Let go after a word and its suggestions come up.
+- **Language:** with Spanish on, tap 🌐 in the empty bar to pick the language (Auto picks it from
+  the words before the cursor).
+- **Themes:** Settings → *Theme*. *System* follows light and dark mode like Apple's keyboard and
+  lets iOS's own keyboard background show, so it matches the thin strip iOS 26 adds above
+  keyboards in apps with the new look (a keyboard can't draw on that strip). Graphite, Midnight,
+  Ocean, Forest and Sunset are dark; Rose, Lavender and Paper are light. With a colour theme the
+  strip stays iOS's colour.
 - **123** and **#+=** are laid out like Apple's keyboard. Hold a key there for its variants, as
   on Apple's: " for “ ” „ « », ' for ‘ ’ `, - for – — •, $ for € £ ¥ ¢ ₩ ₽, 0 for °, . for …
 - **Emoji:** the emoji scroll sideways; the buttons along the bottom jump to a category, and the

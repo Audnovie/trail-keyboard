@@ -139,6 +139,8 @@ public final class InputEngine {
     private var lastShiftTap = 0.0
     public private(set) var typed = ""
     private var typedFirstAutoCap = false
+    /// A finished word you went back into, as it was then (not learned again if it stays so).
+    private var resumed: String?
     public private(set) var gestureWord: String?
     private var gestureBase: String?
     private var gestureLang: String?
@@ -230,6 +232,7 @@ public final class InputEngine {
 
     private func resetComposing() {
         typed = ""
+        resumed = nil
         gestureWord = nil
         gestureBase = nil
         gestureLang = nil
@@ -442,6 +445,48 @@ public final class InputEngine {
             view?.clearStrip()
         }
         updateShift()
+        // Deleted back into a word: it's the word being typed again.
+        resumeWord()
+    }
+
+    /// The longest word that going back into it picks up again (as long as a word can be learned).
+    static let resumeLimit = 30
+    /// How much text around the cursor a move up or down a line looks at.
+    static let lineContext = 2000
+
+    /// Back into a word (a delete, or a cursor move that ends at it): the letters right before the
+    /// cursor become the word being typed again, so the bar suggests for all of it and typing goes
+    /// on with it. Only at the end of a word (no letter or digit right after the cursor), not for
+    /// letters stuck to a number, only where suggestions are on, and not in an app that doesn't
+    /// show its text (the keyboard couldn't be sure what it would replace).
+    @discardableResult
+    private func resumeWord() -> Bool {
+        guard canSuggest, !composing(), ic.showsText else { return false }
+        let b = Array(ic.contextBefore(limit: InputEngine.resumeLimit + 200, beforeComposing: false).utf16)
+        let apos: UInt16 = 0x27, rsq: UInt16 = 0x2019
+        var s = b.count
+        while s > 0 && (isLetterUnit(b[s - 1]) || b[s - 1] == apos || b[s - 1] == rsq) { s -= 1 }
+        while s < b.count && (b[s] == apos || b[s] == rsq) { s += 1 }
+        let word = String(decoding: b[s...], as: UTF16.self)
+        if !isLearnable(word) { return false }
+        if s > 0 && b[s - 1] >= 0x30 && b[s - 1] <= 0x39 { return false }
+        if let n = ic.contextAfter(limit: 1).utf16.first, isLetterUnit(n) || n == apos || n == rsq || (n >= 0x30 && n <= 0x39) { return false }
+        let n = word.utf16.count
+        // (The app's text may not be certain just then: the word is left as it is.)
+        guard ic.setComposingRegion(utf16: n) else { return false }
+        typed = word
+        resumed = word
+        // A capital at the start of a sentence most likely came from the automatic shift.
+        let rest = String(decoding: Array(word.utf16)[1...], as: UTF16.self)
+        typedFirstAutoCap = n > 1 && isUpperFirst(word) && same(rest, rest.lowercased())
+            && capsAtEnd(of: String(decoding: b[..<s], as: UTF16.self))
+        afterGesture = false
+        spaceAfterPick = false
+        revertFrom = nil
+        revertTo = nil
+        updateShift()
+        showTypedSuggestions()
+        return true
     }
 
     public func onSwipe(_ xs: [Double], _ ys: [Double], _ count: Int) {
@@ -503,6 +548,25 @@ public final class InputEngine {
         revertTo = nil
         ic.moveCursor(chars)
         updateShift()
+    }
+
+    /// The cursor up (lines < 0) or down by lines on screen, keeping its place along the line;
+    /// `width` is about how many characters fit on a line of the app's text (see lineMove).
+    public func onCursorLines(_ lines: Int, width: Int) {
+        // Like any cursor move, it ends the word in progress first.
+        onCursorMove(0)
+        for _ in 0..<abs(lines) {
+            let d = lineMove(ic.contextBefore(limit: InputEngine.lineContext, beforeComposing: false),
+                             ic.contextAfter(limit: InputEngine.lineContext), lines < 0 ? -1 : 1, width: width)
+            if d == 0 { break }
+            ic.moveCursor(d)
+        }
+        updateShift()
+    }
+
+    /// The space bar let go after moving the cursor: back into the word there, if any.
+    public func onCursorMoveEnd() {
+        resumeWord()
     }
 
     /// You tapped somewhere in the text (the model field used in tests).
@@ -615,7 +679,7 @@ public final class InputEngine {
                         learnPair(prev, form, 1, lang)
                     }
                 } else if same(chosen, literal) {
-                    if literal.utf16.count >= 2 || inBase(literal, lang) {
+                    if !(resumed != nil && same(literal, resumed!)) && (literal.utf16.count >= 2 || inBase(literal, lang)) {
                         recordUse(learnForm(literal, typedFirstAutoCap, lang), 1, lang)
                         learnPair(prev, nextForm(literal, typedFirstAutoCap, lang), 1, lang)
                     }
@@ -1006,9 +1070,11 @@ public final class InputEngine {
             let ctx = contextLang()
             let prev = prevBeforeComposing()
             let glued = gluedToNumber()
+            let asBefore = resumed != nil && same(literal, resumed!)
             typed = ""
+            resumed = nil
             ic.finishComposingText()
-            if learning() && !glued {
+            if learning() && !glued && !asBefore {
                 let lang = langOfTyped(literal, ctx)
                 let base = learnForm(literal, typedFirstAutoCap, lang)
                 if isLearnable(base) && (base.utf16.count >= 2 || inBase(base, lang)) {
@@ -1071,7 +1137,9 @@ public final class InputEngine {
             revertTo = nil
         }
         ic.finishComposingText()
-        if learning() && !glued {
+        let asBefore = resumed != nil && same(commit, resumed!)
+        resumed = nil
+        if learning() && !glued && !asBefore {
             let unchanged = same(commit, literal)
             let lang = unchanged ? langOfTyped(literal, ctx) : fix.lang
             let base = unchanged ? learnForm(literal, typedFirstAutoCap, lang) : baseFormOf(commit, lang)

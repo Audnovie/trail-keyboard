@@ -1,6 +1,6 @@
 // The keyboard on screen: keys, suggestion bar, key previews, the accent pop-up and the swipe
-// trail, and what your fingers do on them (tap, swipe, hold, drag the space bar). Ported from
-// KeyboardUI in the web trial (itself from the Android app's KeyboardView).
+// trail, and what your fingers do on them (tap, swipe, hold, the space bar as a trackpad).
+// Ported from KeyboardUI in the web trial (itself from the Android app's KeyboardView).
 
 import UIKit
 import TrailEngine
@@ -18,6 +18,12 @@ protocol KeyboardViewDelegate: AnyObject {
     func kbDelete()
     func kbSwipe(_ xs: [Double], _ ys: [Double])
     func kbCursorMove(_ steps: Int)
+    /// The space bar as a trackpad: the cursor up (negative) or down by lines.
+    func kbCursorLines(_ lines: Int)
+    /// The finger left the trackpad.
+    func kbCursorMoveEnd()
+    /// Whether the space bar can be a trackpad now (typing, not training or a settings box).
+    func kbTrackpadAllowed() -> Bool
     func kbStripTap(_ slot: Int)
     func kbStripLongPress(_ slot: Int)
     func kbGeometry(_ cx: [Double], _ cy: [Double], _ kw: Double)
@@ -34,12 +40,15 @@ private final class Pointer {
     let downY: CGFloat
     var key: Key?
     var swiping = false
-    var spaceDrag = false
+    /// The space bar is a trackpad under this finger (held, or dragged sideways).
+    var trackpad = false
     var longFired = false
     var consumed = false
     var inStrip = false
     var stripSlot = NONE_SLOT
+    /// Where the trackpad's last step was counted from.
     var dragAnchor: CGFloat = 0
+    var dragAnchorY: CGFloat = 0
     var xs = [Double]()
     var ys = [Double]()
 
@@ -74,8 +83,6 @@ final class KeyboardView: UIView, KeyboardSurface {
     var swipeEnabled = true
     /// Holding keys for accents and numbers (off in training, where a slow start shouldn't open one).
     var holdsEnabled = true
-    /// Holding the space bar opens the language menu (only with more than one language).
-    var spaceHold = false
     /// While a panel's text box is taking the keys, the bar shows that box instead.
     var inputBar: (label: String, text: String)? {
         didSet { stripView.setNeedsDisplay() }
@@ -98,6 +105,8 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     private var pointers = [ObjectIdentifier: Pointer]()
     private var swipePointer: Pointer?
+    /// The finger using the space bar as a trackpad (the key labels go blank meanwhile).
+    private var trackpadPointer: Pointer?
     private var pressedKey: Key?
     private var previewKey: Key?
     private var previewText: String?
@@ -130,6 +139,7 @@ final class KeyboardView: UIView, KeyboardSurface {
             oldValue?.removeFromSuperview()
             // Under the key previews and the hold pop-up, which can reach up over it.
             if let v = stripCover { insertSubview(v, belowSubview: previewView) }
+            updateStripHidden()
             a11yCache = nil
             setNeedsLayout()
         }
@@ -169,7 +179,8 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     func applyTheme(_ t: Theme) {
         theme = t
-        backgroundColor = t.background
+        // Clear for the System theme: iOS's own keyboard background shows behind the keys.
+        backgroundColor = t.surface
         trailView.theme = t
         previewView.apply(t)
         altsView.apply(t)
@@ -310,10 +321,17 @@ final class KeyboardView: UIView, KeyboardSurface {
             emojiPanel?.removeFromSuperview()
             emojiPanel = nil
         }
+        updateStripHidden()
         placeGlobe()
         a11yCache = nil
         keysView.setNeedsDisplay()
         setNeedsLayout()
+    }
+
+    /// The bar is hidden while something covers it (the emoji panel, the emoji search's results),
+    /// since with the System theme those let the background show through.
+    private func updateStripHidden() {
+        stripView.isHidden = emojiOpen || stripCover != nil
     }
 
     /// Sets the open emoji panel aside (kept as it was) so the keys can type a search, or
@@ -323,6 +341,7 @@ final class KeyboardView: UIView, KeyboardSurface {
         emojiParked = parked
         emojiOpen = !parked
         p.isHidden = parked
+        updateStripHidden()
         cancelAll()
         placeGlobe()
         a11yCache = nil
@@ -442,8 +461,9 @@ final class KeyboardView: UIView, KeyboardSurface {
         (strip, stripBold, stripFlag, stripIsNext, stripMessage, prompt, menu, chip, pressedStripSlot)
     }
 
-    var keyState: (layout: KeyLayout, pressed: Key?, shifted: Bool, capsLock: Bool, space: String, returnLabel: String?, hideKeys: Bool) {
-        (layout, pressedKey, shifted, capsLock, spaceLabel, returnLabel, emojiOpen)
+    var keyState: KeyState {
+        KeyState(layout: layout, pressed: pressedKey, shifted: shifted, capsLock: capsLock, space: spaceLabel,
+                 returnLabel: returnLabel, hideKeys: emojiOpen, blank: trackpadPointer != nil)
     }
 
     private func renderPress() {
@@ -545,9 +565,12 @@ final class KeyboardView: UIView, KeyboardSurface {
     }
 
     private func holdsFor(_ k: Key) -> Bool {
-        if !holdsEnabled { return false }
-        return k.alts != nil || (k.code == KeyCode.space && spaceHold)
+        // Holding the space bar makes it a trackpad.
+        if k.code == KeyCode.space { return trackpadAllowed }
+        return holdsEnabled && k.alts != nil
     }
+
+    private var trackpadAllowed: Bool { delegate?.kbTrackpadAllowed() ?? false }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         for t in touches {
@@ -578,16 +601,20 @@ final class KeyboardView: UIView, KeyboardSurface {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        let wasTrackpad = trackpadPointer != nil
         for t in touches { pointers.removeValue(forKey: ObjectIdentifier(t)) }
         cancelAll()
+        // iOS took the touch mid-move: the cursor stays where it got to.
+        if wasTrackpad { delegate?.kbCursorMoveEnd() }
     }
 
     private func down(_ id: ObjectIdentifier, _ x: CGFloat, _ y: CGFloat) {
         if emojiOpen && y >= headerH { return }
-        if swipePointer != nil || alts != nil { return }
+        // Other fingers are left alone during a swipe, a hold's pop-up or the trackpad.
+        if swipePointer != nil || alts != nil || trackpadPointer != nil { return }
         // A new finger lands: finish any other finger's tap now (fast two-thumb typing).
         for o in pointers.values {
-            if !o.consumed && !o.swiping && !o.spaceDrag && !o.inStrip && !o.longFired, let k = o.key, k.code != KeyCode.delete {
+            if !o.consumed && !o.swiping && !o.trackpad && !o.inStrip && !o.longFired, let k = o.key, k.code != KeyCode.delete {
                 o.consumed = true
                 if longPressTarget === o { stopLongPress() }
                 delegate?.kbKey(k)
@@ -656,12 +683,19 @@ final class KeyboardView: UIView, KeyboardSurface {
             trailView.setLive(p.xs, p.ys)
             return
         }
-        if p.spaceDrag {
-            let moved = x - p.dragAnchor
-            let steps = Int((moved / (Metrics.spaceDragStep * keyUnit)).rounded(.towardZero))
-            if steps != 0 {
-                p.dragAnchor += CGFloat(steps) * Metrics.spaceDragStep * keyUnit
-                delegate?.kbCursorMove(steps)
+        if p.trackpad {
+            // The cursor follows the finger: a character per step sideways, a line per step up or down.
+            let stepX = Metrics.trackpadStep * keyUnit
+            let chars = Int(((x - p.dragAnchor) / stepX).rounded(.towardZero))
+            if chars != 0 {
+                p.dragAnchor += CGFloat(chars) * stepX
+                delegate?.kbCursorMove(chars)
+            }
+            let stepY = Metrics.trackpadLine * rowH
+            let lines = Int(((y - p.dragAnchorY) / stepY).rounded(.towardZero))
+            if lines != 0 {
+                p.dragAnchorY += CGFloat(lines) * stepY
+                delegate?.kbCursorLines(lines)
             }
             return
         }
@@ -670,13 +704,9 @@ final class KeyboardView: UIView, KeyboardSurface {
         let dx = x - p.downX
         let dy = y - p.downY
         let dist = (dx * dx + dy * dy).squareRoot()
-        if key.code == KeyCode.space && !p.longFired && abs(dx) > Metrics.spaceDragStart * keyUnit {
-            p.spaceDrag = true
-            p.dragAnchor = x
-            stopLongPress()
-            pressedKey = nil
-            previewKey = nil
-            renderPress()
+        if key.code == KeyCode.space && !p.longFired && abs(dx) > Metrics.spaceDragStart * keyUnit && trackpadAllowed {
+            // Dragging the space bar sideways starts the trackpad straight away.
+            startTrackpad(p, x, y)
             return
         }
         let swipeable = swipeEnabled && layout.name == .letters && key.isLetter && inputBar == nil
@@ -714,6 +744,14 @@ final class KeyboardView: UIView, KeyboardSurface {
             repeatWork?.cancel()
             repeatTarget = nil
         }
+        if p.trackpad {
+            if trackpadPointer === p {
+                trackpadPointer = nil
+                renderPress()
+            }
+            delegate?.kbCursorMoveEnd()
+            return
+        }
         if p.consumed { return }
         if p.inStrip {
             pressedStripSlot = NONE_SLOT
@@ -736,8 +774,21 @@ final class KeyboardView: UIView, KeyboardSurface {
             delegate?.kbSwipe(p.xs, p.ys)
             return
         }
-        if p.spaceDrag || p.longFired || key.code == KeyCode.delete { return }
+        if p.longFired || key.code == KeyCode.delete { return }
         delegate?.kbKey(key)
+    }
+
+    /// The space bar becomes a trackpad under this finger, counting from (x, y).
+    private func startTrackpad(_ p: Pointer, _ x: CGFloat, _ y: CGFloat) {
+        p.trackpad = true
+        p.dragAnchor = x
+        p.dragAnchorY = y
+        trackpadPointer = p
+        if longPressTarget === p { stopLongPress() }
+        pressedKey = nil
+        previewKey = nil
+        previewText = nil
+        renderPress()
     }
 
     private func scheduleLongPress(_ p: Pointer, _ delay: Double) {
@@ -757,12 +808,16 @@ final class KeyboardView: UIView, KeyboardSurface {
     private func longPress() {
         guard let p = longPressTarget else { return }
         longPressTarget = nil
-        if p.consumed || p.swiping || p.spaceDrag { return }
+        if p.consumed || p.swiping || p.trackpad { return }
         p.longFired = true
         if p.inStrip {
             pressedStripSlot = NONE_SLOT
             stripView.setNeedsDisplay()
             delegate?.kbStripLongPress(p.stripSlot)
+        } else if let k = p.key, k.code == KeyCode.space {
+            if trackpadAllowed {
+                startTrackpad(p, CGFloat(p.xs.last ?? Double(p.downX)), CGFloat(p.ys.last ?? Double(p.downY)))
+            }
         } else if let k = p.key, let a = k.alts, a.count > 1 {
             openAlts(p)
         } else if let k = p.key {
@@ -794,6 +849,7 @@ final class KeyboardView: UIView, KeyboardSurface {
         pointers.removeAll()
         if swipePointer != nil { trailView.setLive(nil, nil) }
         swipePointer = nil
+        trackpadPointer = nil
         pressedKey = nil
         previewKey = nil
         previewText = nil
@@ -815,6 +871,30 @@ final class KeyboardView: UIView, KeyboardSurface {
         let last = points.last!
         pointers.removeValue(forKey: id)
         up(p, last.x, last.y)
+        if pointers.isEmpty { cancelAll() }
+    }
+
+    /// The space bar held and moved as a trackpad, through the same code a finger takes: `dx`
+    /// and `dy` in points from the middle of the space bar (the UI tests use this; a real hold
+    /// is tested with a real touch).
+    func simulateTrackpad(dx: CGFloat, dy: CGFloat) {
+        guard let space = keyRect(code: KeyCode.space) else { return }
+        let start = CGPoint(x: space.midX, y: space.midY)
+        let id = ObjectIdentifier(UUID() as NSUUID)
+        down(id, start.x, start.y)
+        guard let p = pointers[id] else { return }
+        // As if held: the hold's timer would start it.
+        if longPressTarget === p {
+            longPressWork?.cancel()
+            longPress()
+        }
+        let n = 12
+        for i in 1...n {
+            let f = CGFloat(i) / CGFloat(n)
+            move(p, start.x + dx * f, start.y + dy * f)
+        }
+        pointers.removeValue(forKey: id)
+        up(p, start.x + dx, start.y + dy)
         if pointers.isEmpty { cancelAll() }
     }
 
@@ -930,6 +1010,20 @@ final class KeyboardView: UIView, KeyboardSurface {
 
 // MARK: - Keys
 
+/// What the keys look like right now.
+struct KeyState {
+    let layout: KeyLayout
+    let pressed: Key?
+    let shifted: Bool
+    let capsLock: Bool
+    let space: String
+    let returnLabel: String?
+    /// The emoji panel is over the keys.
+    let hideKeys: Bool
+    /// The space bar is a trackpad: the keys show no labels, like Apple's.
+    let blank: Bool
+}
+
 final class KeysView: UIView {
     weak var kb: KeyboardView?
     private var icons = [String: UIImage]()
@@ -963,7 +1057,7 @@ final class KeysView: UIView {
                 var fill: UIColor
                 if k.isFunction && k.code != KeyCode.space {
                     fill = pressed ? t.fnKeyDown : t.fnKey
-                    if k.code == KeyCode.shift && (s.shifted || s.capsLock) { fill = t.dark ? t.key : .white }
+                    if k.code == KeyCode.shift && (s.shifted || s.capsLock) && !s.blank { fill = t.shiftOn ?? (t.dark ? t.key : .white) }
                 } else {
                     fill = pressed && (k.code == KeyCode.space || !k.showsPreview) ? t.keyDown : t.key
                 }
@@ -973,12 +1067,12 @@ final class KeysView: UIView {
                 shadow.fill()
                 fill.setFill()
                 UIBezierPath(roundedRect: r, cornerRadius: 5).fill()
-                drawLabel(k, r, s, t)
+                if !s.blank { drawLabel(k, r, s, t) }
             }
         }
     }
 
-    private func drawLabel(_ k: Key, _ r: CGRect, _ s: (layout: KeyLayout, pressed: Key?, shifted: Bool, capsLock: Bool, space: String, returnLabel: String?, hideKeys: Bool), _ t: Theme) {
+    private func drawLabel(_ k: Key, _ r: CGRect, _ s: KeyState, _ t: Theme) {
         func image(_ img: UIImage?) {
             guard let img = img else { return }
             img.draw(at: CGPoint(x: r.midX - img.size.width / 2, y: r.midY - img.size.height / 2))
@@ -992,7 +1086,8 @@ final class KeysView: UIView {
         switch k.code {
         case KeyCode.shift:
             let on = s.shifted || s.capsLock
-            image(icon(s.capsLock ? "capslock.fill" : (on ? "shift.fill" : "shift"), 18, t.dark && on ? .black : t.text, weight: .medium))
+            let color = on ? (t.shiftOnText ?? (t.dark ? .black : t.text)) : t.text
+            image(icon(s.capsLock ? "capslock.fill" : (on ? "shift.fill" : "shift"), 18, color, weight: .medium))
         case KeyCode.delete:
             image(icon("delete.left", 18, t.text))
         case KeyCode.enter:
@@ -1057,7 +1152,7 @@ final class StripView: UIView {
             let r = box.insetBy(dx: 4, dy: 5)
             (pressed ? t.keyDown : (strong ? t.accent : t.key)).setFill()
             UIBezierPath(roundedRect: r, cornerRadius: 7).fill()
-            text(label, in: r, size: 15, weight: .semibold, color: strong && !pressed ? .white : t.text)
+            text(label, in: r, size: 15, weight: .semibold, color: strong && !pressed ? t.onAccent : t.text)
         }
         if let bar = kb.inputBar {
             text(bar.label + " " + bar.text + "▏", in: CGRect(x: 10, y: 0, width: w - 2 * Metrics.promptButtonW - 14, height: h), size: 17, align: .left)
@@ -1226,7 +1321,7 @@ final class AltsPopup: UIView {
     func select(_ i: Int) {
         for (j, c) in cells.enumerated() {
             c.backgroundColor = j == i ? theme.accent : .clear
-            c.textColor = j == i ? .white : theme.text
+            c.textColor = j == i ? theme.onAccent : theme.text
         }
     }
 }

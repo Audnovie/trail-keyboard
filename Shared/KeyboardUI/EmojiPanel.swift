@@ -103,7 +103,7 @@ final class EmojiPanel: UIView, UICollectionViewDataSource, UICollectionViewDele
 
     func apply(_ t: Theme) {
         theme = t
-        backgroundColor = t.background
+        backgroundColor = t.surface
         search.backgroundColor = t.key
         search.setTitleColor(t.hint, for: .normal)
         search.tintColor = t.hint

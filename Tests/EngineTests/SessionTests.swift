@@ -86,6 +86,8 @@ final class SessionParityTests: XCTestCase {
                 case "strip": engine.onStripTap(e["slot"].int)
                 case "stripLong": engine.onStripLongPress(e["slot"].int)
                 case "move": engine.onCursorMove(e["chars"].int)
+                case "lines": engine.onCursorLines(e["n"].int, width: e["w"].int)
+                case "moveEnd": engine.onCursorMoveEnd()
                 case "place": engine.onCursorPlaced(e["index"].int, editor: ed)
                 case "emoji": engine.onEmoji(e["text"].string!)
                 case "emojiBack": engine.onEmojiBack()

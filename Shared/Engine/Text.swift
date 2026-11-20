@@ -151,6 +151,77 @@ func isLetterOrNumberUnit(_ u: UInt16) -> Bool {
     }
 }
 
+@inline(__always) private func isHighUnit(_ c: UInt16) -> Bool { c >= 0xD800 && c <= 0xDBFF }
+@inline(__always) private func isLowUnit(_ c: UInt16) -> Bool { c >= 0xDC00 && c <= 0xDFFF }
+
+/// Characters as the cursor moves over them (a surrogate pair counts as one).
+func charCount(_ s: ArraySlice<UInt16>) -> Int {
+    var n = 0
+    var prev: UInt16 = 0
+    var first = true
+    for c in s {
+        if !(!first && isLowUnit(c) && isHighUnit(prev)) { n += 1 }
+        prev = c
+        first = false
+    }
+    return n
+}
+
+/// The UTF-16 length of the first `chars` characters of line (all of it if it's shorter).
+func unitsFor(_ line: ArraySlice<UInt16>, _ chars: Int) -> Int {
+    let u = Array(line)
+    var i = 0
+    var n = 0
+    while n < chars && i < u.count {
+        i += 1
+        if i < u.count && isLowUnit(u[i]) && isHighUnit(u[i - 1]) { i += 1 }
+        n += 1
+    }
+    return i
+}
+
+/// How many characters the cursor moves to go one line up (dir < 0) or down (dir > 0) on screen,
+/// keeping its place along the line. A keyboard can't see where the app wraps a long paragraph,
+/// so a line on screen is taken to be `width` characters (worked out from the screen's width);
+/// line breaks in the text count as they are (a \r\n as one). With no line there in the text
+/// the keyboard has, it moves a whole line's worth anyway (the app stops at the start or end of
+/// the text).
+public func lineMove(_ before: String, _ after: String, _ dir: Int, width: Int) -> Int {
+    let w = max(8, width)
+    let b = Array(before.utf16)
+    let a = Array(after.utf16)
+    let nl: UInt16 = 0x0A
+    let cr: UInt16 = 0x0D
+    /// Where a line's text ends, short of the \r of a \r\n.
+    func textEnd(_ s: [UInt16], _ from: Int, _ end: Int) -> Int { end > from && s[end - 1] == cr ? end - 1 : end }
+    let paraStart = (b.lastIndex(of: nl) ?? -1) + 1
+    let col = charCount(b[paraStart...])
+    // Along the line on screen.
+    let along = col % w
+    if dir < 0 {
+        // A later line of a wrapped paragraph: straight up.
+        if col >= w { return -w }
+        if paraStart == 0 { return -w }
+        // The first line: to the last line of the paragraph above, as far along.
+        let prevEnd = paraStart - 1
+        let prevStart = prevEnd > 0 ? (b[..<prevEnd].lastIndex(of: nl) ?? -1) + 1 : 0
+        let prev = b[prevStart..<textEnd(b, prevStart, prevEnd)]
+        let prevLen = charCount(prev)
+        let lastLine = prevLen > 0 ? (prevLen - 1) / w * w : 0
+        let target = prevStart + unitsFor(prev, lastLine + min(along, prevLen - lastLine))
+        return -charCount(b[target...])
+    }
+    let lineBreak = a.firstIndex(of: nl)
+    let rest = charCount(a[..<(lineBreak.map { textEnd(a, 0, $0) } ?? a.count)])
+    // The paragraph goes on to the next line on screen: straight down (or to its end).
+    if rest >= w - along { return min(w, rest) }
+    guard let br = lineBreak else { return w }
+    // Its last line: to the first line of the paragraph below, as far along.
+    let nextEnd = a[(br + 1)...].firstIndex(of: nl) ?? a.count
+    let target = br + 1 + unitsFor(a[(br + 1)..<textEnd(a, br + 1, nextEnd)], along)
+    return charCount(a[..<target])
+}
+
 /// Android's sentence-start rule (TextUtils.getCapsMode), also skipping Spanish ¿ and ¡, on
 /// the text before the cursor. Works on UTF-16 units like the JavaScript version.
 public func capsAtEnd(of before: String) -> Bool {

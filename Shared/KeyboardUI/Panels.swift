@@ -11,6 +11,7 @@ enum PanelPage: Equatable {
     case pairs(String)
     case results
     case privacy
+    case themes
 }
 
 enum PanelRow {
@@ -22,6 +23,8 @@ enum PanelRow {
     case link(id: String, title: String, value: String?, open: () -> Void)
     case text(id: String?, String)
     case word(id: String, title: String, detail: String?, button: String?, run: (() -> Void)?)
+    /// A theme to pick, with a small picture of its keys.
+    case theme(id: String, title: String, detail: String?, swatch: Theme, selected: Bool, pick: () -> Void)
 }
 
 struct PanelSection {
@@ -61,6 +64,7 @@ enum PanelPages {
         case .pairs(let code): return pairs(c, code)
         case .results: return results(c)
         case .privacy: return privacy(c)
+        case .themes: return themes(c)
         }
     }
 
@@ -130,6 +134,9 @@ enum PanelPages {
             .toggle(id: "opt.learn", title: "Learn from my typing", detail: "Off: nothing new is remembered", on: s.learn) { v in c.setSetting { $0.learn = v } },
             .toggle(id: "opt.pairs", title: "Word pairs", detail: "Which word you write after which, for swipes and the next word", on: s.pairs) { v in c.setSetting { $0.pairs = v } },
         ]))
+        sections.append(PanelSection(title: "Look", rows: [
+            .link(id: "link.theme", title: "Theme", value: Theme.name(of: s.theme)) { c.openPanel(.themes) },
+        ]))
         var langRows: [PanelRow] = [
             .toggle(id: "opt.spanish", title: "Español", detail: "Its own word list, learned words and never-suggest list", on: s.languages.contains("es")) { v in
                 c.setLanguageOn("es", v)
@@ -139,7 +146,7 @@ enum PanelPages {
             var options: [(value: String, label: String)] = [(value: "auto", label: "Auto")]
             for L in c.lex.enabled() { options.append((value: L.code, label: L.name)) }
             langRows.append(.choice(id: "opt.typingLang", title: "Writing in", options: options, selected: s.typingLang) { v in c.setTypingLang(v) })
-            langRows.append(.text(id: nil, "Auto picks the language from the words before the cursor. Hold the space bar to switch."))
+            langRows.append(.text(id: nil, "Auto picks the language from the words before the cursor. Tap 🌐 in the empty suggestion bar to switch."))
         }
         sections.append(PanelSection(title: "Languages", rows: langRows))
         var about: [PanelRow] = [
@@ -306,6 +313,24 @@ enum PanelPages {
         ])
     }
 
+    private static func themes(_ c: KeyboardController) -> PanelContent {
+        let dark = c.traits.dark
+        var rows = [PanelRow]()
+        for (id, name) in Theme.all {
+            let t = Theme.named(id, dark: dark)
+            let detail = id == "system" ? "Follows light and dark mode, like Apple’s keyboard" : (t.dark ? "Dark" : "Light")
+            rows.append(.theme(id: "theme.\(id)", title: name, detail: detail, swatch: t, selected: c.settings.theme == id) {
+                c.setTheme(id)
+            })
+        }
+        return PanelContent(title: "Theme", sections: [
+            PanelSection(title: nil, rows: rows),
+            PanelSection(title: nil, rows: [
+                .text(id: "theme.note", "In apps with iOS 26’s new look, iOS adds a thin strip of its own keyboard colour around the top of any keyboard from another app, and a keyboard can’t draw on it. System matches that strip; with a colour theme it shows as a band of iOS’s colour above the keys."),
+            ]),
+        ])
+    }
+
     private static func privacy(_ c: KeyboardController) -> PanelContent {
         let size = c.store.fileSize
         let kb = size > 0 ? String(format: "%.1f KB", Double(size) / 1024) : "nothing saved yet"
@@ -469,8 +494,49 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
                 btn.sizeToFit()
                 cell.accessoryView = btn
             }
+        case .theme(let id, let title, let detail, let swatch, let selected, _):
+            cell.textLabel?.text = title
+            cell.detailTextLabel?.text = detail
+            cell.imageView?.image = PanelView.swatch(swatch)
+            cell.accessoryType = selected ? .checkmark : .none
+            cell.tintColor = theme.accent
+            cell.selectionStyle = .default
+            cell.accessibilityIdentifier = id
+            cell.accessibilityTraits = selected ? [.button, .selected] : .button
         }
         return cell
+    }
+
+    /// A small picture of a theme: its background, keys, a function key and the swipe trail.
+    static func swatch(_ t: Theme) -> UIImage {
+        let size = CGSize(width: 62, height: 40)
+        return UIGraphicsImageRenderer(size: size).image { _ in
+            let box = CGRect(origin: .zero, size: size).insetBy(dx: 0.5, dy: 0.5)
+            let bg = UIBezierPath(roundedRect: box, cornerRadius: 7)
+            t.background.setFill()
+            bg.fill()
+            t.divider.setStroke()
+            bg.lineWidth = 1
+            bg.stroke()
+            func key(_ r: CGRect, _ c: UIColor) {
+                c.setFill()
+                UIBezierPath(roundedRect: r, cornerRadius: 2.5).fill()
+            }
+            for i in 0..<4 { key(CGRect(x: 6 + CGFloat(i) * 13, y: 7, width: 11, height: 11), t.key) }
+            key(CGRect(x: 6, y: 22, width: 11, height: 11), t.fnKey)
+            key(CGRect(x: 19, y: 22, width: 24, height: 11), t.key)
+            key(CGRect(x: 45, y: 22, width: 11, height: 11), t.fnKey)
+            let a = NSAttributedString(string: "a", attributes: [.font: UIFont.systemFont(ofSize: 9), .foregroundColor: t.text])
+            let sz = a.size()
+            a.draw(at: CGPoint(x: 6 + 5.5 - sz.width / 2, y: 7 + 5.5 - sz.height / 2))
+            let trail = UIBezierPath()
+            trail.move(to: CGPoint(x: 24, y: 15))
+            trail.addQuadCurve(to: CGPoint(x: 52, y: 10), controlPoint: CGPoint(x: 38, y: 4))
+            trail.lineWidth = 2.5
+            trail.lineCapStyle = .round
+            t.accent.withAlphaComponent(0.85).setStroke()
+            trail.stroke()
+        }
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt ip: IndexPath) {
@@ -478,6 +544,7 @@ final class PanelView: UIView, UITableViewDataSource, UITableViewDelegate {
         switch content.sections[ip.section].rows[ip.row] {
         case .action(_, _, _, let run): run()
         case .link(_, _, _, let open): open()
+        case .theme(_, _, _, _, _, let pick): pick()
         default: break
         }
     }
@@ -560,7 +627,7 @@ final class TrainingHeaderView: UIView {
     }
 
     private func style(_ t: Theme) {
-        backgroundColor = t.background
+        backgroundColor = t.surface
         for l in [counter, profile] { l.textColor = t.stripDim }
         word.textColor = t.text
         bar.backgroundColor = t.divider
