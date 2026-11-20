@@ -1893,6 +1893,10 @@ var Trail = (function () {
   const PAIR_PROMPT = [['Forget', PROMPT_YES], ['Cancel', PROMPT_NO]];
   /** The longest word that going back into it picks up again (as long as a word can be learned). */
   const RESUME_LIMIT = 30;
+  /** Characters that letters right after belong to an address or code rather than a sentence
+   *  ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"): such letters are left as typed. */
+  const GLUE = '.@/:_\\#=&~';
+  const gluesOn = (c) => c.length === 1 && ((c >= '0' && c <= '9') || GLUE.indexOf(c) >= 0);
   /** How much text around the cursor a move up or down a line looks at. */
   const LINE_CONTEXT = 2000;
 
@@ -2235,17 +2239,23 @@ var Trail = (function () {
       }
     }
 
-    onDelete() {
+    /** @param repeating the delete key is being held (a word is picked back up when it's let go) */
+    onDelete(repeating) {
       this.dismissPrompt();
       this.ic.beginBatchEdit();
       try {
-        this.deleteInner(this.ic);
+        this.deleteInner(this.ic, repeating === true);
       } finally {
         this.ic.endBatchEdit();
       }
     }
 
-    deleteInner(ic) {
+    /** The delete key let go after repeating: back into the word there, if any. */
+    onDeleteEnd() {
+      this.resumeWord();
+    }
+
+    deleteInner(ic, repeating) {
       if (this.gestureWord !== null) {
         // One backspace removes the whole swiped word (and the space added before it).
         ic.commitText('');
@@ -2264,6 +2274,7 @@ var Trail = (function () {
       if (this.typed.length > 0) {
         this.typed = this.typed.slice(0, -1);
         if (this.typed.length === 0) {
+          this.resumed = null;
           ic.commitText('');
           this.stripKind = STRIP_NONE;
           this.view.clearStrip();
@@ -2297,15 +2308,15 @@ var Trail = (function () {
         this.view.clearStrip();
       }
       this.updateShift();
-      // Deleted back into a word: it's the word being typed again.
-      this.resumeWord();
+      // Deleted back into a word: it's the word being typed again (not while the key repeats).
+      if (!repeating) this.resumeWord();
     }
 
     /**
      * Back into a word (a delete, or a cursor move that ends at it): the letters right before the
      * cursor become the word being typed again, so the bar suggests for all of it and typing goes
      * on with it. Only at the end of a word (no letter or digit right after the cursor), not for
-     * letters stuck to a number, and only where suggestions are on.
+     * letters stuck to a number or an address (see GLUE), and only where suggestions are on.
      */
     resumeWord() {
       if (!this.canSuggest || this.composing()) return false;
@@ -2315,7 +2326,7 @@ var Trail = (function () {
       while (s < before.length && (before[s] === "'" || before[s] === '’')) s++;
       const word = before.slice(s);
       if (!isLearnable(word)) return false;
-      if (s > 0 && before[s - 1] >= '0' && before[s - 1] <= '9') return false;
+      if (s > 0 && gluesOn(before[s - 1])) return false;
       const next = this.textAfter(1);
       if (next.length > 0 && (isLetter(next) || next === "'" || next === '’' || (next >= '0' && next <= '9'))) return false;
       this.ic.setComposingRegion(this.ic.sel - word.length, this.ic.sel);
@@ -2528,6 +2539,7 @@ var Trail = (function () {
           }
         }
         this.typed = '';
+        this.resumed = null;
         ic.commitText(' ');
         this.spaceAfterPick = true;
         this.stripKind = STRIP_NONE;
@@ -2937,7 +2949,7 @@ var Trail = (function () {
       const literal = this.typed;
       const ctx = this.contextLang();
       const prev = this.prevBeforeComposing();
-      const glued = this.gluedToNumber();
+      const glued = this.isGlued();
       this.typed = '';
       const fix = this.decideTypedCommit(literal, ctx, prev);
       const commit = fix.text;
@@ -2976,8 +2988,11 @@ var Trail = (function () {
       const plain = { text: literal, lang: null };
       if (ctx === undefined) ctx = this.contextLang();
       if (!this.canSuggest || !ctx || !literal) return plain;
-      // Letters stuck to a number ("5th", "1st") are left as typed.
-      if (this.gluedToNumber()) return plain;
+      // Letters stuck to a number ("5th", "1st") or an address ("gmail.com") are left as typed.
+      if (this.isGlued()) return plain;
+      // So is a word picked back up (deleting back into it, or the cursor stopping after it) unless
+      // you change it: it may be text that was already there, such as a name.
+      if (this.resumed !== null && literal === this.resumed) return plain;
       const srcs = this.sources(ctx);
       const caps = capsOf(literal);
       if (this.settings.smartFix) {
@@ -3076,9 +3091,9 @@ var Trail = (function () {
     }
 
     /** The word being typed comes right after a digit ("5th"). */
-    gluedToNumber() {
-      const c = this.textBefore(true, 1);
-      return c.length === 1 && c >= '0' && c <= '9';
+    /** The word in progress is stuck to a number ("5th") or an address (".com", "@sam"): see GLUE. */
+    isGlued() {
+      return gluesOn(this.textBefore(true, 1));
     }
 
     /** A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used. */

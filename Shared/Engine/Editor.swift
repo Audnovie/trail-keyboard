@@ -32,6 +32,8 @@ public protocol TextTarget: AnyObject {
     func capsAtCursor() -> Bool
     /// Moves the cursor by whole characters.
     func moveCursor(_ chars: Int)
+    /// Moves the cursor by n UTF-16 units (to the end of a character that n ends inside).
+    func moveCursor(utf16 n: Int)
     /// Whether the keyboard can see the app's text here (some apps never show it).
     var showsText: Bool { get }
 }
@@ -169,6 +171,10 @@ public final class Editor: TextTarget {
         }
         sel = s
         changed()
+    }
+
+    public func moveCursor(utf16 n: Int) {
+        setCursor(sel + n)
     }
 
     public func setCursor(_ index: Int) {

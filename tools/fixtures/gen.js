@@ -585,6 +585,13 @@ const SESSIONS = [
   // Nov 20, 2026: back into a word, and the space bar as a trackpad.
   { name: 'back into a word', settings: { autocorrect: true }, script: ['type:then it will start ', 'del', 'del', 'del', 'del', 'type:ar ', 'type:so teh ', 'del', 'del', 'type:n ', 'type:the 5th', 'del', 'type:th ', 'type:done. ', 'del', 'del', 'type:x ', 'place:3', 'del', 'type:q', 'move:100', 'type: ok', 'del', 'del', 'del', 'del', 'swipe:hello', 'del'] },
   { name: 'trackpad lines', script: ['type:one\ntwo words\nthree', 'lines:-1', 'moveEnd', 'type:x', 'lines:-1', 'lines:-1', 'lines:2', 'move:-1', 'moveEnd', 'lines:-5', 'move:3', 'moveEnd', 'type:s', 'move:100', 'moveEnd', 'type:y'] },
+  // Words already there that the cursor stops after (or deletes back into) are left as they were
+  // unless changed: no fixes for a name, an unknown word or an address. Letters right after a dot,
+  // @ or / aren't fixed or capitalized either.
+  { name: 'picked back up, left as it was', settings: { autocorrect: true }, text: 'I use xcode a lot in toronto',
+    script: ['place:11', 'moveEnd', 'move:-2', 'move:100', 'moveEnd', 'type:, see example.com ', 'del', 'del', 'type:m and bob@gmail.com ok'] },
+  { name: 'deleted back into a word that was there', settings: { autocorrect: true }, text: 'I use xcode and i ',
+    script: ['del', 'type:,', 'del', 'del', 'del', 'del', 'del', 'del', 'type: ', 'del', 'del', 'type:,'] },
   // A long paragraph wraps on screen: up and down go a line's worth (LINE_WIDTH) along it.
   { name: 'trackpad wrapped lines', script: ['type:the quick brown fox jumps over the lazy dog and keeps on running', 'lines:-1', 'moveEnd', 'type:x', 'lines:-2', 'moveEnd', 'lines:1', 'moveEnd', 'type:y', 'lines:9', 'moveEnd', 'type:z'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
@@ -597,6 +604,11 @@ const SESSIONS = [
     const users = sess.users === 'learned' ? USERS : FRESH;
     const lex = lexicon(langs, users);
     const ed = new T.Editor();
+    // Text already in the field (as an app or a paste put it there), the cursor at its end.
+    if (sess.text) {
+      ed.text = sess.text;
+      ed.sel = sess.text.length;
+    }
     const view = new RecordingView();
     let clock = 1000;
     const ime = new T.Ime(ed, view, lex, () => clock);
@@ -626,7 +638,7 @@ const SESSIONS = [
       steps.push(snapshot(ime, ed, view));
     }
     out.push({
-      name: sess.name, langs, learned: users === USERS, settings, events, steps, corrections,
+      name: sess.name, langs, learned: users === USERS, settings, text: sess.text || '', events, steps, corrections,
       users: { en: lex.get('en').user.toJSON(), es: lex.get('es').user.toJSON() },
     });
   }

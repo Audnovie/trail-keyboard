@@ -15,7 +15,10 @@ protocol KeyboardViewDelegate: AnyObject {
     func kbKey(_ key: Key)
     func kbLongPress(_ key: Key)
     func kbAlt(_ ch: String)
-    func kbDelete()
+    /// - Parameter repeating: from holding the key down.
+    func kbDelete(repeating: Bool)
+    /// The delete key let go after repeating.
+    func kbDeleteEnd()
     func kbSwipe(_ xs: [Double], _ ys: [Double])
     func kbCursorMove(_ steps: Int)
     /// The space bar as a trackpad: the cursor up (negative) or down by lines.
@@ -601,6 +604,8 @@ final class KeyboardView: UIView, KeyboardSurface {
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        // Only for fingers being followed (one left alone during a swipe or the trackpad doesn't count).
+        guard touches.contains(where: { pointers[ObjectIdentifier($0)] != nil }) else { return }
         let wasTrackpad = trackpadPointer != nil
         for t in touches { pointers.removeValue(forKey: ObjectIdentifier(t)) }
         cancelAll()
@@ -653,7 +658,7 @@ final class KeyboardView: UIView, KeyboardSurface {
         if k.code == KeyCode.delete {
             repeatTarget = p
             repeatCount = 0
-            delegate?.kbDelete()
+            delegate?.kbDelete(repeating: false)
             scheduleRepeat(Metrics.repeatStart)
         } else if holdsFor(k) {
             scheduleLongPress(p, k.code == KeyCode.space ? Metrics.spaceLongPress : Metrics.longPress)
@@ -743,6 +748,7 @@ final class KeyboardView: UIView, KeyboardSurface {
         if repeatTarget === p {
             repeatWork?.cancel()
             repeatTarget = nil
+            if repeatCount > 0 { delegate?.kbDeleteEnd() }
         }
         if p.trackpad {
             if trackpadPointer === p {
@@ -785,6 +791,9 @@ final class KeyboardView: UIView, KeyboardSurface {
         p.dragAnchorY = y
         trackpadPointer = p
         if longPressTarget === p { stopLongPress() }
+        // A delete key held by another finger stops repeating.
+        repeatWork?.cancel()
+        repeatTarget = nil
         pressedKey = nil
         previewKey = nil
         previewText = nil
@@ -837,7 +846,7 @@ final class KeyboardView: UIView, KeyboardSurface {
 
     private func repeatDelete() {
         guard repeatTarget != nil else { return }
-        delegate?.kbDelete()
+        delegate?.kbDelete(repeating: true)
         repeatCount += 1
         scheduleRepeat(repeatCount > 20 ? Metrics.repeatFast : Metrics.repeatEvery)
     }

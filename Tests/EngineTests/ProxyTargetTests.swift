@@ -108,6 +108,7 @@ final class ProxyTargetTests: XCTestCase {
             let quotedSession = name == "apostrophes"
             let lex = TestData.lexicon(s["langs"].strings.compactMap { $0 }, users: s["learned"].bool ? f["users"] : TestData.fresh)
             let doc = FakeDocument()
+            doc.appSets(s["text"].string ?? "")
             doc.smartQuotes = smartQuotes
             doc.beforeLimit = beforeLimit
             doc.lagging = lagging
@@ -520,6 +521,21 @@ final class ProxyTargetTests: XCTestCase {
         XCTAssertEqual(r.doc.text, "one two\nthre four")
         type(r.engine, "x")
         XCTAssertEqual(r.doc.text, "one two\nthrex four")
+    }
+
+    /// Up a line where one character is several code points (an emoji with a skin tone, a flag, a
+    /// \r\n): the cursor lands where the model field puts it, not partway.
+    func testLineMovesOverWideCharacters() {
+        for (text, want) in [("Hi 👍🏽👍🏽\nok", "Hi"), ("first\r\nsecond", "first"), ("Go 🇨🇦🇨🇦 team\nyes", "Go ")] {
+            let r = rig(text)
+            r.engine.onCursorLines(-1, width: 40)
+            XCTAssertEqual(r.doc.cursor, want.utf16.count, text.debugDescription)
+            let e = Editor(text: text)
+            let engine = InputEngine(target: e, view: nil, lex: TestData.lexicon(["en"], users: TestData.fresh), now: { 0 })
+            engine.start(TypingSettings())
+            engine.onCursorLines(-1, width: 40)
+            XCTAssertEqual(e.sel, want.utf16.count, "model field: \(text.debugDescription)")
+        }
     }
 
     /// Past the start or end of the text, the cursor just stops there.

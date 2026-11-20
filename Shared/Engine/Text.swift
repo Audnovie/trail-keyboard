@@ -180,6 +180,31 @@ func unitsFor(_ line: ArraySlice<UInt16>, _ chars: Int) -> Int {
     return i
 }
 
+/// The UTF-16 length of the first `chars` characters of u (surrogate pairs as one), with a unit for
+/// each character asked for past its end.
+func unitsAhead(_ u: [UInt16], _ chars: Int) -> Int {
+    var i = 0
+    var n = 0
+    while n < chars && i < u.count {
+        i += 1
+        if i < u.count && isLowUnit(u[i]) && isHighUnit(u[i - 1]) { i += 1 }
+        n += 1
+    }
+    return i + (chars - n)
+}
+
+/// The same for the last `chars` characters of u, with a unit for each asked for before its start.
+func unitsBack(_ u: [UInt16], _ chars: Int) -> Int {
+    var i = u.count
+    var n = 0
+    while n < chars && i > 0 {
+        i -= 1
+        if i > 0 && isLowUnit(u[i]) && isHighUnit(u[i - 1]) { i -= 1 }
+        n += 1
+    }
+    return (u.count - i) + (chars - n)
+}
+
 /// How many characters the cursor moves to go one line up (dir < 0) or down (dir > 0) on screen,
 /// keeping its place along the line. A keyboard can't see where the app wraps a long paragraph,
 /// so a line on screen is taken to be `width` characters (worked out from the screen's width);

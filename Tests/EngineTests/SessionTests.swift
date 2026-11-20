@@ -54,7 +54,7 @@ final class SessionParityTests: XCTestCase {
         for s in f["sessions"].array {
             let name = s["name"].string!
             let lex = TestData.lexicon(s["langs"].strings.compactMap { $0 }, users: s["learned"].bool ? f["users"] : fresh)
-            let ed = Editor()
+            let ed = Editor(text: s["text"].string ?? "")
             let view = RecordingSurface()
             var clock = 1000.0
             let engine = InputEngine(target: ed, view: view, lex: lex, now: { clock })

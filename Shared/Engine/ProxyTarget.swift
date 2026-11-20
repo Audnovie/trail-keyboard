@@ -393,4 +393,42 @@ public final class ProxyTarget: TextTarget {
             if offset != 0 { proxy.adjustTextPosition(byCharacterOffset: offset) }
         }
     }
+
+    /// Moves the cursor by n UTF-16 units, crossing whole characters (one that n ends inside is
+    /// crossed too), and on past the text the app has shown as moveCursor does.
+    public func moveCursor(utf16 n: Int) {
+        edit {
+            noteState()
+            var offset = 0
+            if n < 0 {
+                var moved = ""
+                while offset > n, let c = model.last {
+                    model.removeLast()
+                    moved = String(c) + moved
+                    offset -= String(c).utf16.count
+                }
+                after = moved + after
+                if offset > n {
+                    offset = n
+                    blind = true
+                }
+            } else {
+                var rest = Substring(after)
+                var moved = ""
+                while offset < n, let c = rest.first {
+                    rest = rest.dropFirst()
+                    moved.append(c)
+                    offset += String(c).utf16.count
+                }
+                after = String(rest)
+                model += moved
+                if offset < n {
+                    offset = n
+                    blind = true
+                }
+            }
+            trimModel()
+            if offset != 0 { proxy.adjustTextPosition(byCharacterOffset: offset) }
+        }
+    }
 }

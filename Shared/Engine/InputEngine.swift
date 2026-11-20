@@ -386,14 +386,20 @@ public final class InputEngine {
         handleChar(ch)
     }
 
-    public func onDelete() {
+    /// - Parameter repeating: the delete key is being held (a word is picked back up when it's let go).
+    public func onDelete(repeating: Bool = false) {
         dismissPrompt()
         ic.beginBatchEdit()
         defer { ic.endBatchEdit() }
-        deleteInner()
+        deleteInner(repeating: repeating)
     }
 
-    private func deleteInner() {
+    /// The delete key let go after repeating: back into the word there, if any.
+    public func onDeleteEnd() {
+        resumeWord()
+    }
+
+    private func deleteInner(repeating: Bool) {
         if gestureWord != nil {
             // One backspace removes the whole swiped word (and the space added before it).
             ic.commitText("")
@@ -412,6 +418,7 @@ public final class InputEngine {
         if !typed.isEmpty {
             typed = String(decoding: typed.utf16.dropLast(), as: UTF16.self)
             if typed.isEmpty {
+                resumed = nil
                 ic.commitText("")
                 stripKind = .none
                 view?.clearStrip()
@@ -445,8 +452,8 @@ public final class InputEngine {
             view?.clearStrip()
         }
         updateShift()
-        // Deleted back into a word: it's the word being typed again.
-        resumeWord()
+        // Deleted back into a word: it's the word being typed again (not while the key repeats).
+        if !repeating { resumeWord() }
     }
 
     /// The longest word that going back into it picks up again (as long as a word can be learned).
@@ -457,8 +464,8 @@ public final class InputEngine {
     /// Back into a word (a delete, or a cursor move that ends at it): the letters right before the
     /// cursor become the word being typed again, so the bar suggests for all of it and typing goes
     /// on with it. Only at the end of a word (no letter or digit right after the cursor), not for
-    /// letters stuck to a number, only where suggestions are on, and not in an app that doesn't
-    /// show its text (the keyboard couldn't be sure what it would replace).
+    /// letters stuck to a number or an address (see glueUnits), only where suggestions are on, and
+    /// not in an app that doesn't show its text (the keyboard couldn't be sure what it would replace).
     @discardableResult
     private func resumeWord() -> Bool {
         guard canSuggest, !composing(), ic.showsText else { return false }
@@ -469,7 +476,7 @@ public final class InputEngine {
         while s < b.count && (b[s] == apos || b[s] == rsq) { s += 1 }
         let word = String(decoding: b[s...], as: UTF16.self)
         if !isLearnable(word) { return false }
-        if s > 0 && b[s - 1] >= 0x30 && b[s - 1] <= 0x39 { return false }
+        if s > 0 && gluesOn(b[s - 1]) { return false }
         if let n = ic.contextAfter(limit: 1).utf16.first, isLetterUnit(n) || n == apos || n == rsq || (n >= 0x30 && n <= 0x39) { return false }
         let n = word.utf16.count
         // (The app's text may not be certain just then: the word is left as it is.)
@@ -558,10 +565,13 @@ public final class InputEngine {
         // Like any cursor move, it ends the word in progress first.
         onCursorMove(0)
         for _ in 0..<abs(lines) {
-            let d = lineMove(ic.contextBefore(limit: InputEngine.lineContext, beforeComposing: false),
-                             ic.contextAfter(limit: InputEngine.lineContext), lines < 0 ? -1 : 1, width: width)
+            let before = ic.contextBefore(limit: InputEngine.lineContext, beforeComposing: false)
+            let after = ic.contextAfter(limit: InputEngine.lineContext)
+            let d = lineMove(before, after, lines < 0 ? -1 : 1, width: width)
             if d == 0 { break }
-            ic.moveCursor(d)
+            // lineMove counts code points, as the JavaScript version does, but on the iPhone an emoji
+            // with a skin tone, a flag or a \r\n is one character: go by the UTF-16 units crossed.
+            ic.moveCursor(utf16: d < 0 ? -unitsBack(Array(before.utf16), -d) : unitsAhead(Array(after.utf16), d))
         }
         updateShift()
     }
@@ -692,6 +702,7 @@ public final class InputEngine {
                 }
             }
             typed = ""
+            resumed = nil
             ic.commitText(" ")
             spaceAfterPick = true
             stripKind = .none
@@ -1072,7 +1083,7 @@ public final class InputEngine {
             let literal = typed
             let ctx = contextLang()
             let prev = prevBeforeComposing()
-            let glued = gluedToNumber()
+            let glued = isGlued()
             let asBefore = resumed != nil && same(literal, resumed!)
             typed = ""
             resumed = nil
@@ -1123,7 +1134,7 @@ public final class InputEngine {
         let literal = typed
         let ctx = contextLang()
         let prev = prevBeforeComposing()
-        let glued = gluedToNumber()
+        let glued = isGlued()
         typed = ""
         let fix = decideTypedCommit(literal, ctx, prev: prev)
         let commit = fix.text
@@ -1162,8 +1173,11 @@ public final class InputEngine {
     public func decideTypedCommit(_ literal: String, _ ctx: String?, prev: String? = nil) -> (text: String, lang: String?) {
         let plain = (text: literal, lang: String?.none)
         guard canSuggest, let ctx = ctx, !literal.isEmpty else { return plain }
-        // Letters stuck to a number ("5th", "1st") are left as typed.
-        if gluedToNumber() { return plain }
+        // Letters stuck to a number ("5th", "1st") or an address ("gmail.com") are left as typed.
+        if isGlued() { return plain }
+        // So is a word picked back up (deleting back into it, or the cursor stopping after it) unless
+        // you change it: it may be text that was already there, such as a name.
+        if let r = resumed, same(literal, r) { return plain }
         let srcs = sources(ctx)
         let caps = capsOf(literal)
         if settings.smartFix {
@@ -1264,9 +1278,18 @@ public final class InputEngine {
     }
 
     /// The word being typed comes right after a digit ("5th").
-    private func gluedToNumber() -> Bool {
+    /// The word in progress is stuck to a number ("5th") or an address (".com", "@sam").
+    private func isGlued() -> Bool {
         let u = Array(ic.contextBefore(limit: 1, beforeComposing: true).utf16)
-        return u.count == 1 && u[0] >= 0x30 && u[0] <= 0x39
+        return u.count == 1 && gluesOn(u[0])
+    }
+
+    /// Characters that letters right after belong to an address or code rather than a sentence
+    /// ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"), as well as digits.
+    static let glueUnits: Set<UInt16> = Set(".@/:_\\#=&~".utf16)
+
+    private func gluesOn(_ u: UInt16) -> Bool {
+        (u >= 0x30 && u <= 0x39) || InputEngine.glueUnits.contains(u)
     }
 
     /// A lower-case word the lists have only in capitals ("amd": AMD) that you haven't used.

@@ -404,7 +404,7 @@ final class KeyboardController: KeyboardViewDelegate {
         afterAction()
     }
 
-    func kbDelete() {
+    func kbDelete(repeating: Bool) {
         view.clearMenu()
         if let inp = input {
             inp.delete()
@@ -412,7 +412,13 @@ final class KeyboardController: KeyboardViewDelegate {
             return
         }
         guard mode == .type else { return }
-        engine.onDelete()
+        engine.onDelete(repeating: repeating)
+        afterAction()
+    }
+
+    func kbDeleteEnd() {
+        guard mode == .type, input == nil else { return }
+        engine.onDeleteEnd()
         afterAction()
     }
 
@@ -527,7 +533,8 @@ final class KeyboardController: KeyboardViewDelegate {
     }
 
     func kbEmojiDelete() {
-        engine.onDelete()
+        // (The bar is hidden under the emoji panel, so no word is picked back up there.)
+        engine.onDelete(repeating: true)
         afterAction()
     }
 
