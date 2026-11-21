@@ -446,7 +446,7 @@ final class KeyboardController: KeyboardViewDelegate {
     func kbTrackpadStart() {
         view.clearMenu()
         guard mode == .type, input == nil else { return }
-        engine.onTrackpadStart(width: charsPerLine())
+        engine.onTrackpadStart(width: charsPerLine(), lineTravel: view.trackpadLineTravel)
         afterAction()
     }
 

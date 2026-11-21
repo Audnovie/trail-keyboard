@@ -154,7 +154,7 @@ final class ProxyTargetTests: XCTestCase {
                 case "strip": engine.onStripTap(e["slot"].int)
                 case "stripLong": engine.onStripLongPress(e["slot"].int)
                 case "move": engine.onCursorMove(e["chars"].int)
-                case "padStart": engine.onTrackpadStart(width: e["w"].int)
+                case "padStart": engine.onTrackpadStart(width: e["w"].int, lineTravel: e["lt"].double)
                 case "pad": engine.onTrackpadMove(cols: e["x"].double, lines: e["y"].double)
                 case "padEnd": engine.onTrackpadEnd()
                 case "moveEnd": engine.onCursorMoveEnd()
@@ -553,12 +553,38 @@ final class ProxyTargetTests: XCTestCase {
         r.doc.unfreeze()
         r.tick(0.1)
         r.engine.onTrackpadMove(cols: 0, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 0, "the app gets a moment to show where that went")
+        r.tick(0.3)
+        r.engine.onTrackpadMove(cols: 0, lines: 0)
         XCTAssertEqual(r.doc.cursor, 11, "nothing above: back where the finger is")
         r.engine.onTrackpadMove(cols: 0, lines: -3)
         XCTAssertEqual(r.doc.cursor, 11, "and it doesn't try again this drag")
         r.engine.onTrackpadEnd()
         type(r.engine, "x")
         XCTAssertEqual(r.doc.text, "See you at xthe cafe at noon tomorrow")
+    }
+
+    /// Stepping up from the very start of a paragraph in an app that shows only that paragraph:
+    /// iOS shows a keyboard the app's text a moment after a move, and until then the field looks
+    /// just as it would with nothing above. The trackpad waits for the app before deciding.
+    func testTrackpadWaitsForTheAppAtTheStartOfAParagraph() {
+        let r = rig("First line here\nSecond")
+        r.doc.paragraphOnly = true
+        r.doc.place(16)
+        r.target.sync(newField: true)
+        r.engine.onTrackpadStart(width: 40)
+        r.doc.freeze()
+        r.engine.onTrackpadMove(cols: 0, lines: -2.1)
+        XCTAssertEqual(r.doc.cursor, 15, "into the paragraph above")
+        r.advance(0.1)
+        r.engine.onTrackpadMove(cols: 0, lines: 0.05)
+        r.doc.unfreeze()
+        r.tick(0.1)
+        r.engine.onTrackpadMove(cols: 0, lines: 0.1)
+        XCTAssertEqual(r.doc.cursor, 0, "as far along the line above as before: |First")
+        r.engine.onTrackpadEnd()
+        type(r.engine, "x")
+        XCTAssertEqual(r.doc.text, "xFirst line here\nSecond")
     }
 
     /// Dragging along a line over characters made of several (👩‍💻, a flag) keeps the keyboard in
@@ -592,7 +618,6 @@ final class ProxyTargetTests: XCTestCase {
         r.engine.onTrackpadMove(cols: 0, lines: -1)
         XCTAssertEqual(r.doc.cursor, 5, "one t|wo")
         r.doc.appSets("one twenty\nthree", cursor: 10)
-        r.engine.onTrackpadMove(cols: -1, lines: 0)
         r.engine.onTrackpadEnd()
         XCTAssertEqual(r.view.strip[1], "twenty", "the word now before the cursor is picked up")
         type(r.engine, "s")

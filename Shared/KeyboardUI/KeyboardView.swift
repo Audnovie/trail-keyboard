@@ -81,6 +81,11 @@ final class KeyboardView: UIView, KeyboardSurface {
     private(set) var layout = Layouts.letters(globe: false)
     private(set) var rowH: CGFloat = Metrics.rowH
     private(set) var keyUnit: CGFloat = 1
+
+    /// On the trackpad, how many characters of finger travel one line of finger travel is.
+    var trackpadLineTravel: Double {
+        Double((Metrics.trackpadLine * rowH) / (Metrics.trackpadStep * max(1, keyUnit)))
+    }
     private(set) var headerH: CGFloat = 0
     private var laidOutSize = CGSize.zero
     private(set) var shifted = false

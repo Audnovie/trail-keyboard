@@ -147,6 +147,8 @@ public final class InputEngine {
     /// and line, and the finger's place (`vx` characters along, `vy` lines down).
     private struct Pad {
         var width: Int
+        /// How many characters of finger travel one line of it is (to tell sideways from up or down).
+        var lineTravel: Double
         var units: [UInt16] = []
         var offsets: [Int] = []
         var lines: [(Int, Int)] = []
@@ -156,6 +158,8 @@ public final class InputEngine {
         var line = 0
         var vx = 0.0
         var vy = 0.0
+        /// How far along the place can go (the longest line, or the width).
+        var cols = 0
         /// Travel left while the place is past the end of the cursor's line (see padAlong).
         var back = 0.0
         /// The cursor has moved this drag (see padFirstMove).
@@ -165,10 +169,14 @@ public final class InputEngine {
         /// ...unless the app has shown that edge to be the start or end of its text.
         var up = true
         var down = true
-        /// The side just stepped past (-1 up, 1 down), until the app shows where that went.
+        /// The side just stepped past (-1 up, 1 down), until the app shows where that went, and when.
         var asked = 0
+        var askedAt = 0.0
 
-        init(width: Int) { self.width = width }
+        init(width: Int, lineTravel: Double) {
+            self.width = width
+            self.lineTravel = lineTravel
+        }
     }
     /// What the trackpad's place keeps when the text it works over is taken again.
     private enum PadKeep { case fresh, along, place }
@@ -504,9 +512,14 @@ public final class InputEngine {
     static let padEdge = 0.4
     static let padRevealEdge = 2.2
     static let padReveal = 2.0
-    /// A place remembered from a longer line (past the end of the cursor's line) is let go of once
-    /// the finger has gone this many characters left.
+    /// A place past the end of the cursor's line (kept from a longer line, or run on past the end)
+    /// is let go of once the finger has gone this many characters left, mostly sideways.
     static let padBack = 0.5
+    /// After a step past the first or last line, how long (ms) the app gets to show where it went
+    /// before the trackpad takes it that nothing is there (iOS shows a keyboard an app's text a
+    /// moment after a move), and how long before it stops waiting whatever it sees.
+    static let padAnswer = 350.0
+    static let padGiveUp = 1500.0
 
     /// Back into a word (a delete, or a cursor move that ends at it): the letters right before the
     /// cursor become the word being typed again, so the bar suggests for all of it and typing goes
@@ -617,18 +630,22 @@ public final class InputEngine {
     /// fit on a line of the app's text (a keyboard can't see where the app wraps). Nothing changes
     /// until the cursor first moves, so a hold that doesn't move leaves the word in progress (or
     /// an offer to undo a fix) as it was.
-    public func onTrackpadStart(width: Int) {
+    public func onTrackpadStart(width: Int, lineTravel: Double = 2.5) {
         lastSpaceTime = -1e9
-        pad = Pad(width: width)
+        // (In case the end of an earlier drag was missed: the app's text is checked until the cursor moves.)
+        ic.setDragging(false)
+        pad = Pad(width: width, lineTravel: lineTravel)
         padSnapshot(keep: .fresh)
     }
 
     /// The text the trackpad works over (what the app shows around the cursor), and the cursor's
     /// place in it. `keep`: .fresh puts the finger's place at the cursor; .along keeps how far along
     /// it was (the app shows other text now: onExternalChange); .place keeps it both ways (the
-    /// word in progress was just committed, which can change the text before the cursor a little).
+    /// word in progress was just committed, which can change the text before the cursor a little:
+    /// the place moves along with the cursor, so dont → don't doesn't cost a character).
     private func padSnapshot(keep: PadKeep) {
         guard var p = pad else { return }
+        let old = p.index
         let before = ic.contextBefore(limit: InputEngine.lineContext, beforeComposing: false)
         let text = before + ic.contextAfter(limit: InputEngine.lineContext)
         p.units = Array(text.utf16)
@@ -639,18 +656,35 @@ public final class InputEngine {
         p.edges[p.index] = true
         p.line = padLineOf(p.lines, p.index)
         let (s, e) = p.lines[p.line]
-        if keep == .fresh { p.vx = Double(min(p.index, e) - s) }
+        if keep == .fresh {
+            p.vx = Double(min(p.index, e) - s)
+        } else if keep == .place {
+            p.vx = max(0, p.vx + Double(p.index - old))
+        }
         if keep != .place {
             p.vy = Double(p.line)
             p.up = true
             p.down = true
         }
+        p.cols = max(8, p.width)
+        for (ls, le) in p.lines { p.cols = max(p.cols, le - ls) }
         p.back = 0
         // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
-        // or last line steps into the next paragraph (and then the app shows it).
-        p.reveal = ic.mayHideParagraphs && !p.units.contains(0x0A)
+        // or last line steps into the next paragraph (and then the app shows it). Not where the
+        // app shows no text at all (it would never show where the step went).
+        p.reveal = ic.mayHideParagraphs && ic.showsText && !p.units.contains(0x0A)
+        let wasAsked = p.asked != 0
         p.asked = 0
         pad = p
+        if wasAsked { padTrust() }
+    }
+
+    /// Once the cursor has moved, the field takes the keyboard's own picture of where it is over an
+    /// app that shows the moves late (see ProxyTarget), except while waiting for the app to show
+    /// where a step past the edge went.
+    private func padTrust() {
+        guard let p = pad else { return }
+        ic.setDragging(p.moved && p.asked == 0)
     }
 
     /// The finger moved `cols` characters along and `lines` lines (fractions of either).
@@ -662,13 +696,19 @@ public final class InputEngine {
         defer { ic.endBatchEdit() }
         guard var p = pad else { return }
         let sure = !ic.unsure
-        if p.asked != 0 && sure {
-            // The app answered a step past the first or last line without showing anything more
-            // (had it, padSnapshot would have taken that in): that's the start or end of the text.
-            if p.asked < 0 { p.up = false } else { p.down = false }
-            p.asked = 0
+        if p.asked != 0 {
+            let waited = now() - p.askedAt
+            if (sure && waited >= InputEngine.padAnswer) || waited >= InputEngine.padGiveUp {
+                // The app had time to show where a step past the first or last line went, and
+                // showed nothing more (had it, padSnapshot would have taken that in): that's the
+                // start or end of the text.
+                if p.asked < 0 { p.up = false } else { p.down = false }
+                p.asked = 0
+                pad = p
+                padTrust()
+            }
         }
-        if cols != 0 { padAlong(&p, cols) }
+        padAlong(&p, cols, lines)
         let n = p.lines.count
         let up = p.reveal && p.up
         let down = p.reveal && p.down
@@ -693,6 +733,9 @@ public final class InputEngine {
                 p = q
             }
             p.asked = side
+            p.askedAt = now()
+            pad = p
+            padTrust()
             if side < 0 {
                 ic.moveCursor(utf16: -(p.offsets[p.index] + 1))
                 p.index = 0
@@ -718,21 +761,24 @@ public final class InputEngine {
         updateShift()
     }
 
-    /// Sideways: along the cursor's line, never past its ends, so coming back answers at once. A
-    /// place remembered from a longer line (past this line's end) is kept through small wobbles
-    /// and let go of once the finger has clearly gone left.
-    private func padAlong(_ p: inout Pad, _ cols: Double) {
+    /// Sideways, as on Apple's: the place goes on past the end of the line (and is kept going up or
+    /// down onto a longer one). Coming back from past the end starts from the line's end once the
+    /// finger has clearly gone left, so the cursor answers at once. A drag mostly up or down
+    /// doesn't count towards that, so it keeps its place across short lines.
+    private func padAlong(_ p: inout Pad, _ cols: Double, _ lines: Double) {
+        if cols == 0 { return }
         let (s, e) = p.lines[p.line]
         let len = Double(e - s)
-        var cols = cols
-        if p.vx > len {
-            p.back = min(0, p.back + cols)
+        if cols < 0 && p.vx > len {
+            if -cols <= abs(lines) * p.lineTravel { return }
+            p.back += cols
             if p.back > -InputEngine.padBack { return }
-            cols = p.back
+            p.vx = max(0, len + p.back)
             p.back = 0
-            p.vx = len
+            return
         }
-        p.vx = max(0, min(len, p.vx + cols))
+        if cols > 0 { p.back = min(0, p.back + cols) }
+        p.vx = max(0, min(Double(p.cols), p.vx + cols))
     }
 
     /// Where the cursor goes for the finger's place: the nearest spot on the place's line, never
@@ -757,13 +803,13 @@ public final class InputEngine {
 
     /// The cursor is about to move for the first time this drag: the word in progress is committed
     /// (on the app's text as checked when this move began), and from here the field takes the
-    /// keyboard's own picture of where the cursor is over an app that shows the moves late (see
-    /// ProxyTarget). The text is taken again, as the commit can change it a little.
+    /// keyboard's own picture of where the cursor is (padTrust). The text is taken again, as the
+    /// commit can change it a little.
     private func padFirstMove() {
         pad?.moved = true
         leaveSpot()
-        ic.setDragging(true)
         padSnapshot(keep: .place)
+        padTrust()
     }
 
     /// The finger left the trackpad: back into the word the cursor stopped after, if any.

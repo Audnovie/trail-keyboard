@@ -88,7 +88,7 @@ final class SessionParityTests: XCTestCase {
                 case "strip": engine.onStripTap(e["slot"].int)
                 case "stripLong": engine.onStripLongPress(e["slot"].int)
                 case "move": engine.onCursorMove(e["chars"].int)
-                case "padStart": engine.onTrackpadStart(width: e["w"].int)
+                case "padStart": engine.onTrackpadStart(width: e["w"].int, lineTravel: e["lt"].double)
                 case "pad": engine.onTrackpadMove(cols: e["x"].double, lines: e["y"].double)
                 case "padEnd": engine.onTrackpadEnd()
                 case "moveEnd": engine.onCursorMoveEnd()

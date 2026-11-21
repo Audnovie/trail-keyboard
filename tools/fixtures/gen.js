@@ -523,7 +523,7 @@ function expand(script) {
     else if (op === 'delEnd') ev.push({ t: 'delEnd' });
     else if (op === 'wait') ev.push({ t: 'wait', ms: Number(arg) });
     else if (op === 'move') ev.push({ t: 'move', chars: Number(arg) });
-    else if (op === 'padStart') ev.push({ t: 'padStart', w: LINE_WIDTH });
+    else if (op === 'padStart') ev.push({ t: 'padStart', w: LINE_WIDTH, lt: LINE_TRAVEL });
     else if (op === 'pad') {
       const [x, y] = arg.split(',').map(Number);
       ev.push({ t: 'pad', x, y });
@@ -541,6 +541,8 @@ function expand(script) {
 
 // Characters a line on screen in the trackpad sessions (the keyboard works it out from the screen).
 const LINE_WIDTH = 12;
+/** ...and one line of finger travel is this many characters of it (as on a 402-point iPhone). */
+const LINE_TRAVEL = 2.5;
 
 const SESSIONS = [
   { name: 'typing basics', script: ['type:hello there. how are you', 'type: ', 'type:i think so'] },
@@ -616,7 +618,17 @@ const SESSIONS = [
   // from a longer line is let go of after half a character left.
   { name: 'trackpad past the line end', script: ['type:one two\nthree four', 'padStart', 'pad:0,-1', 'pad:-0.3,0', 'pad:0.2,0', 'pad:0,1', 'pad:0,-1', 'pad:-1,0', 'pad:5,0', 'pad:-1,0', 'pad:0,1', 'padEnd', 'type:x'] },
   // ❤️ is two characters that show as one: the cursor goes over it whole, as an iPhone moves it.
-  { name: 'trackpad over an emoji', text: 'I ❤️ it\nok then', script: ['padStart', 'pad:0,-1', 'pad:-4,0', 'pad:-1,0', 'pad:1,0', 'pad:1,0', 'pad:20,0', 'padEnd', 'type:s'] },
+  { name: 'trackpad over an emoji', text: 'say I ❤️ it', script: ['padStart', 'pad:-4,0', 'pad:-1,0', 'pad:1,0', 'pad:1,0', 'pad:20,0', 'padEnd', 'type:s'] },
+  // Sideways and down together from the end of a short line: the place runs on past its end, so
+  // the cursor lands as far along the longer line as the finger went.
+  { name: 'trackpad diagonal', script: ['type:ok\nlonger one', 'padStart', 'pad:0,-1', 'pad:-1,0', 'pad:2,0.25', 'pad:2,0.25', 'pad:2,0.25', 'pad:2,0.25', 'padEnd', 'type:x'] },
+  // A fix that lengthens the word in progress (dont → don't) when the cursor first moves: one
+  // character left still lands one character left of the end.
+  { name: 'trackpad after a fix', script: ['type:so dont', 'padStart', 'pad:-1,0', 'padEnd', 'type:x'] },
+  // Down across a blank line on a slant: the leftward drift there doesn't lose how far along the
+  // cursor was (only a move mostly sideways does).
+  { name: 'trackpad slanted', script: ['type:a long line\n\nanother line', 'padStart', 'pad:0,-2', 'pad:-3,0',
+    'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'padEnd', 'type:x'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
 ];
 
@@ -652,7 +664,7 @@ const SESSIONS = [
       else if (e.t === 'strip') ime.onStripTap(e.slot);
       else if (e.t === 'stripLong') ime.onStripLongPress(e.slot);
       else if (e.t === 'move') ime.onCursorMove(e.chars);
-      else if (e.t === 'padStart') ime.onTrackpadStart(e.w);
+      else if (e.t === 'padStart') ime.onTrackpadStart(e.w, e.lt);
       else if (e.t === 'pad') ime.onTrackpadMove(e.x, e.y);
       else if (e.t === 'padEnd') ime.onTrackpadEnd();
       else if (e.t === 'moveEnd') ime.onCursorMoveEnd();
