@@ -803,13 +803,15 @@ final class KeyboardView: UIView, KeyboardSurface {
         trackpadPointer = p
         delegate?.kbTrackpadStart()
         trackpadTick?.invalidate()
-        trackpadTick = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+        let tick = Timer(timeInterval: 0.1, repeats: true) { [weak self] timer in
             guard let self = self, self.trackpadPointer != nil else {
                 timer.invalidate()
                 return
             }
             self.delegate?.kbTrackpadMove(cols: 0, lines: 0)
         }
+        RunLoop.main.add(tick, forMode: .common)
+        trackpadTick = tick
         if longPressTarget === p { stopLongPress() }
         // A delete key held by another finger stops repeating.
         repeatWork?.cancel()

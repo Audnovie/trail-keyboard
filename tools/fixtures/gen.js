@@ -630,7 +630,7 @@ const SESSIONS = [
   // Resting on a short line, a thumb creeping a little left doesn't lose how far along it was
   // (a place kept from another line needs a whole character of clear travel left).
   { name: 'trackpad resting on a short line', script: ['type:a long line\nok\nanother line', 'padStart', 'pad:0,-2', 'pad:-3,0', 'pad:0,1',
-    'pad:-0.3,0', 'pad:-0.3,0', 'pad:-0.3,0', 'pad:0,1', 'padEnd', 'type:x'] },
+    'pad:-0.3,0', 'pad:0.05,0', 'pad:-0.3,0', 'pad:0.05,0', 'pad:-0.3,0', 'pad:0,1', 'padEnd', 'type:x'] },
   // Past the end of the last line and pushing on down: coming back left still answers, as the push
   // down there doesn't count as travel.
   { name: 'trackpad back along the last line', script: ['type:ok soon\nfine', 'padStart', 'pad:5,0', 'pad:0,1', 'pad:-1,2', 'padEnd', 'type:x'] },

@@ -164,6 +164,8 @@ public final class InputEngine {
         /// was kept from another line (see padAlong).
         var back = 0.0
         var kept = false
+        /// Travel right since the place was kept from another line (a wobble doesn't let go of it).
+        var fwd = 0.0
         /// The cursor has moved this drag (see padFirstMove).
         var moved = false
         /// Pushing past the first or last line steps into the next paragraph (see padSnapshot)...
@@ -674,7 +676,10 @@ public final class InputEngine {
         p.cols = max(8, p.width)
         for (ls, le) in p.lines { p.cols = max(p.cols, le - ls) }
         p.back = 0
-        if keep == .along { p.kept = p.vx > Double(e - s) }
+        if keep == .along {
+            p.kept = p.vx > Double(e - s)
+            p.fwd = 0
+        }
         // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
         // or last line steps into the next paragraph (and then the app shows it). Not where the
         // app shows no text at all (it would never show where the step went).
@@ -779,6 +784,7 @@ public final class InputEngine {
         if cols == 0 { return }
         let (s, e) = p.lines[p.line]
         let len = Double(e - s)
+        if p.kept { p.fwd = max(0, p.fwd + cols) }
         if cols < 0 && p.vx > len {
             if -cols <= abs(lines) * p.lineTravel { return }
             p.back += cols
@@ -790,7 +796,7 @@ public final class InputEngine {
         }
         if cols > 0 {
             p.back = min(0, p.back + cols)
-            p.kept = false
+            if p.fwd >= InputEngine.padBackKept { p.kept = false }
         }
         p.vx = max(0, min(Double(p.cols), p.vx + cols))
     }
@@ -804,6 +810,7 @@ public final class InputEngine {
                 p.line = l
                 p.back = 0
                 p.kept = p.vx > Double(p.lines[l].1 - p.lines[l].0)
+                p.fwd = 0
             }
         }
         let (s, e) = p.lines[p.line]

@@ -2504,7 +2504,7 @@ var Trail = (function () {
       this.ic.setDragging(false);
       this.pad = {
         width: width, lineTravel: lineTravel, text: '', lines: null, edges: null, index: 0, line: 0,
-        vx: 0, vy: 0, cols: 0, back: 0, kept: false, moved: false, reveal: false, up: true, down: true,
+        vx: 0, vy: 0, cols: 0, back: 0, kept: false, fwd: 0, moved: false, reveal: false, up: true, down: true,
         asked: 0, askedAt: 0, from: 0,
       };
       this.padSnapshot('fresh');
@@ -2538,7 +2538,10 @@ var Trail = (function () {
       p.cols = Math.max(8, Math.floor(p.width));
       for (const l of p.lines) p.cols = Math.max(p.cols, l[1] - l[0]);
       p.back = 0;
-      if (keep === 'along') p.kept = p.vx > line[1] - line[0];
+      if (keep === 'along') {
+        p.kept = p.vx > line[1] - line[0];
+        p.fwd = 0;
+      }
       // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
       // or last line steps into the next paragraph (and then the app shows it). Not where the
       // app shows no text at all (it would never show where the step went).
@@ -2632,6 +2635,8 @@ var Trail = (function () {
       if (cols === 0) return;
       const line = p.lines[p.line];
       const len = line[1] - line[0];
+      // (Travel right since the place was kept from another line: a wobble doesn't let go of it.)
+      if (p.kept) p.fwd = Math.max(0, p.fwd + cols);
       if (cols < 0 && p.vx > len) {
         if (-cols <= Math.abs(lines) * p.lineTravel) return;
         p.back += cols;
@@ -2643,7 +2648,7 @@ var Trail = (function () {
       }
       if (cols > 0) {
         p.back = Math.min(0, p.back + cols);
-        p.kept = false;
+        if (p.fwd >= PAD_BACK_KEPT) p.kept = false;
       }
       p.vx = Math.max(0, Math.min(p.cols, p.vx + cols));
     }
@@ -2657,6 +2662,7 @@ var Trail = (function () {
           p.line = l;
           p.back = 0;
           p.kept = p.vx > p.lines[l][1] - p.lines[l][0];
+          p.fwd = 0;
         }
       }
       const line = p.lines[p.line];
