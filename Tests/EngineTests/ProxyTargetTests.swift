@@ -584,7 +584,7 @@ final class ProxyTargetTests: XCTestCase {
         XCTAssertEqual(r.doc.cursor, 0, "as far along the line above as before: |First")
         r.engine.onTrackpadEnd()
         type(r.engine, "x")
-        XCTAssertEqual(r.doc.text, "xFirst line here\nSecond")
+        XCTAssertEqual(r.doc.text, "XFirst line here\nSecond", "(capital: the start of the text)")
     }
 
     /// Dragging along a line over characters made of several (👩‍💻, a flag) keeps the keyboard in
