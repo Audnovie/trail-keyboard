@@ -2713,6 +2713,8 @@ var Trail = (function () {
       } finally {
         this.ic.endBatchEdit();
       }
+      // (Capitals go by where the cursor ended up.)
+      this.updateShift();
     }
 
     /** The space bar let go after moving the cursor: back into the word there, if any. */

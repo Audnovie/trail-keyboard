@@ -855,6 +855,8 @@ public final class InputEngine {
         pad = nil
         onCursorMoveEnd()
         ic.endBatchEdit()
+        // (Capitals go by where the cursor ended up.)
+        updateShift()
     }
 
     /// The space bar let go after moving the cursor: back into the word there, if any.
