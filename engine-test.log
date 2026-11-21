@@ -1,0 +1,203 @@
+Building for production...
+[0/7] /Users/runner/work/trail-keyboard/trail-keyboard/.build/arm64-apple-macosx/release/TrailEnginePackageTests.derived/runner.swift
+[1/7] Write sources
+[4/7] Write swift-version-7974D3F7F03D5E95.txt
+[6/8] Compiling TrailEngine Editor.swift
+[7/9] Compiling EngineTests BudgetTests.swift
+[8/10] Compiling TrailEnginePackageTests runner.swift
+[8/10] Write Objects.LinkFileList
+[9/10] Linking TrailEnginePackageTests
+Build complete! (42.58s)
+Test Suite 'All tests' started at 2026-11-21 22:35:36.973.
+Test Suite 'TrailEnginePackageTests.xctest' started at 2026-11-21 22:35:36.978.
+Test Suite 'BudgetTests' started at 2026-11-21 22:35:36.978.
+Test Case '-[EngineTests.BudgetTests testFullSetOfWordPairs]' started.
+Test Case '-[EngineTests.BudgetTests testFullSetOfWordPairs]' passed (0.325 seconds).
+Test Case '-[EngineTests.BudgetTests testManyLearnedWords]' started.
+Test Case '-[EngineTests.BudgetTests testManyLearnedWords]' passed (0.024 seconds).
+Test Case '-[EngineTests.BudgetTests testSpeedAndMemory]' started.
+Test Case '-[EngineTests.BudgetTests testSpeedAndMemory]' passed (0.204 seconds).
+Test Suite 'BudgetTests' passed at 2026-11-21 22:35:37.534.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.553 (0.557) seconds
+Test Suite 'CursorParityTests' started at 2026-11-21 22:35:37.534.
+Test Case '-[EngineTests.CursorParityTests testGraphemeEdges]' started.
+Test Case '-[EngineTests.CursorParityTests testGraphemeEdges]' passed (0.001 seconds).
+Test Case '-[EngineTests.CursorParityTests testPadLines]' started.
+Test Case '-[EngineTests.CursorParityTests testPadLines]' passed (0.001 seconds).
+Test Case '-[EngineTests.CursorParityTests testSentenceStarts]' started.
+Test Case '-[EngineTests.CursorParityTests testSentenceStarts]' passed (0.000 seconds).
+Test Suite 'CursorParityTests' passed at 2026-11-21 22:35:37.538.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'DecoderParityTests' started at 2026-11-21 22:35:37.538.
+Test Case '-[EngineTests.DecoderParityTests testDecode]' started.
+Test Case '-[EngineTests.DecoderParityTests testDecode]' passed (1.035 seconds).
+Test Suite 'DecoderParityTests' passed at 2026-11-21 22:35:38.573.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.035 (1.036) seconds
+Test Suite 'DetectParityTests' started at 2026-11-21 22:35:38.573.
+Test Case '-[EngineTests.DetectParityTests testDetectLang]' started.
+Test Case '-[EngineTests.DetectParityTests testDetectLang]' passed (0.017 seconds).
+Test Suite 'DetectParityTests' passed at 2026-11-21 22:35:38.590.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.017 (0.017) seconds
+Test Suite 'EmojiCatalogTests' started at 2026-11-21 22:35:38.590.
+Test Case '-[EngineTests.EmojiCatalogTests testCategoriesInApplesOrder]' started.
+Test Case '-[EngineTests.EmojiCatalogTests testCategoriesInApplesOrder]' passed (0.017 seconds).
+Test Case '-[EngineTests.EmojiCatalogTests testNormalize]' started.
+Test Case '-[EngineTests.EmojiCatalogTests testNormalize]' passed (0.001 seconds).
+Test Case '-[EngineTests.EmojiCatalogTests testOnlyEmojiThisIPhoneCanDraw]' started.
+Test Case '-[EngineTests.EmojiCatalogTests testOnlyEmojiThisIPhoneCanDraw]' passed (0.041 seconds).
+Test Case '-[EngineTests.EmojiCatalogTests testSearchInEnglishAndSpanish]' started.
+Test Case '-[EngineTests.EmojiCatalogTests testSearchInEnglishAndSpanish]' passed (0.031 seconds).
+Test Case '-[EngineTests.EmojiCatalogTests testSearchIsQuick]' started.
+Test Case '-[EngineTests.EmojiCatalogTests testSearchIsQuick]' passed (0.014 seconds).
+Test Suite 'EmojiCatalogTests' passed at 2026-11-21 22:35:38.696.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.104 (0.106) seconds
+Test Suite 'PairsParityTests' started at 2026-11-21 22:35:38.696.
+Test Case '-[EngineTests.PairsParityTests testLiftsInTheSwipeReaderAndSuggestions]' started.
+Test Case '-[EngineTests.PairsParityTests testLiftsInTheSwipeReaderAndSuggestions]' passed (0.118 seconds).
+Test Case '-[EngineTests.PairsParityTests testLoading]' started.
+Test Case '-[EngineTests.PairsParityTests testLoading]' passed (0.003 seconds).
+Test Case '-[EngineTests.PairsParityTests testOnlyTheMostRecentAreKept]' started.
+Test Case '-[EngineTests.PairsParityTests testOnlyTheMostRecentAreKept]' passed (0.009 seconds).
+Test Case '-[EngineTests.PairsParityTests testOperations]' started.
+Test Case '-[EngineTests.PairsParityTests testOperations]' passed (0.005 seconds).
+Test Case '-[EngineTests.PairsParityTests testWordBefore]' started.
+Test Case '-[EngineTests.PairsParityTests testWordBefore]' passed (0.001 seconds).
+Test Suite 'PairsParityTests' passed at 2026-11-21 22:35:38.833.
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.135 (0.136) seconds
+Test Suite 'ProfileParityTests' started at 2026-11-21 22:35:38.833.
+Test Case '-[EngineTests.ProfileParityTests testLearnAndFit]' started.
+Test Case '-[EngineTests.ProfileParityTests testLearnAndFit]' passed (0.271 seconds).
+Test Case '-[EngineTests.ProfileParityTests testMalformedSavedProfileStartsOver]' started.
+Test Case '-[EngineTests.ProfileParityTests testMalformedSavedProfileStartsOver]' passed (0.001 seconds).
+Test Suite 'ProfileParityTests' passed at 2026-11-21 22:35:39.105.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.272 (0.273) seconds
+Test Suite 'ProxyTargetTests' started at 2026-11-21 22:35:39.105.
+Test Case '-[EngineTests.ProxyTargetTests testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged]' started.
+Test Case '-[EngineTests.ProxyTargetTests testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged]' passed (0.027 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testAppThatShowsNoTextKeepsTheWordInProgress]' started.
+Test Case '-[EngineTests.ProxyTargetTests testAppThatShowsNoTextKeepsTheWordInProgress]' passed (0.023 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testClearedFieldStartsAfresh]' started.
+Test Case '-[EngineTests.ProxyTargetTests testClearedFieldStartsAfresh]' passed (0.016 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testClearedFieldWithoutNoticeGetsNoLeadingSpace]' started.
+Test Case '-[EngineTests.ProxyTargetTests testClearedFieldWithoutNoticeGetsNoLeadingSpace]' passed (0.028 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testCursorMovedWithoutNoticeRightAfterASwipe]' started.
+Test Case '-[EngineTests.ProxyTargetTests testCursorMovedWithoutNoticeRightAfterASwipe]' passed (0.057 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testDeletesWholeCharactersByUTF16Count]' started.
+Test Case '-[EngineTests.ProxyTargetTests testDeletesWholeCharactersByUTF16Count]' passed (0.001 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter]' started.
+Test Case '-[EngineTests.ProxyTargetTests testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter]' passed (0.021 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testEmptyLineInAnAppThatShowsOneParagraph]' started.
+Test Case '-[EngineTests.ProxyTargetTests testEmptyLineInAnAppThatShowsOneParagraph]' passed (0.024 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testHowTheAppsTextFits]' started.
+Test Case '-[EngineTests.ProxyTargetTests testHowTheAppsTextFits]' passed (0.000 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testKeyStillWorksAfterAnUnnoticedChange]' started.
+Test Case '-[EngineTests.ProxyTargetTests testKeyStillWorksAfterAnUnnoticedChange]' passed (0.012 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testMovesTheCursorByWholeCharacters]' started.
+Test Case '-[EngineTests.ProxyTargetTests testMovesTheCursorByWholeCharacters]' passed (0.000 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testNeverDeletesTextAfterTheCursorMoves]' started.
+Test Case '-[EngineTests.ProxyTargetTests testNeverDeletesTextAfterTheCursorMoves]' passed (0.011 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testNoAutomaticFixesWhereTheKeyboardDoesNotLearn]' started.
+Test Case '-[EngineTests.ProxyTargetTests testNoAutomaticFixesWhereTheKeyboardDoesNotLearn]' passed (0.031 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testNothingPickedUpWhileTheTextThereIsUnknown]' started.
+Test Case '-[EngineTests.ProxyTargetTests testNothingPickedUpWhileTheTextThereIsUnknown]' passed (0.011 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testNoUndoOfferOrRedWordWhereTheAppHidesItsText]' started.
+Test Case '-[EngineTests.ProxyTargetTests testNoUndoOfferOrRedWordWhereTheAppHidesItsText]' passed (0.041 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testOneLineFieldThatSwallowsReturn]' started.
+Test Case '-[EngineTests.ProxyTargetTests testOneLineFieldThatSwallowsReturn]' passed (0.022 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testOwnEditsAreNotMistakenForOutsideChanges]' started.
+Test Case '-[EngineTests.ProxyTargetTests testOwnEditsAreNotMistakenForOutsideChanges]' passed (0.001 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsThroughTheProxyMatchTheModelField]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsThroughTheProxyMatchTheModelField]' passed (0.806 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowly]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowly]' passed (0.737 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText]' passed (0.767 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph]' passed (0.884 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowlyWithSmartQuotes]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsTypedSlowlyWithSmartQuotes]' passed (0.910 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppShowsChangesLate]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppShowsChangesLate]' passed (0.923 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyRecentText]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyRecentText]' passed (1.446 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyTheCurrentParagraph]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyTheCurrentParagraph]' passed (1.497 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppStaysBehindUntilTheNextKey]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWhenTheAppStaysBehindUntilTheNextKey]' passed (1.202 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWithSmartQuotes]' started.
+Test Case '-[EngineTests.ProxyTargetTests testSessionsWithSmartQuotes]' passed (1.178 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadAlongALineOverEmoji]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadAlongALineOverEmoji]' passed (0.018 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadDriftOnALineWithNoBreaks]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadDriftOnALineWithNoBreaks]' passed (0.011 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadEndTakesInWhatTheAppChanged]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadEndTakesInWhatTheAppChanged]' passed (0.012 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadGoesPastTheParagraphTheAppShows]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadGoesPastTheParagraphTheAppShows]' passed (0.009 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadIgnoresAnAppThatShowsMovesLate]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadIgnoresAnAppThatShowsMovesLate]' passed (0.013 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadLetGoWhileWaitingGoesBack]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadLetGoWhileWaitingGoesBack]' passed (0.017 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadOverWideCharacters]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadOverWideCharacters]' passed (0.036 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadStaysOnTheFirstLine]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadStaysOnTheFirstLine]' passed (0.019 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadStepsIntoAParagraphTheAppHides]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadStepsIntoAParagraphTheAppHides]' passed (0.015 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadStopsAtTheEnds]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadStopsAtTheEnds]' passed (0.012 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadWaitsForTheAppAtTheStartOfAParagraph]' started.
+Test Case '-[EngineTests.ProxyTargetTests testTrackpadWaitsForTheAppAtTheStartOfAParagraph]' passed (0.014 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testUndoingAFixAfterAnUnnoticedChangeTypesNothing]' started.
+Test Case '-[EngineTests.ProxyTargetTests testUndoingAFixAfterAnUnnoticedChangeTypesNothing]' passed (0.013 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testUndoInTheAppIsNoticed]' started.
+Test Case '-[EngineTests.ProxyTargetTests testUndoInTheAppIsNoticed]' passed (0.015 seconds).
+Test Case '-[EngineTests.ProxyTargetTests testWordThatVanishedWithoutNoticeIsNotDeletedAgain]' started.
+Test Case '-[EngineTests.ProxyTargetTests testWordThatVanishedWithoutNoticeIsNotDeletedAgain]' passed (0.026 seconds).
+Test Suite 'ProxyTargetTests' passed at 2026-11-21 22:35:50.024.
+	 Executed 41 tests, with 0 failures (0 unexpected) in 10.906 (10.919) seconds
+Test Suite 'SessionParityTests' started at 2026-11-21 22:35:50.024.
+Test Case '-[EngineTests.SessionParityTests testSessions]' started.
+Test Case '-[EngineTests.SessionParityTests testSessions]' passed (1.359 seconds).
+Test Suite 'SessionParityTests' passed at 2026-11-21 22:35:51.383.
+	 Executed 1 test, with 0 failures (0 unexpected) in 1.359 (1.359) seconds
+Test Suite 'SuggestParityTests' started at 2026-11-21 22:35:51.383.
+Test Case '-[EngineTests.SuggestParityTests testSuggestions]' started.
+Test Case '-[EngineTests.SuggestParityTests testSuggestions]' passed (0.305 seconds).
+Test Suite 'SuggestParityTests' passed at 2026-11-21 22:35:51.689.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.305 (0.306) seconds
+Test Suite 'TextParityTests' started at 2026-11-21 22:35:51.689.
+Test Case '-[EngineTests.TextParityTests testCaps]' started.
+Test Case '-[EngineTests.TextParityTests testCaps]' passed (0.002 seconds).
+Test Case '-[EngineTests.TextParityTests testKeyOfAndLearnable]' started.
+Test Case '-[EngineTests.TextParityTests testKeyOfAndLearnable]' passed (0.001 seconds).
+Test Case '-[EngineTests.TextParityTests testSentenceStart]' started.
+Test Case '-[EngineTests.TextParityTests testSentenceStart]' passed (0.002 seconds).
+Test Suite 'TextParityTests' passed at 2026-11-21 22:35:51.696.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'UserWordsParityTests' started at 2026-11-21 22:35:51.696.
+Test Case '-[EngineTests.UserWordsParityTests testOperations]' started.
+Test Case '-[EngineTests.UserWordsParityTests testOperations]' passed (0.003 seconds).
+Test Suite 'UserWordsParityTests' passed at 2026-11-21 22:35:51.699.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.003 (0.003) seconds
+Test Suite 'WordListParityTests' started at 2026-11-21 22:35:51.699.
+Test Case '-[EngineTests.WordListParityTests testLookups]' started.
+Test Case '-[EngineTests.WordListParityTests testLookups]' passed (0.092 seconds).
+Test Suite 'WordListParityTests' passed at 2026-11-21 22:35:51.791.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.092 (0.092) seconds
+Test Suite 'TrailEnginePackageTests.xctest' passed at 2026-11-21 22:35:51.791.
+	 Executed 68 tests, with 0 failures (0 unexpected) in 14.789 (14.813) seconds
+Test Suite 'All tests' passed at 2026-11-21 22:35:51.791.
+	 Executed 68 tests, with 0 failures (0 unexpected) in 14.789 (14.818) seconds
+BUDGET word pairs: 2000 loaded in 7.4 ms; lifts after a word with 400 words after it in 0.58 ms
+BUDGET swipe with those lifts: 5.7 ms average, 13.1 ms worst over 35 swipes; typing suggestions 8.7 ms worst
+BUDGET suggestions with 3000 learned words: 4.6 ms (includes building the lookup)
+BUDGET (optimised build)
+BUDGET swipe: 4.4 ms average, 9.7 ms worst over 35 swipes
+BUDGET typing suggestions: 4.8 ms worst
+BUDGET memory: 22.4 MB before loading, 22.5 MB after (phys_footprint of the test process)
+BUDGET emoji search: 0.4 ms a search
+◇ Test run started.
+↳ Testing Library Version: 1902
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.004 seconds.
