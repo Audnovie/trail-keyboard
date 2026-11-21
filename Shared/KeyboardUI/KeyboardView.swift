@@ -116,7 +116,17 @@ final class KeyboardView: UIView, KeyboardSurface {
     private var pointers = [ObjectIdentifier: Pointer]()
     private var swipePointer: Pointer?
     /// The finger using the space bar as a trackpad (the key labels go blank meanwhile).
-    private var trackpadPointer: Pointer?
+    private var trackpadPointer: Pointer? {
+        didSet {
+            if trackpadPointer == nil {
+                trackpadTick?.invalidate()
+                trackpadTick = nil
+            }
+        }
+    }
+    /// While the trackpad is held, a tick every tenth of a second even when the finger is still,
+    /// so the cursor can follow what the app shows (see InputEngine.onTrackpadMove).
+    private var trackpadTick: Timer?
     private var pressedKey: Key?
     private var previewKey: Key?
     private var previewText: String?
@@ -792,6 +802,14 @@ final class KeyboardView: UIView, KeyboardSurface {
         p.lastY = y
         trackpadPointer = p
         delegate?.kbTrackpadStart()
+        trackpadTick?.invalidate()
+        trackpadTick = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
+            guard let self = self, self.trackpadPointer != nil else {
+                timer.invalidate()
+                return
+            }
+            self.delegate?.kbTrackpadMove(cols: 0, lines: 0)
+        }
         if longPressTarget === p { stopLongPress() }
         // A delete key held by another finger stops repeating.
         repeatWork?.cancel()

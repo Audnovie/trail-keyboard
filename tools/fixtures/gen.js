@@ -627,6 +627,13 @@ const SESSIONS = [
   { name: 'trackpad after a fix', script: ['type:so dont', 'padStart', 'pad:-1,0', 'padEnd', 'type:x'] },
   // Down across a blank line on a slant: the leftward drift there doesn't lose how far along the
   // cursor was (only a move mostly sideways does).
+  // Resting on a short line, a thumb creeping a little left doesn't lose how far along it was
+  // (a place kept from another line needs a whole character of clear travel left).
+  { name: 'trackpad resting on a short line', script: ['type:a long line\nok\nanother line', 'padStart', 'pad:0,-2', 'pad:-3,0', 'pad:0,1',
+    'pad:-0.3,0', 'pad:-0.3,0', 'pad:-0.3,0', 'pad:0,1', 'padEnd', 'type:x'] },
+  // Past the end of the last line and pushing on down: coming back left still answers, as the push
+  // down there doesn't count as travel.
+  { name: 'trackpad back along the last line', script: ['type:ok soon\nfine', 'padStart', 'pad:5,0', 'pad:0,1', 'pad:-1,2', 'padEnd', 'type:x'] },
   { name: 'trackpad slanted', script: ['type:a long line\n\nanother line', 'padStart', 'pad:0,-2', 'pad:-3,0',
     'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'pad:-0.15,0.25', 'padEnd', 'type:x'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },

@@ -1956,9 +1956,10 @@ var Trail = (function () {
    *  where a thumb drifts on a drag along the line). */
   const PAD_REVEAL_EDGE = 2.2;
   const PAD_REVEAL = 2.0;
-  /** A place past the end of the cursor's line (kept from a longer line, or run on past the end)
-   *  is let go of once the finger has gone this many characters left, mostly sideways. */
+  /** A place past the end of the cursor's line is let go of once the finger has gone this many
+   *  characters left, mostly sideways: run on past the end of this line, or kept from another. */
   const PAD_BACK = 0.5;
+  const PAD_BACK_KEPT = 1.0;
   /** After a step past the first or last line, how long (ms) the app gets to show where it went
    *  before the trackpad takes it that nothing is there (iOS shows a keyboard an app's text a
    *  moment after a move), and how long before it stops waiting whatever it sees. */
@@ -2503,7 +2504,8 @@ var Trail = (function () {
       this.ic.setDragging(false);
       this.pad = {
         width: width, lineTravel: lineTravel, text: '', lines: null, edges: null, index: 0, line: 0,
-        vx: 0, vy: 0, cols: 0, back: 0, moved: false, reveal: false, up: true, down: true, asked: 0, askedAt: 0,
+        vx: 0, vy: 0, cols: 0, back: 0, kept: false, moved: false, reveal: false, up: true, down: true,
+        asked: 0, askedAt: 0, from: 0,
       };
       this.padSnapshot('fresh');
     }
@@ -2536,6 +2538,7 @@ var Trail = (function () {
       p.cols = Math.max(8, Math.floor(p.width));
       for (const l of p.lines) p.cols = Math.max(p.cols, l[1] - l[0]);
       p.back = 0;
+      if (keep === 'along') p.kept = p.vx > line[1] - line[0];
       // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
       // or last line steps into the next paragraph (and then the app shows it). Not where the
       // app shows no text at all (it would never show where the step went).
@@ -2575,11 +2578,13 @@ var Trail = (function () {
             this.padTrust(p);
           }
         }
-        this.padAlong(p, cols, lines);
         const n = p.lines.length;
         const up = p.reveal && p.up;
         const down = p.reveal && p.down;
-        p.vy = Math.max(-(up ? PAD_REVEAL_EDGE : PAD_EDGE), Math.min(n - 1 + (down ? PAD_REVEAL_EDGE : PAD_EDGE), p.vy + lines));
+        const vy = Math.max(-(up ? PAD_REVEAL_EDGE : PAD_EDGE), Math.min(n - 1 + (down ? PAD_REVEAL_EDGE : PAD_EDGE), p.vy + lines));
+        // (Sideways or not goes by the travel up or down that counts: none along the first or last line.)
+        this.padAlong(p, cols, vy - p.vy);
+        p.vy = vy;
         // Still waiting for the app to show where a step past the edge went.
         if (p.asked !== 0) return;
         let side = 0;
@@ -2589,6 +2594,7 @@ var Trail = (function () {
           if (!p.moved) this.padFirstMove();
           p.asked = side;
           p.askedAt = this.now();
+          p.from = p.index;
           this.padTrust(p);
           if (side < 0) {
             this.ic.moveCursor(-(p.index + 1));
@@ -2618,7 +2624,8 @@ var Trail = (function () {
     /**
      * Sideways, as on Apple's: the place goes on past the end of the line (and is kept going up or
      * down onto a longer one). Coming back from past the end starts from the line's end once the
-     * finger has clearly gone left, so the cursor answers at once. A drag mostly up or down
+     * finger has clearly gone left, so the cursor answers at once (a place kept from another line
+     * needs a little more, so a resting thumb's creep doesn't lose it). A drag mostly up or down
      * doesn't count towards that, so it keeps its place across short lines.
      */
     padAlong(p, cols, lines) {
@@ -2628,12 +2635,16 @@ var Trail = (function () {
       if (cols < 0 && p.vx > len) {
         if (-cols <= Math.abs(lines) * p.lineTravel) return;
         p.back += cols;
-        if (p.back > -PAD_BACK) return;
+        if (p.back > -(p.kept ? PAD_BACK_KEPT : PAD_BACK)) return;
         p.vx = Math.max(0, len + p.back);
         p.back = 0;
+        p.kept = false;
         return;
       }
-      if (cols > 0) p.back = Math.min(0, p.back + cols);
+      if (cols > 0) {
+        p.back = Math.min(0, p.back + cols);
+        p.kept = false;
+      }
       p.vx = Math.max(0, Math.min(p.cols, p.vx + cols));
     }
 
@@ -2645,6 +2656,7 @@ var Trail = (function () {
         if (l !== p.line) {
           p.line = l;
           p.back = 0;
+          p.kept = p.vx > p.lines[l][1] - p.lines[l][0];
         }
       }
       const line = p.lines[p.line];
@@ -2672,15 +2684,25 @@ var Trail = (function () {
 
     /** The finger left the trackpad: back into the word the cursor stopped after, if any. */
     onTrackpadEnd() {
-      if (this.pad === null) return;
-      const moved = this.pad.moved;
-      this.pad = null;
+      const p = this.pad;
+      if (p === null) return;
       this.ic.setDragging(false);
       // A hold that never moved the cursor changes nothing.
-      if (!moved) return;
-      // The app's text is checked first (it isn't while dragging).
+      if (!p.moved) {
+        this.pad = null;
+        return;
+      }
+      // The app's text is checked first (it isn't while dragging; this may take it afresh, which
+      // mustn't leave the field trusting the keyboard's picture once the drag is over).
       this.ic.beginBatchEdit();
       try {
+        this.ic.setDragging(false);
+        if (this.pad === p && p.asked !== 0) {
+          // Let go before the app showed where a step past the edge went: back where the
+          // cursor was before the push.
+          this.ic.moveCursor(p.from - p.index);
+        }
+        this.pad = null;
         this.onCursorMoveEnd();
       } finally {
         this.ic.endBatchEdit();

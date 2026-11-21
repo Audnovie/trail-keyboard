@@ -564,6 +564,23 @@ final class ProxyTargetTests: XCTestCase {
         XCTAssertEqual(r.doc.text, "See you at xthe cafe at noon tomorrow")
     }
 
+    /// Let go right after a push past the first line, before the app has shown where that went:
+    /// the cursor goes back to where it was (it isn't left at the start of the text).
+    func testTrackpadLetGoWhileWaitingGoesBack() {
+        let r = rig()
+        r.doc.appSets("See you at the cafe at noon tomorrow", cursor: 10)
+        r.target.sync(newField: true)
+        r.engine.onTrackpadStart(width: 48)
+        r.engine.onTrackpadMove(cols: 1, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 11)
+        r.engine.onTrackpadMove(cols: 0, lines: -2.1)
+        XCTAssertEqual(r.doc.cursor, 0, "a push past two lines tries for text above")
+        r.engine.onTrackpadEnd()
+        XCTAssertEqual(r.doc.cursor, 11, "let go before the app showed anything: back where it was")
+        type(r.engine, "x")
+        XCTAssertEqual(r.doc.text, "See you at xthe cafe at noon tomorrow")
+    }
+
     /// Stepping up from the very start of a paragraph in an app that shows only that paragraph:
     /// iOS shows a keyboard the app's text a moment after a move, and until then the field looks
     /// just as it would with nothing above. The trackpad waits for the app before deciding.
