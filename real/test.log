@@ -1,0 +1,13 @@
+Test Case '-[TrailUITests.RealKeyboardUITests testTheKeyboardExtensionTypes]' started.
+2026-11-21 06:13:34.202 xcodebuild[61705:156139] [MT] IDELaunchParametersSnapshot: The operation couldn’t be completed. (DebuggerLLDB.DebuggerVersionStore.StoreError error 0.)
+REAL hierarchy after opening the keyboard:
+REAL typed: Hello there.
+REAL after a drag from t to o: Hello there. To
+REAL emoji panel open at 2026-11-21 06:14:08 +0000
+REAL emoji categories scrolled at 2026-11-21 06:14:41 +0000
+REAL after an emoji search: Hello there. To❤️
+REAL emoji panel closed at 2026-11-21 06:15:14 +0000
+Test Case '-[TrailUITests.RealKeyboardUITests testTheKeyboardExtensionTypes]' passed (133.539 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 133.539 (133.540) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 133.539 (133.541) seconds
+	 Executed 1 test, with 0 failures (0 unexpected) in 133.539 (133.545) seconds

@@ -1,0 +1,200 @@
+Test Case '-[TrailEngineTests.BudgetTests testFullSetOfWordPairs]' started.
+BUDGET word pairs: 2000 loaded in 13.4 ms; lifts after a word with 400 words after it in 2.81 ms
+BUDGET swipe with those lifts: 244.9 ms average, 1081.4 ms worst over 35 swipes; typing suggestions 299.6 ms worst
+Test Case '-[TrailEngineTests.BudgetTests testFullSetOfWordPairs]' passed (10.073 seconds).
+Test Case '-[TrailEngineTests.BudgetTests testManyLearnedWords]' started.
+BUDGET suggestions with 3000 learned words: 16.2 ms (includes building the lookup)
+Test Case '-[TrailEngineTests.BudgetTests testManyLearnedWords]' passed (0.083 seconds).
+Test Case '-[TrailEngineTests.BudgetTests testSpeedAndMemory]' started.
+BUDGET (debug build: times are much slower than on a phone)
+BUDGET swipe: 194.5 ms average, 269.3 ms worst over 35 swipes
+BUDGET typing suggestions: 374.0 ms worst
+BUDGET memory: 37.8 MB before loading, 37.8 MB after (phys_footprint of the test process)
+Test Case '-[TrailEngineTests.BudgetTests testSpeedAndMemory]' passed (8.298 seconds).
+	 Executed 3 tests, with 0 failures (0 unexpected) in 18.454 (18.459) seconds
+Test Case '-[TrailEngineTests.CursorParityTests testPadLines]' started.
+Test Case '-[TrailEngineTests.CursorParityTests testPadLines]' passed (0.008 seconds).
+Test Case '-[TrailEngineTests.CursorParityTests testSentenceStarts]' started.
+Test Case '-[TrailEngineTests.CursorParityTests testSentenceStarts]' passed (0.003 seconds).
+	 Executed 2 tests, with 0 failures (0 unexpected) in 0.011 (0.012) seconds
+Test Case '-[TrailEngineTests.DecoderParityTests testDecode]' started.
+Test Case '-[TrailEngineTests.DecoderParityTests testDecode]' passed (42.691 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 42.691 (42.693) seconds
+Test Case '-[TrailEngineTests.DetectParityTests testDetectLang]' started.
+Test Case '-[TrailEngineTests.DetectParityTests testDetectLang]' passed (0.007 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.007 (0.010) seconds
+Test Case '-[TrailEngineTests.EmojiCatalogTests testCategoriesInApplesOrder]' started.
+Test Case '-[TrailEngineTests.EmojiCatalogTests testCategoriesInApplesOrder]' passed (0.023 seconds).
+Test Case '-[TrailEngineTests.EmojiCatalogTests testNormalize]' started.
+Test Case '-[TrailEngineTests.EmojiCatalogTests testNormalize]' passed (0.002 seconds).
+Test Case '-[TrailEngineTests.EmojiCatalogTests testOnlyEmojiThisIPhoneCanDraw]' started.
+Test Case '-[TrailEngineTests.EmojiCatalogTests testOnlyEmojiThisIPhoneCanDraw]' passed (0.071 seconds).
+Test Case '-[TrailEngineTests.EmojiCatalogTests testSearchInEnglishAndSpanish]' started.
+Test Case '-[TrailEngineTests.EmojiCatalogTests testSearchInEnglishAndSpanish]' passed (0.131 seconds).
+Test Case '-[TrailEngineTests.EmojiCatalogTests testSearchIsQuick]' started.
+BUDGET emoji search: 4.0 ms a search
+Test Case '-[TrailEngineTests.EmojiCatalogTests testSearchIsQuick]' passed (0.065 seconds).
+	 Executed 5 tests, with 0 failures (0 unexpected) in 0.291 (0.293) seconds
+Test Case '-[TrailEngineTests.PairsParityTests testLiftsInTheSwipeReaderAndSuggestions]' started.
+Test Case '-[TrailEngineTests.PairsParityTests testLiftsInTheSwipeReaderAndSuggestions]' passed (2.207 seconds).
+Test Case '-[TrailEngineTests.PairsParityTests testLoading]' started.
+Test Case '-[TrailEngineTests.PairsParityTests testLoading]' passed (0.009 seconds).
+Test Case '-[TrailEngineTests.PairsParityTests testOnlyTheMostRecentAreKept]' started.
+Test Case '-[TrailEngineTests.PairsParityTests testOnlyTheMostRecentAreKept]' passed (0.018 seconds).
+Test Case '-[TrailEngineTests.PairsParityTests testOperations]' started.
+Test Case '-[TrailEngineTests.PairsParityTests testOperations]' passed (0.010 seconds).
+Test Case '-[TrailEngineTests.PairsParityTests testWordBefore]' started.
+Test Case '-[TrailEngineTests.PairsParityTests testWordBefore]' passed (0.004 seconds).
+	 Executed 5 tests, with 0 failures (0 unexpected) in 2.248 (2.251) seconds
+Test Case '-[TrailEngineTests.ProfileParityTests testLearnAndFit]' started.
+Test Case '-[TrailEngineTests.ProfileParityTests testLearnAndFit]' passed (6.931 seconds).
+Test Case '-[TrailEngineTests.ProfileParityTests testMalformedSavedProfileStartsOver]' started.
+Test Case '-[TrailEngineTests.ProfileParityTests testMalformedSavedProfileStartsOver]' passed (0.001 seconds).
+	 Executed 2 tests, with 0 failures (0 unexpected) in 6.932 (6.934) seconds
+Test Case '-[TrailEngineTests.ProxyTargetTests testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testAppThatShowsNoTextIsBelievedWhenIOSSaysSomethingChanged]' passed (0.272 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testAppThatShowsNoTextKeepsTheWordInProgress]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testAppThatShowsNoTextKeepsTheWordInProgress]' passed (0.130 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testClearedFieldStartsAfresh]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testClearedFieldStartsAfresh]' passed (0.020 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testClearedFieldWithoutNoticeGetsNoLeadingSpace]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testClearedFieldWithoutNoticeGetsNoLeadingSpace]' passed (0.277 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testCursorMovedWithoutNoticeRightAfterASwipe]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testCursorMovedWithoutNoticeRightAfterASwipe]' passed (0.551 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testDeletesWholeCharactersByUTF16Count]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testDeletesWholeCharactersByUTF16Count]' passed (0.002 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testDeletingASwipeAfterAnUnnoticedChangeDeletesOneCharacter]' passed (0.242 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testEmptyLineInAnAppThatShowsOneParagraph]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testEmptyLineInAnAppThatShowsOneParagraph]' passed (0.216 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testHowTheAppsTextFits]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testHowTheAppsTextFits]' passed (0.001 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testKeyStillWorksAfterAnUnnoticedChange]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testKeyStillWorksAfterAnUnnoticedChange]' passed (0.090 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testMovesTheCursorByWholeCharacters]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testMovesTheCursorByWholeCharacters]' passed (0.001 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testNeverDeletesTextAfterTheCursorMoves]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testNeverDeletesTextAfterTheCursorMoves]' passed (0.044 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testNoAutomaticFixesWhereTheKeyboardDoesNotLearn]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testNoAutomaticFixesWhereTheKeyboardDoesNotLearn]' passed (0.438 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testNothingPickedUpWhileTheTextThereIsUnknown]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testNothingPickedUpWhileTheTextThereIsUnknown]' passed (0.109 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testNoUndoOfferOrRedWordWhereTheAppHidesItsText]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testNoUndoOfferOrRedWordWhereTheAppHidesItsText]' passed (0.412 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testOneLineFieldThatSwallowsReturn]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testOneLineFieldThatSwallowsReturn]' passed (0.101 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testOwnEditsAreNotMistakenForOutsideChanges]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testOwnEditsAreNotMistakenForOutsideChanges]' passed (0.002 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsThroughTheProxyMatchTheModelField]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsThroughTheProxyMatchTheModelField]' passed (19.387 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowly]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowly]' passed (17.561 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyRecentText]' passed (19.286 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowlyWhenTheAppShowsOnlyTheCurrentParagraph]' passed (20.152 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowlyWithSmartQuotes]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsTypedSlowlyWithSmartQuotes]' passed (19.342 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppShowsChangesLate]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppShowsChangesLate]' passed (18.582 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyRecentText]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyRecentText]' passed (22.302 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyTheCurrentParagraph]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppShowsOnlyTheCurrentParagraph]' passed (14.535 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppStaysBehindUntilTheNextKey]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWhenTheAppStaysBehindUntilTheNextKey]' passed (13.622 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWithSmartQuotes]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testSessionsWithSmartQuotes]' passed (14.153 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadGoesPastTheParagraphTheAppShows]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadGoesPastTheParagraphTheAppShows]' passed (0.011 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadIgnoresAnAppThatShowsMovesLate]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadIgnoresAnAppThatShowsMovesLate]' passed (0.010 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadOverWideCharacters]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadOverWideCharacters]' passed (0.028 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadStaysOnTheFirstLine]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadStaysOnTheFirstLine]' passed (0.009 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadStepsIntoAParagraphTheAppHides]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadStepsIntoAParagraphTheAppHides]' passed (0.010 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadStopsAtTheEnds]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testTrackpadStopsAtTheEnds]' passed (0.010 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testUndoingAFixAfterAnUnnoticedChangeTypesNothing]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testUndoingAFixAfterAnUnnoticedChangeTypesNothing]' passed (0.022 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testUndoInTheAppIsNoticed]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testUndoInTheAppIsNoticed]' passed (0.056 seconds).
+Test Case '-[TrailEngineTests.ProxyTargetTests testWordThatVanishedWithoutNoticeIsNotDeletedAgain]' started.
+Test Case '-[TrailEngineTests.ProxyTargetTests testWordThatVanishedWithoutNoticeIsNotDeletedAgain]' passed (0.063 seconds).
+	 Executed 36 tests, with 0 failures (0 unexpected) in 182.050 (182.070) seconds
+Test Case '-[TrailEngineTests.SessionParityTests testSessions]' started.
+Test Case '-[TrailEngineTests.SessionParityTests testSessions]' passed (14.135 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 14.135 (14.136) seconds
+Test Case '-[TrailEngineTests.SuggestParityTests testSuggestions]' started.
+Test Case '-[TrailEngineTests.SuggestParityTests testSuggestions]' passed (2.776 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 2.776 (2.777) seconds
+Test Case '-[TrailEngineTests.TextParityTests testCaps]' started.
+Test Case '-[TrailEngineTests.TextParityTests testCaps]' passed (0.002 seconds).
+Test Case '-[TrailEngineTests.TextParityTests testKeyOfAndLearnable]' started.
+Test Case '-[TrailEngineTests.TextParityTests testKeyOfAndLearnable]' passed (0.002 seconds).
+Test Case '-[TrailEngineTests.TextParityTests testSentenceStart]' started.
+Test Case '-[TrailEngineTests.TextParityTests testSentenceStart]' passed (0.001 seconds).
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Case '-[TrailEngineTests.UserWordsParityTests testOperations]' started.
+Test Case '-[TrailEngineTests.UserWordsParityTests testOperations]' passed (0.009 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.009 (0.010) seconds
+Test Case '-[TrailEngineTests.WordListParityTests testLookups]' started.
+Test Case '-[TrailEngineTests.WordListParityTests testLookups]' passed (0.262 seconds).
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.262 (0.263) seconds
+	 Executed 62 tests, with 0 failures (0 unexpected) in 269.874 (269.919) seconds
+	 Executed 62 tests, with 0 failures (0 unexpected) in 269.874 (269.920) seconds
+Test Case '-[TrailUITests.HarnessUITests testDeleteRemovesAWholeSwipedWord]' started.
+Test Case '-[TrailUITests.HarnessUITests testDeleteRemovesAWholeSwipedWord]' passed (14.046 seconds).
+Test Case '-[TrailUITests.HarnessUITests testDeletingBackIntoAWordPicksItUp]' started.
+Test Case '-[TrailUITests.HarnessUITests testDeletingBackIntoAWordPicksItUp]' passed (14.836 seconds).
+Test Case '-[TrailUITests.HarnessUITests testEmojiPanel]' started.
+HARNESS memory after emoji: 48.2 MB
+Test Case '-[TrailUITests.HarnessUITests testEmojiPanel]' passed (11.354 seconds).
+Test Case '-[TrailUITests.HarnessUITests testEmojiPanelScrollsSidewaysByCategory]' started.
+HARNESS memory after scrolling the emoji: 52.6 MB
+Test Case '-[TrailUITests.HarnessUITests testEmojiPanelScrollsSidewaysByCategory]' passed (15.086 seconds).
+Test Case '-[TrailUITests.HarnessUITests testEmojiSearch]' started.
+HARNESS memory after searching emoji: 53.6 MB
+Test Case '-[TrailUITests.HarnessUITests testEmojiSearch]' passed (41.527 seconds).
+Test Case '-[TrailUITests.HarnessUITests testHoldingASuggestionOffersLessOftenOrNever]' started.
+Test Case '-[TrailUITests.HarnessUITests testHoldingASuggestionOffersLessOftenOrNever]' passed (9.145 seconds).
+Test Case '-[TrailUITests.HarnessUITests testHoldingTheSpaceBarMovesTheCursor]' started.
+Test Case '-[TrailUITests.HarnessUITests testHoldingTheSpaceBarMovesTheCursor]' passed (10.271 seconds).
+Test Case '-[TrailUITests.HarnessUITests testLearnedWordsAreListedAndRemovable]' started.
+Test Case '-[TrailUITests.HarnessUITests testLearnedWordsAreListedAndRemovable]' passed (14.268 seconds).
+Test Case '-[TrailUITests.HarnessUITests testNextWordAfterASpace]' started.
+Test Case '-[TrailUITests.HarnessUITests testNextWordAfterASpace]' passed (13.678 seconds).
+Test Case '-[TrailUITests.HarnessUITests testPickingAnotherSuggestionReplacesTheSwipe]' started.
+Test Case '-[TrailUITests.HarnessUITests testPickingAnotherSuggestionReplacesTheSwipe]' passed (8.537 seconds).
+Test Case '-[TrailUITests.HarnessUITests testRealDragAcrossTheTopRowTypesAWord]' started.
+Test Case '-[TrailUITests.HarnessUITests testRealDragAcrossTheTopRowTypesAWord]' passed (7.805 seconds).
+Test Case '-[TrailUITests.HarnessUITests testSwipedWordsGetSpacesAndCapitals]' started.
+HARNESS memory after swiping: 47.6 MB
+Test Case '-[TrailUITests.HarnessUITests testSwipedWordsGetSpacesAndCapitals]' passed (7.047 seconds).
+Test Case '-[TrailUITests.HarnessUITests testSymbolPagesMatchApplesLayout]' started.
+Test Case '-[TrailUITests.HarnessUITests testSymbolPagesMatchApplesLayout]' passed (88.662 seconds).
+Test Case '-[TrailUITests.HarnessUITests testTappingWordsWithSmartFixes]' started.
+HARNESS memory after typing: 50.5 MB
+Test Case '-[TrailUITests.HarnessUITests testTappingWordsWithSmartFixes]' passed (22.574 seconds).
+Test Case '-[TrailUITests.HarnessUITests testThemes]' started.
+Test Case '-[TrailUITests.HarnessUITests testThemes]' passed (32.752 seconds).
+Test Case '-[TrailUITests.HarnessUITests testTrackpadUpAndDown]' started.
+Test Case '-[TrailUITests.HarnessUITests testTrackpadUpAndDown]' passed (31.571 seconds).
+Test Case '-[TrailUITests.HarnessUITests testTrainingRound]' started.
+HARNESS memory after training: 56.1 MB
+Test Case '-[TrailUITests.HarnessUITests testTrainingRound]' passed (12.092 seconds).
+Test Case '-[TrailUITests.HarnessUITests testUndoingAnAutomaticFix]' started.
+Test Case '-[TrailUITests.HarnessUITests testUndoingAnAutomaticFix]' passed (10.102 seconds).
+Test Case '-[TrailUITests.HarnessUITests testUnknownWordShowsInRedWithFixes]' started.
+Test Case '-[TrailUITests.HarnessUITests testUnknownWordShowsInRedWithFixes]' passed (8.522 seconds).
+Test Case '-[TrailUITests.HarnessUITests testWordPairsAreListedAndForgettable]' started.
+Test Case '-[TrailUITests.HarnessUITests testWordPairsAreListedAndForgettable]' passed (15.906 seconds).
+	 Executed 20 tests, with 0 failures (0 unexpected) in 389.778 (389.790) seconds
+Test Case '-[TrailUITests.RealKeyboardUITests testTheKeyboardExtensionTypes]' started.
+Test Case '-[TrailUITests.RealKeyboardUITests testTheKeyboardExtensionTypes]' skipped (0.101 seconds).
+	 Executed 1 test, with 1 test skipped and 0 failures (0 unexpected) in 0.101 (0.102) seconds
+	 Executed 21 tests, with 1 test skipped and 0 failures (0 unexpected) in 389.879 (389.893) seconds
+	 Executed 21 tests, with 1 test skipped and 0 failures (0 unexpected) in 389.879 (389.894) seconds
+** TEST EXECUTE SUCCEEDED **

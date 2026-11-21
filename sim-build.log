@@ -1,0 +1,22 @@
+    export ALLOW_BUILD_REQUEST_OVERRIDES\=NO
+    export BUILD_ACTIVE_RESOURCES_ONLY\=NO
+    export BUILD_COMPONENTS\=headers\ build
+    export BUILD_DIR\=/Users/runner/work/trail-keyboard/trail-keyboard/build/sim/Build/Products
+    export BUILD_LIBRARY_FOR_DISTRIBUTION\=NO
+    export BUILD_ONLY_KNOWN_LOCALIZATIONS\=NO
+    export BUILD_ROOT\=/Users/runner/work/trail-keyboard/trail-keyboard/build/sim/Build/Products
+    export BUILD_STYLE\=
+    export BUILD_VARIANTS\=normal
+    export CLANG_MODULES_BUILD_SESSION_FILE\=/Users/runner/work/trail-keyboard/trail-keyboard/build/sim/ModuleCache.noindex/Session.modulevalidation
+    export CONFIGURATION_BUILD_DIR\=/Users/runner/work/trail-keyboard/trail-keyboard/build/sim/Build/Products/Debug-iphonesimulator
+    export FUSE_BUILD_PHASES\=YES
+    export FUSE_BUILD_SCRIPT_PHASES\=NO
+    export INFOPLIST_EXPAND_BUILD_SETTINGS\=YES
+    export IS_UNOPTIMIZED_BUILD\=YES
+    export MAC_OS_X_PRODUCT_BUILD_VERSION\=25G332
+    export PLATFORM_PRODUCT_BUILD_VERSION\=23F81a
+    export SDK_PRODUCT_BUILD_VERSION\=23F81a
+    export TARGET_BUILD_DIR\=/Users/runner/work/trail-keyboard/trail-keyboard/build/sim/Build/Products/Debug-iphonesimulator
+    export VERSION_INFO_BUILDER\=runner
+    export XCODE_PRODUCT_BUILD_VERSION\=17F113
+** TEST BUILD SUCCEEDED **

@@ -1,0 +1,51 @@
+{
+  "devicesAndConfigurations" : [
+    {
+      "device" : {
+        "architecture" : "arm64",
+        "deviceId" : "6478AFFB-AE17-412A-A1E5-51BCFFD300B6",
+        "deviceName" : "iPhone 17 Pro",
+        "modelName" : "iPhone 17 Pro",
+        "osBuildNumber" : "23F77",
+        "osVersion" : "26.5",
+        "platform" : "iOS Simulator"
+      },
+      "expectedFailures" : 0,
+      "failedTests" : 0,
+      "passedTests" : 82,
+      "skippedTests" : 1,
+      "testPlanConfiguration" : {
+        "configurationId" : "1",
+        "configurationName" : "Test Scheme Action"
+      }
+    }
+  ],
+  "environmentDescription" : "Trail · Built with macOS 26.7.2",
+  "expectedFailures" : 0,
+  "failedTests" : 0,
+  "finishTime" : 1795241514.236,
+  "passedTests" : 82,
+  "result" : "Passed",
+  "skippedTests" : 1,
+  "startTime" : 1795240816.174,
+  "statistics" : [
+
+  ],
+  "testFailures" : [
+
+  ],
+  "title" : "Test - Trail",
+  "topInsights" : [
+    {
+      "category" : "Longest Test Runs",
+      "impact" : "22% of duration",
+      "text" : "1 longest test run with outlier durations exceeding 73.48s (three standard deviations)"
+    },
+    {
+      "category" : "Longest Test Runs",
+      "impact" : "15% of duration",
+      "text" : "1 longest test run with outlier durations exceeding 29.50s (three standard deviations)"
+    }
+  ],
+  "totalTestCount" : 83
+}

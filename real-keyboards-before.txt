@@ -1,0 +1,2 @@
+2026-11-21 06:12:00.365 defaults[61031:153667] 
+The domain/default pair of (.GlobalPreferences, AppleKeyboards) does not exist
