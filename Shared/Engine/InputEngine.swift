@@ -141,6 +141,28 @@ public final class InputEngine {
     private var typedFirstAutoCap = false
     /// A finished word you went back into, as it was then (not learned again if it stays so).
     private var resumed: String?
+
+    /// The space-bar trackpad while it's in use (see onTrackpadStart): the text it works over (as
+    /// UTF-16, with each character's offset), its lines on screen, the cursor's character position
+    /// and line, and the finger's place (`vx` characters along, `vy` lines down).
+    private struct Pad {
+        var width: Int
+        var units: [UInt16] = []
+        var offsets: [Int] = []
+        var lines: [(Int, Int)] = []
+        var index = 0
+        var line = 0
+        var vx = 0.0
+        var vy = 0.0
+        /// How far along the finger's place can go (the longest line, or the width).
+        var cols = 0
+        /// Pushing past the first or last line steps into the next paragraph (see padSnapshot).
+        var reveal = false
+        var tried = false
+
+        init(width: Int) { self.width = width }
+    }
+    private var pad: Pad?
     public private(set) var gestureWord: String?
     private var gestureBase: String?
     private var gestureLang: String?
@@ -217,6 +239,10 @@ public final class InputEngine {
 
     /// Like onStartInputView for a text field: a fresh start.
     public func start(_ settings: TypingSettings) {
+        if pad != nil {
+            pad = nil
+            ic.setDragging(false)
+        }
         if !typed.isEmpty || gestureWord != nil { ic.finishComposingText() }
         resetComposing()
         deletedGestureWord = nil
@@ -460,6 +486,14 @@ public final class InputEngine {
     static let resumeLimit = 30
     /// How much text around the cursor a move up or down a line looks at.
     static let lineContext = 2000
+    /// The trackpad: how far (in lines) the finger's place goes from the cursor's line before the
+    /// cursor moves to another (so a sideways drag doesn't wander between lines); how far past the
+    /// first or last line it can go (so it comes straight back); and where the app may be keeping
+    /// other paragraphs out of sight, how far it can go and how far you push to step into one.
+    static let padStick = 0.6
+    static let padEdge = 0.4
+    static let padRevealEdge = 1.25
+    static let padReveal = 1.2
 
     /// Back into a word (a delete, or a cursor move that ends at it): the letters right before the
     /// cursor become the word being typed again, so the bar suggests for all of it and typing goes
@@ -559,21 +593,86 @@ public final class InputEngine {
         updateShift()
     }
 
-    /// The cursor up (lines < 0) or down by lines on screen, keeping its place along the line;
-    /// `width` is about how many characters fit on a line of the app's text (see lineMove).
-    public func onCursorLines(_ lines: Int, width: Int) {
+    /// The space bar becomes a trackpad (held, or slid sideways). Like Apple's, it keeps a place
+    /// that follows the finger both ways, in characters along a line and in lines on screen, and
+    /// the cursor goes to the nearest spot: sideways it stays on its line, and going up or down it
+    /// keeps how far along you are even past a shorter line. `width`: about how many characters
+    /// fit on a line of the app's text (a keyboard can't see where the app wraps).
+    public func onTrackpadStart(width: Int) {
         // Like any cursor move, it ends the word in progress first.
         onCursorMove(0)
-        for _ in 0..<abs(lines) {
-            let before = ic.contextBefore(limit: InputEngine.lineContext, beforeComposing: false)
-            let after = ic.contextAfter(limit: InputEngine.lineContext)
-            let d = lineMove(before, after, lines < 0 ? -1 : 1, width: width)
-            if d == 0 { break }
-            // lineMove counts code points, as the JavaScript version does, but on the iPhone an emoji
-            // with a skin tone, a flag or a \r\n is one character: go by the UTF-16 units crossed.
-            ic.moveCursor(utf16: d < 0 ? -unitsBack(Array(before.utf16), -d) : unitsAhead(Array(after.utf16), d))
+        ic.setDragging(true)
+        pad = Pad(width: width)
+        padSnapshot(keepAlong: false)
+    }
+
+    /// The text the trackpad works over (what the app shows around the cursor), and the cursor's
+    /// place in it. Taken again when the app shows other text (onExternalChange).
+    private func padSnapshot(keepAlong: Bool) {
+        guard var p = pad else { return }
+        let before = ic.contextBefore(limit: InputEngine.lineContext, beforeComposing: false)
+        let text = before + ic.contextAfter(limit: InputEngine.lineContext)
+        p.units = Array(text.utf16)
+        p.offsets = charOffsets(p.units)
+        p.index = charCount(Array(before.utf16)[...])
+        p.lines = padLines(text, width: p.width)
+        p.line = padLineOf(p.lines, p.index)
+        let (s, e) = p.lines[p.line]
+        if !keepAlong { p.vx = Double(min(p.index, e) - s) }
+        p.vy = Double(p.line)
+        p.cols = max(8, p.width)
+        for (ls, le) in p.lines { p.cols = max(p.cols, le - ls) }
+        // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
+        // or last line steps into the next paragraph (and then the app shows it).
+        p.reveal = ic.mayHideParagraphs && !p.units.contains(0x0A)
+        p.tried = false
+        pad = p
+    }
+
+    /// The finger moved `cols` characters along and `lines` lines (fractions of either).
+    public func onTrackpadMove(cols: Double, lines: Double) {
+        guard pad != nil else { return }
+        // (This may take the app's text afresh first: see onExternalChange.)
+        ic.beginBatchEdit()
+        defer { ic.endBatchEdit() }
+        guard var p = pad else { return }
+        let n = p.lines.count
+        let edge = p.reveal ? InputEngine.padRevealEdge : InputEngine.padEdge
+        p.vx = max(0, min(Double(p.cols), p.vx + cols))
+        p.vy = max(-edge, min(Double(n - 1) + edge, p.vy + lines))
+        if p.reveal && (p.vy < -InputEngine.padReveal || p.vy > Double(n - 1) + InputEngine.padReveal) {
+            if !p.tried {
+                p.tried = true
+                if p.vy < 0 {
+                    ic.moveCursor(utf16: -(p.offsets[p.index] + 1))
+                    p.index = 0
+                } else {
+                    ic.moveCursor(utf16: p.units.count - p.offsets[p.index] + 1)
+                    p.index = p.offsets.count - 1
+                }
+            }
+        } else {
+            p.tried = false
+            if abs(p.vy - Double(p.line)) > InputEngine.padStick {
+                p.line = max(0, min(n - 1, Int(jsRound(p.vy))))
+            }
+            let (s, e) = p.lines[p.line]
+            let target = s + min(e - s, Int(jsRound(p.vx)))
+            if target != p.index {
+                ic.moveCursor(utf16: p.offsets[target] - p.offsets[p.index])
+                p.index = target
+            }
         }
+        pad = p
         updateShift()
+    }
+
+    /// The finger left the trackpad: back into the word the cursor stopped after, if any.
+    public func onTrackpadEnd() {
+        guard pad != nil else { return }
+        pad = nil
+        ic.setDragging(false)
+        onCursorMoveEnd()
     }
 
     /// The space bar let go after moving the cursor: back into the word there, if any.
@@ -612,6 +711,8 @@ public final class InputEngine {
         } else {
             forgetSpot()
         }
+        // The trackpad goes on over the text the app shows now (keeping how far along you are).
+        if pad != nil { padSnapshot(keepAlong: true) }
         updateShift()
     }
 

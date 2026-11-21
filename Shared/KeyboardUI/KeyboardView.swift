@@ -20,11 +20,13 @@ protocol KeyboardViewDelegate: AnyObject {
     /// The delete key let go after repeating.
     func kbDeleteEnd()
     func kbSwipe(_ xs: [Double], _ ys: [Double])
-    func kbCursorMove(_ steps: Int)
-    /// The space bar as a trackpad: the cursor up (negative) or down by lines.
-    func kbCursorLines(_ lines: Int)
+    /// The space bar became a trackpad (held, or slid sideways).
+    func kbTrackpadStart()
+    /// The finger on the trackpad moved this many characters along and lines down (fractions;
+    /// negative is left or up).
+    func kbTrackpadMove(cols: Double, lines: Double)
     /// The finger left the trackpad.
-    func kbCursorMoveEnd()
+    func kbTrackpadEnd()
     /// Whether the space bar can be a trackpad now (typing, not training or a settings box).
     func kbTrackpadAllowed() -> Bool
     func kbStripTap(_ slot: Int)
@@ -49,9 +51,9 @@ private final class Pointer {
     var consumed = false
     var inStrip = false
     var stripSlot = NONE_SLOT
-    /// Where the trackpad's last step was counted from.
-    var dragAnchor: CGFloat = 0
-    var dragAnchorY: CGFloat = 0
+    /// Where the finger was at the trackpad's last move.
+    var lastX: CGFloat = 0
+    var lastY: CGFloat = 0
     var xs = [Double]()
     var ys = [Double]()
 
@@ -607,10 +609,11 @@ final class KeyboardView: UIView, KeyboardSurface {
         // Only for fingers being followed (one left alone during a swipe or the trackpad doesn't count).
         guard touches.contains(where: { pointers[ObjectIdentifier($0)] != nil }) else { return }
         let wasTrackpad = trackpadPointer != nil
+        trackpadPointer = nil
         for t in touches { pointers.removeValue(forKey: ObjectIdentifier(t)) }
         cancelAll()
         // iOS took the touch mid-move: the cursor stays where it got to.
-        if wasTrackpad { delegate?.kbCursorMoveEnd() }
+        if wasTrackpad { delegate?.kbTrackpadEnd() }
     }
 
     private func down(_ id: ObjectIdentifier, _ x: CGFloat, _ y: CGFloat) {
@@ -689,19 +692,12 @@ final class KeyboardView: UIView, KeyboardSurface {
             return
         }
         if p.trackpad {
-            // The cursor follows the finger: a character per step sideways, a line per step up or down.
-            let stepX = Metrics.trackpadStep * keyUnit
-            let chars = Int(((x - p.dragAnchor) / stepX).rounded(.towardZero))
-            if chars != 0 {
-                p.dragAnchor += CGFloat(chars) * stepX
-                delegate?.kbCursorMove(chars)
-            }
-            let stepY = Metrics.trackpadLine * rowH
-            let lines = Int(((y - p.dragAnchorY) / stepY).rounded(.towardZero))
-            if lines != 0 {
-                p.dragAnchorY += CGFloat(lines) * stepY
-                delegate?.kbCursorLines(lines)
-            }
+            // The cursor follows the finger both ways: how far it moved, in characters and lines.
+            let cols = Double((x - p.lastX) / (Metrics.trackpadStep * keyUnit))
+            let lines = Double((y - p.lastY) / (Metrics.trackpadLine * rowH))
+            p.lastX = x
+            p.lastY = y
+            if cols != 0 || lines != 0 { delegate?.kbTrackpadMove(cols: cols, lines: lines) }
             return
         }
         p.xs.append(Double(x))
@@ -755,7 +751,7 @@ final class KeyboardView: UIView, KeyboardSurface {
                 trackpadPointer = nil
                 renderPress()
             }
-            delegate?.kbCursorMoveEnd()
+            delegate?.kbTrackpadEnd()
             return
         }
         if p.consumed { return }
@@ -787,9 +783,10 @@ final class KeyboardView: UIView, KeyboardSurface {
     /// The space bar becomes a trackpad under this finger, counting from (x, y).
     private func startTrackpad(_ p: Pointer, _ x: CGFloat, _ y: CGFloat) {
         p.trackpad = true
-        p.dragAnchor = x
-        p.dragAnchorY = y
+        p.lastX = x
+        p.lastY = y
         trackpadPointer = p
+        delegate?.kbTrackpadStart()
         if longPressTarget === p { stopLongPress() }
         // A delete key held by another finger stops repeating.
         repeatWork?.cancel()
@@ -858,7 +855,12 @@ final class KeyboardView: UIView, KeyboardSurface {
         pointers.removeAll()
         if swipePointer != nil { trailView.setLive(nil, nil) }
         swipePointer = nil
-        trackpadPointer = nil
+        if trackpadPointer != nil {
+            // The keys changed under a finger on the trackpad (the finger is let go of). Ended
+            // afterwards, as this can be reached from the controller's own calls.
+            trackpadPointer = nil
+            DispatchQueue.main.async { [weak self] in self?.delegate?.kbTrackpadEnd() }
+        }
         pressedKey = nil
         previewKey = nil
         previewText = nil

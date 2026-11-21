@@ -35,6 +35,10 @@ public protocol TextTarget: AnyObject {
     /// Moves the cursor by n UTF-16 units. Callers pass counts that don't split a character; on
     /// the iPhone (ProxyTarget) a character that n would end inside is crossed whole.
     func moveCursor(utf16 n: Int)
+    /// The space bar is being used as a trackpad: only the keyboard is moving the cursor.
+    func setDragging(_ on: Bool)
+    /// Whether the field may be showing the keyboard only the paragraph the cursor is in.
+    var mayHideParagraphs: Bool { get }
     /// Whether the keyboard can see the app's text here (some apps never show it).
     var showsText: Bool { get }
 }
@@ -177,6 +181,11 @@ public final class Editor: TextTarget {
     public func moveCursor(utf16 n: Int) {
         setCursor(sel + n)
     }
+
+    public func setDragging(_ on: Bool) {}
+
+    /// The model field shows all its text.
+    public var mayHideParagraphs: Bool { false }
 
     public func setCursor(_ index: Int) {
         sel = max(0, min(units.count, index))

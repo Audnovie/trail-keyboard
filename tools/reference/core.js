@@ -191,11 +191,6 @@ var Trail = (function () {
     return Math.min(PAIR_MAX_BONUS, PAIR_WEIGHT * Math.log(1 + count));
   }
 
-  /**
-   * The word right before the end of `text` (in pair form), or null when there's none or
-   * something other than spaces comes between (punctuation and new lines end a pair).
-   * @param needSpace the word must be followed by at least one space
-   */
   /** Characters that letters right after belong to an address or code rather than a sentence
    *  ("gmail.com", "@sam", "/path", "http:", "snake_case", "#tag"); digits count too ("5th"). */
   const GLUE = '.@/:_\\#=&~';
@@ -212,6 +207,11 @@ var Trail = (function () {
     return !(c === '.' && at >= 2 && text[at - 2] === '.');
   }
 
+  /**
+   * The word right before the end of `text` (in pair form), or null when there's none or
+   * something other than spaces comes between (punctuation and new lines end a pair).
+   * @param needSpace the word must be followed by at least one space
+   */
   function wordBefore(text, needSpace) {
     let end = text.length;
     while (end > 0 && text[end - 1] === ' ') end--;
@@ -1706,44 +1706,40 @@ var Trail = (function () {
   }
 
   /**
-   * How many characters the cursor moves to go one line up (dir < 0) or down (dir > 0) on screen,
-   * keeping its place along the line. A keyboard can't see where the app wraps a long paragraph,
-   * so a line on screen is taken to be `width` characters (worked out from the screen's width);
-   * line breaks in the text count as they are (a \r\n as one). With no line there in the text
-   * the keyboard has, it moves a whole line's worth anyway (the app stops at the start or end of
-   * the text).
+   * The lines on screen in `text` for the space-bar trackpad, as [start, end] character positions
+   * (end is the last position on the line). A keyboard can't see where an app wraps a paragraph,
+   * so one longer than `width` characters is taken to wrap every `width`; line breaks count as
+   * they are (a \r\n as one).
    */
-  function lineMove(before, after, dir, width) {
+  function padLines(text, width) {
     const w = Math.max(8, Math.floor(width));
-    // Where a line's text ends, short of the \r of a \r\n.
-    const textEnd = (s, from, end) => (end > from && s.charCodeAt(end - 1) === 13 ? end - 1 : end);
-    const paraStart = before.lastIndexOf('\n') + 1;
-    const col = charCount(before.slice(paraStart));
-    // Along the line on screen.
-    const along = col % w;
-    if (dir < 0) {
-      // A later line of a wrapped paragraph: straight up.
-      if (col >= w) return -w;
-      if (paraStart === 0) return -w;
-      // The first line: to the last line of the paragraph above, as far along.
-      const prevEnd = paraStart - 1;
-      const prevStart = prevEnd > 0 ? before.lastIndexOf('\n', prevEnd - 1) + 1 : 0;
-      const prev = before.slice(prevStart, textEnd(before, prevStart, prevEnd));
-      const prevLen = charCount(prev);
-      const lastLine = prevLen > 0 ? Math.floor((prevLen - 1) / w) * w : 0;
-      const target = prevStart + unitsFor(prev, lastLine + Math.min(along, prevLen - lastLine));
-      return -charCount(before.slice(target));
+    const lines = [];
+    let pos = 0;
+    for (const para of text.split('\n')) {
+      const n = charCount(para);
+      const len = para.endsWith('\r') ? n - 1 : n;
+      if (len <= w) {
+        lines.push([pos, pos + len]);
+      } else {
+        for (let s = 0; ; s += w) {
+          if (s + w < len) {
+            lines.push([pos + s, pos + s + w - 1]);
+          } else {
+            lines.push([pos + s, pos + len]);
+            break;
+          }
+        }
+      }
+      pos += n + 1;
     }
-    const br = after.indexOf('\n');
-    const rest = charCount(after.slice(0, br < 0 ? after.length : textEnd(after, 0, br)));
-    // The paragraph goes on to the next line on screen: straight down (or to its end).
-    if (rest >= w - along) return Math.min(w, rest);
-    if (br < 0) return w;
-    // Its last line: to the first line of the paragraph below, as far along.
-    let nextEnd = after.indexOf('\n', br + 1);
-    if (nextEnd < 0) nextEnd = after.length;
-    const target = br + 1 + unitsFor(after.slice(br + 1, textEnd(after, br + 1, nextEnd)), along);
-    return charCount(after.slice(0, target));
+    return lines;
+  }
+
+  /** Which of `lines` (from padLines) the character position `index` is on. */
+  function padLineOf(lines, index) {
+    let i = 0;
+    while (i + 1 < lines.length && lines[i + 1][0] <= index) i++;
+    return i;
   }
 
   // ---- a text field --------------------------------------------------------------------------
@@ -1839,6 +1835,14 @@ var Trail = (function () {
       return capsAtEnd(this.text.slice(0, this.sel));
     }
 
+    /** The space bar is being used as a trackpad (an app's text field takes note: see ProxyTarget). */
+    setDragging(on) {}
+
+    /** Whether the field may be showing the keyboard only the paragraph the cursor is in. */
+    mayHideParagraphs() {
+      return false;
+    }
+
     /** Moves the cursor by whole characters (an emoji counts as one). */
     moveCursor(chars) {
       let s = this.sel;
@@ -1909,8 +1913,17 @@ var Trail = (function () {
   const PAIR_PROMPT = [['Forget', PROMPT_YES], ['Cancel', PROMPT_NO]];
   /** The longest word that going back into it picks up again (as long as a word can be learned). */
   const RESUME_LIMIT = 30;
-  /** How much text around the cursor a move up or down a line looks at. */
+  /** How much text around the cursor the trackpad works over. */
   const LINE_CONTEXT = 2000;
+  /** The trackpad: how far (in lines) the finger's place goes from the cursor's line before the
+   *  cursor moves to another (so a sideways drag doesn't wander between lines)... */
+  const PAD_STICK = 0.6;
+  /** ...how far past the first or last line it can go (so it comes straight back)... */
+  const PAD_EDGE = 0.4;
+  /** ...and where the app may be keeping other paragraphs out of sight, how far past the first or
+   *  last line it can go, and how far you push past it to step into the next paragraph. */
+  const PAD_REVEAL_EDGE = 1.25;
+  const PAD_REVEAL = 1.2;
 
   /** Where nothing is learned, "Less often" (a learned dislike) isn't offered. */
   const NEVER_PROMPT = [['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
@@ -1974,6 +1987,8 @@ var Trail = (function () {
       this.shift = SHIFT_OFF;
       this.autoShifted = false;
       this.lastShiftTap = 0;
+      /** The space-bar trackpad while it's in use (see onTrackpadStart). */
+      this.pad = null;
       this.typed = '';
       this.typedFirstAutoCap = false;
       /** A finished word you went back into, as it was then (not learned again if it stays so). */
@@ -2039,6 +2054,10 @@ var Trail = (function () {
 
     /** Like onStartInputView for a plain text field with sentence capitals. */
     start(settings) {
+      if (this.pad !== null) {
+        this.pad = null;
+        this.ic.setDragging(false);
+      }
       if (this.typed.length > 0 || this.gestureWord !== null) this.ic.finishComposingText();
       this.resetComposing();
       this.deletedGestureWord = null;
@@ -2426,18 +2445,83 @@ var Trail = (function () {
     }
 
     /**
-     * The cursor up (lines < 0) or down by lines on screen, keeping its place along the line;
-     * `width` is about how many characters fit on a line of the app's text (see lineMove).
+     * The space bar becomes a trackpad (held, or slid sideways). Like Apple's, it keeps a place
+     * that follows the finger both ways, in characters along a line and in lines on screen, and
+     * the cursor goes to the nearest spot: sideways it stays on its line, and going up or down it
+     * keeps how far along you are even past a shorter line. `width`: about how many characters
+     * fit on a line of the app's text (a keyboard can't see where the app wraps).
      */
-    onCursorLines(lines, width) {
+    onTrackpadStart(width) {
       // Like any cursor move, it ends the word in progress first.
       this.onCursorMove(0);
-      for (let i = 0; i < Math.abs(lines); i++) {
-        const d = lineMove(this.textBefore(false, LINE_CONTEXT), this.textAfter(LINE_CONTEXT), lines < 0 ? -1 : 1, width);
-        if (d === 0) break;
-        this.ic.moveCursor(d);
+      this.ic.setDragging(true);
+      this.pad = { width: width, text: '', lines: null, index: 0, line: 0, vx: 0, vy: 0, cols: 0, reveal: false, tried: false };
+      this.padSnapshot(false);
+    }
+
+    /** The text the trackpad works over (what the app shows around the cursor), and the cursor's place in it. */
+    padSnapshot(keepAlong) {
+      const p = this.pad;
+      const before = this.textBefore(false, LINE_CONTEXT);
+      p.text = before + this.textAfter(LINE_CONTEXT);
+      p.index = charCount(before);
+      p.lines = padLines(p.text, p.width);
+      p.line = padLineOf(p.lines, p.index);
+      const line = p.lines[p.line];
+      if (!keepAlong) p.vx = Math.min(p.index, line[1]) - line[0];
+      p.vy = p.line;
+      p.cols = Math.max(8, Math.floor(p.width));
+      for (const l of p.lines) p.cols = Math.max(p.cols, l[1] - l[0]);
+      // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
+      // or last line steps into the next paragraph (and then the app shows it).
+      p.reveal = this.ic.mayHideParagraphs() && p.text.indexOf('\n') < 0;
+      p.tried = false;
+    }
+
+    /** The finger moved `cols` characters along and `lines` lines (fractions of either). */
+    onTrackpadMove(cols, lines) {
+      const p = this.pad;
+      if (p === null) return;
+      this.ic.beginBatchEdit();
+      try {
+        const n = p.lines.length;
+        const edge = p.reveal ? PAD_REVEAL_EDGE : PAD_EDGE;
+        p.vx = Math.max(0, Math.min(p.cols, p.vx + cols));
+        p.vy = Math.max(-edge, Math.min(n - 1 + edge, p.vy + lines));
+        if (p.reveal && (p.vy < -PAD_REVEAL || p.vy > n - 1 + PAD_REVEAL)) {
+          if (!p.tried) {
+            p.tried = true;
+            const end = charCount(p.text);
+            if (p.vy < 0) {
+              this.ic.moveCursor(-(p.index + 1));
+              p.index = 0;
+            } else {
+              this.ic.moveCursor(end - p.index + 1);
+              p.index = end;
+            }
+          }
+        } else {
+          p.tried = false;
+          if (Math.abs(p.vy - p.line) > PAD_STICK) p.line = Math.max(0, Math.min(n - 1, Math.round(p.vy)));
+          const line = p.lines[p.line];
+          const target = line[0] + Math.min(line[1] - line[0], Math.round(p.vx));
+          if (target !== p.index) {
+            this.ic.moveCursor(target - p.index);
+            p.index = target;
+          }
+        }
+        this.updateShift();
+      } finally {
+        this.ic.endBatchEdit();
       }
-      this.updateShift();
+    }
+
+    /** The finger left the trackpad: back into the word the cursor stopped after, if any. */
+    onTrackpadEnd() {
+      if (this.pad === null) return;
+      this.pad = null;
+      this.ic.setDragging(false);
+      this.onCursorMoveEnd();
     }
 
     /** The space bar let go after moving the cursor: back into the word there, if any. */
@@ -3358,7 +3442,8 @@ var Trail = (function () {
     wordBefore,
     pairForm,
     MAX_PAIRS,
-    lineMove,
+    padLines,
+    padLineOf,
     capsAtEnd,
   };
 })();

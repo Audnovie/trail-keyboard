@@ -21,6 +21,8 @@ final class FakeDocument: TextDocument {
     var paragraphOnly = false
     /// Show no text at all around the cursor (as a few apps do).
     var hidesText = false
+    /// What the app keeps showing while frozen (an app that shows the cursor's moves late).
+    private var frozenView: (before: String?, after: String?)?
     /// A one-line field: Return does the field's action and adds nothing.
     var singleLine = false
     private var lagged: String?
@@ -30,7 +32,12 @@ final class FakeDocument: TextDocument {
 
     private var realBefore: String { String(decoding: units[0..<cursor], as: UTF16.self) }
 
+    /// The app keeps showing what it shows now, until unfreeze.
+    func freeze() { frozenView = (textBeforeCursor, textAfterCursor) }
+    func unfreeze() { frozenView = nil }
+
     var textBeforeCursor: String? {
+        if let f = frozenView { return f.before }
         if hidesText { return nil }
         var s = lagging ? (lagged ?? realBefore) : realBefore
         if paragraphOnly, let nl = s.lastIndex(of: "\n") { s = String(s[s.index(after: nl)...]) }
@@ -39,6 +46,7 @@ final class FakeDocument: TextDocument {
     }
 
     var textAfterCursor: String? {
+        if let f = frozenView { return f.after }
         if hidesText { return nil }
         var s = String(decoding: units[cursor...], as: UTF16.self)
         if paragraphOnly, let nl = s.firstIndex(of: "\n") { s = String(s[..<nl]) }
@@ -146,7 +154,9 @@ final class ProxyTargetTests: XCTestCase {
                 case "strip": engine.onStripTap(e["slot"].int)
                 case "stripLong": engine.onStripLongPress(e["slot"].int)
                 case "move": engine.onCursorMove(e["chars"].int)
-                case "lines": engine.onCursorLines(e["n"].int, width: e["w"].int)
+                case "padStart": engine.onTrackpadStart(width: e["w"].int)
+                case "pad": engine.onTrackpadMove(cols: e["x"].double, lines: e["y"].double)
+                case "padEnd": engine.onTrackpadEnd()
                 case "moveEnd": engine.onCursorMoveEnd()
                 case "place":
                     doc.place(e["index"].int)
@@ -498,11 +508,58 @@ final class ProxyTargetTests: XCTestCase {
         XCTAssertEqual(r.view.strip[1], "here", "the word is picked back up")
         type(r.engine, "s")
         XCTAssertEqual(r.doc.text, "First line heres\nSecond")
-        // Up a line from the paragraph below.
-        r.engine.onCursorMove(1)
+    }
+
+    /// The trackpad over a field that shows only the paragraph the cursor is in: pushing on past
+    /// the first line steps into the paragraph above, and once the app shows it, the cursor goes
+    /// as far along it as you were.
+    func testTrackpadStepsIntoAParagraphTheAppHides() {
+        let r = rig("First line here\nSecond")
+        r.doc.paragraphOnly = true
+        r.target.sync(newField: true)
+        XCTAssertTrue(r.target.mayHideParagraphs)
+        r.engine.onTrackpadStart(width: 40)
+        r.engine.onTrackpadMove(cols: 0, lines: -2)
+        XCTAssertEqual(r.doc.cursor, 15, "past the line break, to the end of the paragraph above")
         r.tick()
-        r.engine.onCursorLines(-1, width: 40)
-        XCTAssertEqual(r.doc.cursor, 0, "from the start of the line below to the start of the line above")
+        r.engine.onTrackpadMove(cols: 0, lines: 0.1)
+        XCTAssertEqual(r.doc.cursor, 6, "as far along as before: First |line here")
+        r.engine.onTrackpadEnd()
+        type(r.engine, "x")
+        XCTAssertEqual(r.doc.text, "First xline here\nSecond")
+    }
+
+    /// In a field that has shown its line breaks, pushing past the first line just stays on it.
+    func testTrackpadStaysOnTheFirstLine() {
+        let r = rig("one\ntwo words")
+        XCTAssertFalse(r.target.mayHideParagraphs)
+        r.engine.onTrackpadStart(width: 40)
+        r.engine.onTrackpadMove(cols: 0, lines: -3)
+        XCTAssertEqual(r.doc.cursor, 3, "One|: as far along as the line goes")
+        r.engine.onTrackpadMove(cols: 0, lines: 1.2)
+        XCTAssertEqual(r.doc.cursor, 13, "back down, as far along as before")
+        r.engine.onTrackpadEnd()
+    }
+
+    /// While the trackpad is in use, an app that shows the cursor's moves late (a fast drag) isn't
+    /// taken over the keyboard's own picture, so the cursor ends where the finger says.
+    func testTrackpadIgnoresAnAppThatShowsMovesLate() {
+        let r = rig("one\ntwo words\nthree")
+        r.engine.onTrackpadStart(width: 40)
+        r.doc.freeze()
+        // (Longer than an app is allowed to lag at other times, ProxyTarget.lagWindow.)
+        r.engine.onTrackpadMove(cols: 0, lines: -1)
+        r.tick(0.8)
+        XCTAssertEqual(r.doc.cursor, 9, "two w|ords")
+        r.engine.onTrackpadMove(cols: -2, lines: 0)
+        r.tick(0.8)
+        r.engine.onTrackpadMove(cols: 0, lines: -1)
+        r.tick(0.8)
+        XCTAssertEqual(r.doc.cursor, 3, "one|")
+        r.doc.unfreeze()
+        r.engine.onTrackpadEnd()
+        type(r.engine, "s")
+        XCTAssertEqual(r.doc.text, "ones\ntwo words\nthree")
     }
 
     /// Moved past the text the app had shown, and let go before the app shows the text there: the
@@ -527,15 +584,19 @@ final class ProxyTargetTests: XCTestCase {
 
     /// Up a line where one character is several code points (an emoji with a skin tone, a flag, a
     /// \r\n): the cursor lands where the model field puts it, not partway.
-    func testLineMovesOverWideCharacters() {
+    func testTrackpadOverWideCharacters() {
         for (text, want) in [("Hi 👍🏽👍🏽\nok", "Hi"), ("first\r\nsecond", "first"), ("Go 🇨🇦🇨🇦 team\nyes", "Go ")] {
             let r = rig(text)
-            r.engine.onCursorLines(-1, width: 40)
+            r.engine.onTrackpadStart(width: 40)
+            r.engine.onTrackpadMove(cols: 0, lines: -1)
+            r.engine.onTrackpadEnd()
             XCTAssertEqual(r.doc.cursor, want.utf16.count, text.debugDescription)
             let e = Editor(text: text)
             let engine = InputEngine(target: e, view: nil, lex: TestData.lexicon(["en"], users: TestData.fresh), now: { 0 })
             engine.start(TypingSettings())
-            engine.onCursorLines(-1, width: 40)
+            engine.onTrackpadStart(width: 40)
+            engine.onTrackpadMove(cols: 0, lines: -1)
+            engine.onTrackpadEnd()
             XCTAssertEqual(e.sel, want.utf16.count, "model field: \(text.debugDescription)")
         }
     }

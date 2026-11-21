@@ -1,15 +1,19 @@
-// The cursor up and down lines (the space bar as a trackpad) and the sentence-start rule, against
-// the JavaScript engine.
+// The lines on screen the space-bar trackpad works over, and the sentence-start rule, against the
+// JavaScript engine.
 
 import XCTest
 @testable import TrailEngine
 
 final class CursorParityTests: XCTestCase {
-    func testLineMoves() {
-        for c in TestData.fixture("cursor.json")["lines"].array {
-            let before = c[0].string!, after = c[1].string!, dir = c[2].int, width = c[3].int
-            XCTAssertEqual(lineMove(before, after, dir, width: width), c[4].int,
-                           "lineMove(\(before.debugDescription), \(after.debugDescription), \(dir), width: \(width))")
+    func testPadLines() {
+        for c in TestData.fixture("cursor.json")["pad"].array {
+            let text = c[0].string!, width = c[1].int
+            let lines = padLines(text, width: width)
+            XCTAssertEqual(lines.map { [$0.0, $0.1] }, c[2].array.map { [$0[0].int, $0[1].int] },
+                           "padLines(\(text.debugDescription), width: \(width))")
+            for a in c[3].array {
+                XCTAssertEqual(padLineOf(lines, a[0].int), a[1].int, "padLineOf(\(text.debugDescription), \(a[0].int))")
+            }
         }
     }
 

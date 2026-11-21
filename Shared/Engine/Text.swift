@@ -194,71 +194,60 @@ func gluedAt(_ u: [UInt16], _ at: Int) -> Bool {
     return !(c == 0x2E && at >= 2 && u[at - 2] == 0x2E)
 }
 
-/// The UTF-16 length of the first `chars` characters of u (surrogate pairs as one), with a unit for
-/// each character asked for past its end.
-func unitsAhead(_ u: [UInt16], _ chars: Int) -> Int {
+/// The UTF-16 offset of each character position in u (surrogate pairs as one character), ending
+/// with u's length.
+func charOffsets(_ u: [UInt16]) -> [Int] {
+    var out = [0]
     var i = 0
-    var n = 0
-    while n < chars && i < u.count {
+    while i < u.count {
         i += 1
         if i < u.count && isLowUnit(u[i]) && isHighUnit(u[i - 1]) { i += 1 }
-        n += 1
+        out.append(i)
     }
-    return i + (chars - n)
+    return out
 }
 
-/// The same for the last `chars` characters of u, with a unit for each asked for before its start.
-func unitsBack(_ u: [UInt16], _ chars: Int) -> Int {
-    var i = u.count
-    var n = 0
-    while n < chars && i > 0 {
-        i -= 1
-        if i > 0 && isLowUnit(u[i]) && isHighUnit(u[i - 1]) { i -= 1 }
-        n += 1
-    }
-    return (u.count - i) + (chars - n)
-}
-
-/// How many characters the cursor moves to go one line up (dir < 0) or down (dir > 0) on screen,
-/// keeping its place along the line. A keyboard can't see where the app wraps a long paragraph,
-/// so a line on screen is taken to be `width` characters (worked out from the screen's width);
-/// line breaks in the text count as they are (a \r\n as one). With no line there in the text
-/// the keyboard has, it moves a whole line's worth anyway (the app stops at the start or end of
-/// the text).
-public func lineMove(_ before: String, _ after: String, _ dir: Int, width: Int) -> Int {
+/// The lines on screen in `text` for the space-bar trackpad, as (start, end) character positions
+/// (end is the last position on the line). A keyboard can't see where an app wraps a paragraph,
+/// so one longer than `width` characters is taken to wrap every `width`; line breaks count as
+/// they are (a \r\n as one). Same as core.js.
+public func padLines(_ text: String, width: Int) -> [(Int, Int)] {
     let w = max(8, width)
-    let b = Array(before.utf16)
-    let a = Array(after.utf16)
-    let nl: UInt16 = 0x0A
-    let cr: UInt16 = 0x0D
-    /// Where a line's text ends, short of the \r of a \r\n.
-    func textEnd(_ s: [UInt16], _ from: Int, _ end: Int) -> Int { end > from && s[end - 1] == cr ? end - 1 : end }
-    let paraStart = (b.lastIndex(of: nl) ?? -1) + 1
-    let col = charCount(b[paraStart...])
-    // Along the line on screen.
-    let along = col % w
-    if dir < 0 {
-        // A later line of a wrapped paragraph: straight up.
-        if col >= w { return -w }
-        if paraStart == 0 { return -w }
-        // The first line: to the last line of the paragraph above, as far along.
-        let prevEnd = paraStart - 1
-        let prevStart = prevEnd > 0 ? (b[..<prevEnd].lastIndex(of: nl) ?? -1) + 1 : 0
-        let prev = b[prevStart..<textEnd(b, prevStart, prevEnd)]
-        let prevLen = charCount(prev)
-        let lastLine = prevLen > 0 ? (prevLen - 1) / w * w : 0
-        let target = prevStart + unitsFor(prev, lastLine + min(along, prevLen - lastLine))
-        return -charCount(b[target...])
+    let u = Array(text.utf16)
+    var lines = [(Int, Int)]()
+    var pos = 0
+    var paraStart = 0
+    while true {
+        let lineBreak = u[paraStart...].firstIndex(of: 0x0A)
+        let paraEnd = lineBreak ?? u.count
+        let n = charCount(u[paraStart..<paraEnd])
+        let len = paraEnd > paraStart && u[paraEnd - 1] == 0x0D ? n - 1 : n
+        if len <= w {
+            lines.append((pos, pos + len))
+        } else {
+            var s = 0
+            while true {
+                if s + w < len {
+                    lines.append((pos + s, pos + s + w - 1))
+                } else {
+                    lines.append((pos + s, pos + len))
+                    break
+                }
+                s += w
+            }
+        }
+        pos += n + 1
+        guard let br = lineBreak else { break }
+        paraStart = br + 1
     }
-    let lineBreak = a.firstIndex(of: nl)
-    let rest = charCount(a[..<(lineBreak.map { textEnd(a, 0, $0) } ?? a.count)])
-    // The paragraph goes on to the next line on screen: straight down (or to its end).
-    if rest >= w - along { return min(w, rest) }
-    guard let br = lineBreak else { return w }
-    // Its last line: to the first line of the paragraph below, as far along.
-    let nextEnd = a[(br + 1)...].firstIndex(of: nl) ?? a.count
-    let target = br + 1 + unitsFor(a[(br + 1)..<textEnd(a, br + 1, nextEnd)], along)
-    return charCount(a[..<target])
+    return lines
+}
+
+/// Which of `lines` (from padLines) the character position `index` is on.
+public func padLineOf(_ lines: [(Int, Int)], _ index: Int) -> Int {
+    var i = 0
+    while i + 1 < lines.count && lines[i + 1].0 <= index { i += 1 }
+    return i
 }
 
 /// Android's sentence-start rule (TextUtils.getCapsMode), also skipping Spanish ¿ and ¡, on

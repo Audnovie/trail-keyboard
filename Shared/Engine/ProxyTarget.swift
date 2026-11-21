@@ -72,6 +72,17 @@ public final class ProxyTarget: TextTarget {
     /// The cursor was moved past the text the app had shown (see moveCursor): the keyboard's
     /// picture is unsure until the app shows the text there.
     private var blind = false
+    /// The space bar is a trackpad: only the keyboard moves the cursor, so the app's view (which
+    /// can lag well behind a fast drag) isn't taken over the keyboard's own picture meanwhile,
+    /// unless the cursor went past what the app had shown. Moves only, so nothing can be deleted
+    /// on a wrong picture; the next key checks as usual.
+    private var dragging = false
+    /// ...for up to this long after its last move (in case the end of the drag is missed).
+    private var dragUntil = 0.0
+    static let dragTrust = 1.0
+    /// The app has shown a line break in this field (so it isn't one that shows only the
+    /// paragraph the cursor is in).
+    private var paragraphsShown = false
 
     /// - Parameter now: seconds, steadily increasing.
     public init(proxy: @escaping () -> TextDocument, now: @escaping () -> Double = { ProcessInfo.processInfo.systemUptime }) {
@@ -87,8 +98,12 @@ public final class ProxyTarget: TextTarget {
         recent = []
         composing = nil
         blind = false
-        if newField { seenText = false }
+        if newField {
+            seenText = false
+            paragraphsShown = false
+        }
         if !model.isEmpty || !after.isEmpty { seenText = true }
+        if model.contains("\n") || after.contains("\n") { paragraphsShown = true }
     }
 
     // ---- comparing the app's text with the keyboard's picture of it ----
@@ -165,6 +180,7 @@ public final class ProxyTarget: TextTarget {
     /// - Parameter notified: iOS said the text or selection changed (rather than the keyboard
     ///   looking again by itself).
     public func checkExternal(notified: Bool = true) -> Bool {
+        if trusting { return false }
         switch fit() {
         case .same:
             return false
@@ -215,7 +231,7 @@ public final class ProxyTarget: TextTarget {
     /// keyboard's picture; if the app changed it, the typing logic starts afresh first.
     public func beginBatchEdit() {
         batchDepth += 1
-        if batchDepth == 1 && fit() == .changed {
+        if batchDepth == 1 && !trusting && fit() == .changed {
             sync()
             onExternalChange?()
         }
@@ -357,6 +373,7 @@ public final class ProxyTarget: TextTarget {
     public func moveCursor(_ chars: Int) {
         edit {
             noteState()
+            if dragging { dragUntil = now() + ProxyTarget.dragTrust }
             var offset = 0
             if chars < 0 {
                 var moved = ""
@@ -394,11 +411,22 @@ public final class ProxyTarget: TextTarget {
         }
     }
 
+    public func setDragging(_ on: Bool) {
+        dragging = on
+        dragUntil = on ? now() + ProxyTarget.dragTrust : 0
+    }
+
+    /// The keyboard's own picture is taken over the app's view (see dragging).
+    private var trusting: Bool { dragging && !blind && now() < dragUntil }
+
+    public var mayHideParagraphs: Bool { !paragraphsShown }
+
     /// Moves the cursor by n UTF-16 units, crossing whole characters (one that n ends inside is
     /// crossed too), and on past the text the app has shown as moveCursor does.
     public func moveCursor(utf16 n: Int) {
         edit {
             noteState()
+            if dragging { dragUntil = now() + ProxyTarget.dragTrust }
             var offset = 0
             if n < 0 {
                 var moved = ""

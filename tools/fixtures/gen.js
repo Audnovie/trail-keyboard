@@ -523,7 +523,11 @@ function expand(script) {
     else if (op === 'delEnd') ev.push({ t: 'delEnd' });
     else if (op === 'wait') ev.push({ t: 'wait', ms: Number(arg) });
     else if (op === 'move') ev.push({ t: 'move', chars: Number(arg) });
-    else if (op === 'lines') ev.push({ t: 'lines', n: Number(arg), w: LINE_WIDTH });
+    else if (op === 'padStart') ev.push({ t: 'padStart', w: LINE_WIDTH });
+    else if (op === 'pad') {
+      const [x, y] = arg.split(',').map(Number);
+      ev.push({ t: 'pad', x, y });
+    } else if (op === 'padEnd') ev.push({ t: 'padEnd' });
     else if (op === 'moveEnd') ev.push({ t: 'moveEnd' });
     else if (op === 'place') ev.push({ t: 'place', index: Number(arg) });
     else if (op === 'emoji') ev.push({ t: 'emoji', text: arg });
@@ -586,7 +590,9 @@ const SESSIONS = [
   // (A pause after the cursor moves, as a tap takes: otherwise the next space would be a double space.)
   // Nov 20, 2026: back into a word, and the space bar as a trackpad.
   { name: 'back into a word', settings: { autocorrect: true }, script: ['type:then it will start ', 'del', 'del', 'del', 'del', 'type:ar ', 'type:so teh ', 'del', 'del', 'type:n ', 'type:the 5th', 'del', 'type:th ', 'type:done. ', 'del', 'del', 'type:x ', 'place:3', 'del', 'type:q', 'move:100', 'type: ok', 'del', 'del', 'del', 'del', 'swipe:hello', 'del'] },
-  { name: 'trackpad lines', script: ['type:one\ntwo words\nthree', 'lines:-1', 'moveEnd', 'type:x', 'lines:-1', 'lines:-1', 'lines:2', 'move:-1', 'moveEnd', 'lines:-5', 'move:3', 'moveEnd', 'type:s', 'move:100', 'moveEnd', 'type:y'] },
+  // The trackpad (pad:characters,lines the finger moved): sideways it stays on its line; up and down
+  // it keeps how far along you are past a shorter line; a little drift doesn't change lines.
+  { name: 'trackpad', script: ['type:one\ntwo words\nthree', 'padStart', 'pad:0,-1', 'pad:3,0', 'pad:0,-1', 'pad:0,1', 'pad:5,0', 'pad:0,0.5', 'pad:0,0.2', 'pad:0,3', 'pad:-20,0', 'pad:0,-0.7', 'pad:0,-0.5', 'padEnd', 'type:x', 'padStart', 'pad:0,-1', 'padEnd', 'type:s', 'padStart', 'pad:0,1', 'pad:20,0', 'padEnd', 'type:y'] },
   // Words already there that the cursor stops after (or deletes back into) are left as they were
   // unless changed: no fixes for a name, an unknown word or an address. Letters right after a dot,
   // @ or / aren't fixed or capitalized either.
@@ -601,8 +607,8 @@ const SESSIONS = [
   // After an ellipsis it's still a sentence; after an address it isn't (no fixes, no word pairs).
   { name: 'ellipsis and addresses', settings: { autocorrect: true },
     script: ['type:well...i guess so, mail sam@example.com and ', 'type:bob@gmail.com '] },
-  // A long paragraph wraps on screen: up and down go a line's worth (LINE_WIDTH) along it.
-  { name: 'trackpad wrapped lines', script: ['type:the quick brown fox jumps over the lazy dog and keeps on running', 'lines:-1', 'moveEnd', 'type:x', 'lines:-2', 'moveEnd', 'lines:1', 'moveEnd', 'type:y', 'lines:9', 'moveEnd', 'type:z'] },
+  // A long paragraph is taken to wrap every LINE_WIDTH characters.
+  { name: 'trackpad wrapped', script: ['type:the quick brown fox jumps over the lazy dog and keeps on running', 'padStart', 'pad:0,-1', 'pad:2,0', 'pad:0,-2', 'padEnd', 'type:s', 'padStart', 'pad:0,0.65', 'pad:-3,0', 'pad:0,1', 'padEnd', 'type:z'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
 ];
 
@@ -638,7 +644,9 @@ const SESSIONS = [
       else if (e.t === 'strip') ime.onStripTap(e.slot);
       else if (e.t === 'stripLong') ime.onStripLongPress(e.slot);
       else if (e.t === 'move') ime.onCursorMove(e.chars);
-      else if (e.t === 'lines') ime.onCursorLines(e.n, e.w);
+      else if (e.t === 'padStart') ime.onTrackpadStart(e.w);
+      else if (e.t === 'pad') ime.onTrackpadMove(e.x, e.y);
+      else if (e.t === 'padEnd') ime.onTrackpadEnd();
       else if (e.t === 'moveEnd') ime.onCursorMoveEnd();
       else if (e.t === 'place') ime.onCursorPlaced(e.index);
       else if (e.t === 'emoji') ime.onEmoji(e.text);
@@ -753,24 +761,25 @@ const SESSIONS = [
   };
 }
 
-// ---- the cursor up and down lines (the space bar as a trackpad) ------------------------------------
+// ---- the lines on screen the trackpad works over -----------------------------------------------------
 
 {
   const texts = [
-    ['one\ntwo words\nthr', 'ee'], ['one\ntwo', ' words\nthree'], ['', 'abc\ndef'], ['abc', ''], ['ab\n', '\ncd'],
-    ['\nxy', ''], ['long line here\nab', 'c\nshort\n'], ['😀😀\n😀a😀b', 'c'], ['x\n😀😀😀', '😀\nyy😀z'], ['a\n\n\nbc', 'd'],
-    ['first\r\nsecond', ''], ['no breaks at all', ' here'],
-    // Wrapped on screen (at 8 or 12 characters a line).
-    ['the quick brown fox jum', 'ps over the lazy dog'], ['the quick', ' brown'], ['abcdefghijklmnopqrst\nab', 'c'],
-    ['abcdefghijkl\nabcdefgh', 'ijklmnopqrstu\nxyz'], ['ab', 'cdefghijklmnop\nq'], ['😀😀😀😀😀😀😀😀😀😀😀😀😀', '😀😀😀😀😀'],
-    ['x\n', ''], ['', ''], ['abc\r\nde', 'f\r\nghijk\r\n'], ['abcdefghi\r\nab', 'c\r\n'],
+    'one\ntwo words\nthree', '', 'abc', 'x\n', '\n\n', 'a\n\n\nbc', 'first\r\nsecond', 'abc\r\n',
+    'the quick brown fox jumps over the lazy dog', 'abcdefghijklmnopqrstuvwx', 'abcdefghijkl\nabcdefghijklmnopqrstu\nxyz',
+    '😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀', '😀😀\n😀a😀b\nc', 'It’s not doing the cursor thing that I want\nLet me show you how I want it\nI’ll use this video as an example',
   ];
-  const cases = [];
-  for (const width of [8, 12, 40]) {
-    for (const [b, a] of texts) for (const dir of [-1, 1]) cases.push([b, a, dir, width, T.lineMove(b, a, dir, width)]);
+  const pad = [];
+  for (const width of [8, 12, 48]) {
+    for (const t of texts) {
+      const lines = T.padLines(t, width);
+      // Where a few positions land: [index, line].
+      const at = [0, 1, 5, 12, 13, 40, 44].filter((i) => i <= t.length).map((i) => [i, T.padLineOf(lines, i)]);
+      pad.push([t, width, lines, at]);
+    }
   }
   const caps = ['', 'Hello. ', 'Hi', 'Hi ', 'one\n', '¿', 'Sr. ', 'e.g. ', '(', 'end!" ', 'a ¿'].map((t) => [t, T.capsAtEnd(t)]);
-  files['cursor.json'] = { lines: cases, caps };
+  files['cursor.json'] = { pad, caps };
 }
 
 // ---- write -------------------------------------------------------------------------------------------

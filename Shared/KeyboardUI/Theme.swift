@@ -183,12 +183,15 @@ enum Metrics {
     static let spaceDragStart: CGFloat = 0.5
     /// The space bar as a trackpad: finger travel per character (in key widths)...
     static let trackpadStep: CGFloat = 0.22
-    /// ...and per line up or down (in rows).
-    static let trackpadLine: CGFloat = 0.7
+    /// ...and per line up or down (in rows): about a line of 17-point text, so the cursor keeps
+    /// up with the finger as on Apple's keyboard.
+    static let trackpadLine: CGFloat = 0.42
     /// For guessing how many characters fit on a line of an app's text (see charsPerLine): the
-    /// screen's width less this, at this many points a character (17-point text).
-    static let textMargins: CGFloat = 72
-    static let textCharWidth: CGFloat = 8.2
+    /// screen's width less this, at this many points a character. 48 on a 402-point iPhone: the
+    /// Claude app fits about 49 there, Messages about 37. A guess a little short of an app's
+    /// lines splits some of them in two, so it errs long.
+    static let textMargins: CGFloat = 40
+    static let textCharWidth: CGFloat = 7.5
     /// The training header above the suggestion bar.
     static let trainingHeaderH: CGFloat = 98
     /// Extra height while a settings panel is open.

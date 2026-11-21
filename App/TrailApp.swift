@@ -79,8 +79,8 @@ struct HomeView: View {
                     }
 
                     Card(title: "Moving the cursor", status: nil) {
-                        Text("Hold the space bar (or drag it sideways) and it works as a trackpad: the cursor follows your finger, sideways a character at a time and up or down a line at a time. Let go right after a word and its suggestions come up. Deleting back into a word does the same.")
-                        Text("A keyboard can’t see where an app wraps a long paragraph, so up and down move about a line’s worth of characters for your screen’s width; nudge sideways to land exactly.")
+                        Text("Hold the space bar (or drag it sideways) and it works as a trackpad, like Apple’s: the cursor follows your finger in any direction. Up and down keep how far along the line you are, and sideways stays on the line. Let go right after a word and its suggestions come up. Deleting back into a word does the same.")
+                        Text("A keyboard can’t see where an app wraps a long paragraph, so Trail counts a line as about the characters that fit across your screen; in apps with narrower text, such as Messages, nudge sideways to land. iOS doesn’t let other keyboards show Apple’s floating cursor, so the app’s own cursor moves instead.")
                             .font(.footnote).foregroundColor(.secondary)
                     }
 

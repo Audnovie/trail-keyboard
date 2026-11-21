@@ -251,25 +251,28 @@ final class HarnessUITests: XCTestCase {
         XCTAssertTrue((1...4).contains(at), "the cursor should have moved about 9 characters left: \(caret(app))")
     }
 
-    /// Up and down: across line breaks, keeping the place along the line, and a line's worth along
-    /// a long paragraph (a keyboard can't see where the app wraps it, so it goes by the screen's width).
+    /// Up and down as on Apple's keyboard: the cursor keeps how far along it is (or goes to the end
+    /// of a shorter line), and sideways stays on its line. A long paragraph goes by the screen's
+    /// width (a keyboard can't see where the app wraps it).
     func testTrackpadUpAndDown() {
-        let app = launch("type:one;tap:enter;type:two words|trackpad:0,-1|trackpad:2,0|trackpad:0,1")
+        let app = launch("type:one;tap:enter;type:two words|trackpad:0,-1|trackpad:0,1|trackpad:-2,0|trackpad:-5,0")
         run(app)
         XCTAssertEqual(caret(app), "One\nTwo words|")
         run(app)
-        XCTAssertEqual(caret(app), "One|\nTwo words")
+        XCTAssertEqual(caret(app), "One|\nTwo words", "up to the end of a shorter line")
+        run(app)
+        XCTAssertEqual(caret(app), "One\nTwo| words", "down, as far along as it was")
         run(app)
         XCTAssertEqual(caret(app), "One\nT|wo words")
         run(app)
-        XCTAssertEqual(caret(app), "One\nTwo words|", "down from the last line goes to the end")
+        XCTAssertEqual(caret(app), "One\n|Two words", "left stops at the start of the line")
 
         let long = launch("type:the quick brown fox jumps over the lazy dog and runs off|trackpad:0,-1")
         run(long)
         XCTAssertEqual(caretIndex(long), 56)
         run(long)
         let at = caretIndex(long)
-        XCTAssertTrue((10...22).contains(at), "up a line's worth (about 40 characters): \(caret(long))")
+        XCTAssertTrue((4...12).contains(at), "up a line's worth (about 48 characters): \(caret(long))")
         shot("trackpad-up")
     }
 

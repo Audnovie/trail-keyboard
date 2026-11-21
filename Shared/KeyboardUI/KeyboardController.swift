@@ -443,24 +443,24 @@ final class KeyboardController: KeyboardViewDelegate {
         afterAction()
     }
 
-    func kbCursorMove(_ steps: Int) {
+    func kbTrackpadStart() {
         view.clearMenu()
         guard mode == .type, input == nil else { return }
-        engine.onCursorMove(steps)
+        engine.onTrackpadStart(width: charsPerLine())
         afterAction()
     }
 
-    func kbCursorLines(_ lines: Int) {
-        view.clearMenu()
+    func kbTrackpadMove(cols: Double, lines: Double) {
         guard mode == .type, input == nil else { return }
-        engine.onCursorLines(lines, width: charsPerLine())
+        engine.onTrackpadMove(cols: cols, lines: lines)
         afterAction()
     }
 
-    func kbCursorMoveEnd() {
-        guard mode == .type, input == nil else { return }
-        engine.onCursorMoveEnd()
-        afterAction()
+    func kbTrackpadEnd() {
+        // Always (it does nothing if the trackpad wasn't started): the app's text is checked as
+        // usual again from here.
+        engine.onTrackpadEnd()
+        if mode == .type && input == nil { afterAction() }
     }
 
     func kbTrackpadAllowed() -> Bool { mode == .type && input == nil }

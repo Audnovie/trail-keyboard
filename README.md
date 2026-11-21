@@ -122,11 +122,14 @@ what it keeps.
   button stays at the left); tap one to type it. Hold one there to *Forget* that pair.
   Settings → *Word pairs* switches it off.
 - **Hold a key** for accents (á é í ó ú ü ñ) and the top row's numbers; hold **.** for ? ! ¿ ¡ …
-- **Hold the space bar** (or drag it sideways) and it's a trackpad: the keys go blank and the
-  cursor follows your finger, a character at a time sideways and a line at a time up and down.
-  A keyboard can't see where an app wraps a long paragraph, so up and down move about a line's
-  worth of characters for the screen's width (line breaks you typed count exactly); nudge
-  sideways to land exactly. Let go after a word and its suggestions come up.
+- **Hold the space bar** (or drag it sideways) and it's a trackpad, as on Apple's keyboard: the
+  keys go blank and the cursor follows your finger in any direction. Up and down keep how far
+  along the line you are (a shorter line puts it at its end, and the next longer one takes it
+  back out), and sideways stays on the line. A keyboard can't see where an app wraps a long
+  paragraph, so Trail counts a line as about the characters that fit across the screen (line
+  breaks you typed count exactly); in apps with narrower text, such as Messages, nudge sideways
+  to land. iOS doesn't let other keyboards show Apple's floating cursor, so the app's own cursor
+  moves instead. Let go after a word and its suggestions come up.
 - **Language:** with Spanish on, tap 🌐 in the empty bar to pick the language (Auto picks it from
   the words before the cursor).
 - **Themes:** Settings → *Theme*. *System* follows light and dark mode like Apple's keyboard and
