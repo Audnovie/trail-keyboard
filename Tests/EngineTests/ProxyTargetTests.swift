@@ -519,7 +519,9 @@ final class ProxyTargetTests: XCTestCase {
         r.target.sync(newField: true)
         XCTAssertTrue(r.target.mayHideParagraphs)
         r.engine.onTrackpadStart(width: 40)
-        r.engine.onTrackpadMove(cols: 0, lines: -2)
+        r.engine.onTrackpadMove(cols: 0, lines: -1.9)
+        XCTAssertEqual(r.doc.cursor, 22, "not yet: a push of two lines past it")
+        r.engine.onTrackpadMove(cols: 0, lines: -0.2)
         XCTAssertEqual(r.doc.cursor, 15, "past the line break, to the end of the paragraph above")
         r.tick()
         r.engine.onTrackpadMove(cols: 0, lines: 0.1)
@@ -527,6 +529,74 @@ final class ProxyTargetTests: XCTestCase {
         r.engine.onTrackpadEnd()
         type(r.engine, "x")
         XCTAssertEqual(r.doc.text, "First xline here\nSecond")
+    }
+
+    /// A thumb drifting up while dragging along a line with no line breaks doesn't send the cursor
+    /// anywhere. A clear push past the line tries once for a paragraph out of sight, and when the
+    /// app shows there's nothing there, the cursor comes back to where the finger is.
+    func testTrackpadDriftOnALineWithNoBreaks() {
+        let r = rig()
+        r.doc.appSets("See you at the cafe at noon tomorrow", cursor: 10)
+        r.target.sync(newField: true)
+        XCTAssertTrue(r.target.mayHideParagraphs, "no line break seen yet")
+        r.engine.onTrackpadStart(width: 48)
+        r.engine.onTrackpadMove(cols: 0, lines: -1.3)
+        XCTAssertEqual(r.doc.cursor, 10, "drifting up by more than a line doesn't move it")
+        r.engine.onTrackpadMove(cols: 1, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 11)
+        r.doc.freeze()
+        r.engine.onTrackpadMove(cols: 0, lines: -1)
+        XCTAssertEqual(r.doc.cursor, 0, "a push past two lines tries for text above")
+        r.engine.onTrackpadMove(cols: 0, lines: 0.05)
+        r.engine.onTrackpadMove(cols: 0, lines: -0.05)
+        XCTAssertEqual(r.doc.cursor, 0, "it waits until the app shows where that went")
+        r.doc.unfreeze()
+        r.tick(0.1)
+        r.engine.onTrackpadMove(cols: 0, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 11, "nothing above: back where the finger is")
+        r.engine.onTrackpadMove(cols: 0, lines: -3)
+        XCTAssertEqual(r.doc.cursor, 11, "and it doesn't try again this drag")
+        r.engine.onTrackpadEnd()
+        type(r.engine, "x")
+        XCTAssertEqual(r.doc.text, "See you at xthe cafe at noon tomorrow")
+    }
+
+    /// Dragging along a line over characters made of several (👩‍💻, a flag) keeps the keyboard in
+    /// step with the iPhone, which moves the cursor over them whole.
+    func testTrackpadAlongALineOverEmoji() {
+        let r = rig("dev 👩‍💻 and 🇨🇦 ok\nnext")
+        r.engine.onTrackpadStart(width: 48)
+        r.engine.onTrackpadMove(cols: 0, lines: -1)
+        XCTAssertEqual(r.doc.cursor, 4, "dev |👩‍💻")
+        r.engine.onTrackpadMove(cols: 1, lines: 0)
+        r.engine.onTrackpadMove(cols: 1, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 4, "not over 👩‍💻 until the place is past all of it")
+        r.engine.onTrackpadMove(cols: 1, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 9, "dev 👩‍💻| and")
+        r.engine.onTrackpadMove(cols: 6, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 14, "and |🇨🇦")
+        r.engine.onTrackpadMove(cols: 1, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 18, "🇨🇦| ok")
+        r.engine.onTrackpadMove(cols: 20, lines: 0)
+        XCTAssertEqual(r.doc.cursor, 21, "ok|")
+        r.engine.onTrackpadEnd()
+        type(r.engine, "s")
+        XCTAssertEqual(r.doc.text, "dev 👩‍💻 and 🇨🇦 oks\nnext")
+    }
+
+    /// What the app changes during a drag (it isn't looked at then) is taken in when the finger
+    /// lifts, before the word there is picked up.
+    func testTrackpadEndTakesInWhatTheAppChanged() {
+        let r = rig("one two\nthree")
+        r.engine.onTrackpadStart(width: 48)
+        r.engine.onTrackpadMove(cols: 0, lines: -1)
+        XCTAssertEqual(r.doc.cursor, 5, "one t|wo")
+        r.doc.appSets("one twenty\nthree", cursor: 10)
+        r.engine.onTrackpadMove(cols: -1, lines: 0)
+        r.engine.onTrackpadEnd()
+        XCTAssertEqual(r.view.strip[1], "twenty", "the word now before the cursor is picked up")
+        type(r.engine, "s")
+        XCTAssertEqual(r.doc.text, "one twentys\nthree")
     }
 
     /// In a field that has shown its line breaks, pushing past the first line just stays on it.

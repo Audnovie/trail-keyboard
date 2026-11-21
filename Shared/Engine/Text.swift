@@ -250,6 +250,20 @@ public func padLineOf(_ lines: [(Int, Int)], _ index: Int) -> Int {
     return i
 }
 
+/// For each character position in `text` (0 to its length), whether a cursor can stop there: not
+/// inside what shows as one character, such as ❤️, 👍🏽, a flag or 👩‍💻, which are made of several
+/// (an iPhone moves the cursor over them whole).
+public func graphemeEdges(_ text: String) -> [Bool] {
+    var edges = [Bool](repeating: false, count: text.unicodeScalars.count + 1)
+    edges[0] = true
+    var pos = 0
+    for ch in text {
+        pos += ch.unicodeScalars.count
+        edges[pos] = true
+    }
+    return edges
+}
+
 /// Android's sentence-start rule (TextUtils.getCapsMode), also skipping Spanish ¿ and ¡, on
 /// the text before the cursor. Works on UTF-16 units like the JavaScript version.
 public func capsAtEnd(of before: String) -> Bool {

@@ -17,6 +17,16 @@ final class CursorParityTests: XCTestCase {
         }
     }
 
+    /// Where a cursor can stop: never inside ❤️, 👍🏽, a flag, 👩‍💻 or \r\n (Swift's characters
+    /// against the JavaScript engine's Intl.Segmenter).
+    func testGraphemeEdges() {
+        for c in TestData.fixture("cursor.json")["edges"].array {
+            let text = c[0].string!
+            let edges = graphemeEdges(text)
+            XCTAssertEqual(edges.indices.filter { edges[$0] }, c[1].array.map { $0.int }, "graphemeEdges(\(text.debugDescription))")
+        }
+    }
+
     func testSentenceStarts() {
         for c in TestData.fixture("cursor.json")["caps"].array {
             XCTAssertEqual(capsAtEnd(of: c[0].string!), c[1].bool, "capsAtEnd(\(c[0].string!.debugDescription))")

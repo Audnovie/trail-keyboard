@@ -609,6 +609,14 @@ const SESSIONS = [
     script: ['type:well...i guess so, mail sam@example.com and ', 'type:bob@gmail.com '] },
   // A long paragraph is taken to wrap every LINE_WIDTH characters.
   { name: 'trackpad wrapped', script: ['type:the quick brown fox jumps over the lazy dog and keeps on running', 'padStart', 'pad:0,-1', 'pad:2,0', 'pad:0,-2', 'padEnd', 'type:s', 'padStart', 'pad:0,0.65', 'pad:-3,0', 'pad:0,1', 'padEnd', 'type:z'] },
+  // Holding the space bar without moving changes nothing: the word stays in progress, and the
+  // space after it still fixes it with the offer to undo.
+  { name: 'trackpad held still', settings: { autocorrect: true }, script: ['type:so teh', 'padStart', 'pad:0.2,0.1', 'pad:-0.2,0', 'padEnd', 'type: ', 'del'] },
+  // Sideways never goes past the line's end (so coming back answers at once), and a place kept
+  // from a longer line is let go of after half a character left.
+  { name: 'trackpad past the line end', script: ['type:one two\nthree four', 'padStart', 'pad:0,-1', 'pad:-0.3,0', 'pad:0.2,0', 'pad:0,1', 'pad:0,-1', 'pad:-1,0', 'pad:5,0', 'pad:-1,0', 'pad:0,1', 'padEnd', 'type:x'] },
+  // ❤️ is two characters that show as one: the cursor goes over it whole, as an iPhone moves it.
+  { name: 'trackpad over an emoji', text: 'I ❤️ it\nok then', script: ['padStart', 'pad:0,-1', 'pad:-4,0', 'pad:-1,0', 'pad:1,0', 'pad:1,0', 'pad:20,0', 'padEnd', 'type:s'] },
   { name: 'cursor moved under a prompt', script: ['type:so blorf ', 'hold:1', 'place:3', 'type:⇧', 'wait:900', 'type: ', 'del', 'hold:2'] },
 ];
 
@@ -779,7 +787,12 @@ const SESSIONS = [
     }
   }
   const caps = ['', 'Hello. ', 'Hi', 'Hi ', 'one\n', '¿', 'Sr. ', 'e.g. ', '(', 'end!" ', 'a ¿'].map((t) => [t, T.capsAtEnd(t)]);
-  files['cursor.json'] = { pad, caps };
+  // Where a cursor can stop (not inside ❤️, 👍🏽, a flag, 👩‍💻 or \r\n).
+  const edges = ['', 'abc', 'Thanks ❤️ see you\nok then', 'ok 🇨🇦🇨🇦 go', 'I 👍🏽 it', 'dev 👩‍💻 ok', 'a\r\nb', '😀😀', 'e\u0301 and \u00e9'].map((t) => {
+    const e = T.graphemeEdges(t);
+    return [t, e.map((b, i) => (b ? i : -1)).filter((i) => i >= 0)];
+  });
+  files['cursor.json'] = { pad, caps, edges };
 }
 
 // ---- write -------------------------------------------------------------------------------------------

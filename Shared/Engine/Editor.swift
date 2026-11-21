@@ -39,6 +39,9 @@ public protocol TextTarget: AnyObject {
     func setDragging(_ on: Bool)
     /// Whether the field may be showing the keyboard only the paragraph the cursor is in.
     var mayHideParagraphs: Bool { get }
+    /// Whether the keyboard's picture of the text is a guess just now (ProxyTarget, after a move
+    /// past the text the app showed, until the app shows where it went).
+    var unsure: Bool { get }
     /// Whether the keyboard can see the app's text here (some apps never show it).
     var showsText: Bool { get }
 }
@@ -186,6 +189,8 @@ public final class Editor: TextTarget {
 
     /// The model field shows all its text.
     public var mayHideParagraphs: Bool { false }
+
+    public var unsure: Bool { false }
 
     public func setCursor(_ index: Int) {
         sel = max(0, min(units.count, index))

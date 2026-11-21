@@ -421,6 +421,8 @@ public final class ProxyTarget: TextTarget {
 
     public var mayHideParagraphs: Bool { !paragraphsShown }
 
+    public var unsure: Bool { blind }
+
     /// Moves the cursor by n UTF-16 units, crossing whole characters (one that n ends inside is
     /// crossed too), and on past the text the app has shown as moveCursor does.
     public func moveCursor(utf16 n: Int) {

@@ -1742,6 +1742,27 @@ var Trail = (function () {
     return i;
   }
 
+  const GRAPHEMES = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
+  /**
+   * For each character position in `text` (0 to its length), whether a cursor can stop there: not
+   * inside what shows as one character, such as ❤️, 👍🏽, a flag or 👩‍💻, which are made of several
+   * (an iPhone moves the cursor over them whole).
+   */
+  function graphemeEdges(text) {
+    const at = new Array(text.length + 1);
+    let n = 0;
+    for (let i = 0; i < text.length; i++) {
+      at[i] = n;
+      if (!(isHigh(text.charCodeAt(i)) && i + 1 < text.length && isLow(text.charCodeAt(i + 1)))) n++;
+    }
+    at[text.length] = n;
+    const edges = new Array(n + 1).fill(false);
+    for (const seg of GRAPHEMES.segment(text)) edges[at[seg.index]] = true;
+    edges[n] = true;
+    return edges;
+  }
+
   // ---- a text field --------------------------------------------------------------------------
 
   /** The few things a keyboard does to a text field, modelled on Android's InputConnection. */
@@ -1843,6 +1864,11 @@ var Trail = (function () {
       return false;
     }
 
+    /** Whether the keyboard's picture of the text is a guess just now (see ProxyTarget). */
+    unsure() {
+      return false;
+    }
+
     /** Moves the cursor by whole characters (an emoji counts as one). */
     moveCursor(chars) {
       let s = this.sel;
@@ -1921,9 +1947,13 @@ var Trail = (function () {
   /** ...how far past the first or last line it can go (so it comes straight back)... */
   const PAD_EDGE = 0.4;
   /** ...and where the app may be keeping other paragraphs out of sight, how far past the first or
-   *  last line it can go, and how far you push past it to step into the next paragraph. */
-  const PAD_REVEAL_EDGE = 1.25;
-  const PAD_REVEAL = 1.2;
+   *  last line it can go, and how far you push past it to step into the next paragraph (well past
+   *  where a thumb drifts on a drag along the line). */
+  const PAD_REVEAL_EDGE = 2.2;
+  const PAD_REVEAL = 2.0;
+  /** A place remembered from a longer line (past the end of the cursor's line) is let go of once
+   *  the finger has gone this many characters left. */
+  const PAD_BACK = 0.5;
 
   /** Where nothing is learned, "Less often" (a learned dislike) isn't offered. */
   const NEVER_PROMPT = [['Never', PROMPT_YES], ['Cancel', PROMPT_NO]];
@@ -2426,6 +2456,14 @@ var Trail = (function () {
     }
 
     onCursorMove(chars) {
+      this.leaveSpot();
+      this.ic.moveCursor(chars);
+      this.updateShift();
+    }
+
+    /** The cursor is about to go somewhere new: the word in progress is committed, and nothing tied
+     *  to the old spot carries over (a space there and a space where it goes aren't a double space). */
+    leaveSpot() {
       this.dismissPrompt();
       this.ic.beginBatchEdit();
       try {
@@ -2433,15 +2471,11 @@ var Trail = (function () {
       } finally {
         this.ic.endBatchEdit();
       }
-      // The cursor is going somewhere new: forget anything tied to the old spot (a space
-      // there and a space here aren't a double space).
       this.afterGesture = false;
       this.spaceAfterPick = false;
       this.revertFrom = null;
       this.revertTo = null;
       this.lastSpaceTime = -1e9;
-      this.ic.moveCursor(chars);
-      this.updateShift();
     }
 
     /**
@@ -2449,79 +2483,165 @@ var Trail = (function () {
      * that follows the finger both ways, in characters along a line and in lines on screen, and
      * the cursor goes to the nearest spot: sideways it stays on its line, and going up or down it
      * keeps how far along you are even past a shorter line. `width`: about how many characters
-     * fit on a line of the app's text (a keyboard can't see where the app wraps).
+     * fit on a line of the app's text (a keyboard can't see where the app wraps). Nothing changes
+     * until the cursor first moves, so a hold that doesn't move leaves the word in progress (or an
+     * offer to undo a fix) as it was.
      */
     onTrackpadStart(width) {
-      // Like any cursor move, it ends the word in progress first.
-      this.onCursorMove(0);
-      this.ic.setDragging(true);
-      this.pad = { width: width, text: '', lines: null, index: 0, line: 0, vx: 0, vy: 0, cols: 0, reveal: false, tried: false };
-      this.padSnapshot(false);
+      this.lastSpaceTime = -1e9;
+      this.pad = {
+        width: width, text: '', lines: null, edges: null, index: 0, line: 0, vx: 0, vy: 0, back: 0,
+        moved: false, reveal: false, up: true, down: true, asked: 0,
+      };
+      this.padSnapshot('fresh');
     }
 
-    /** The text the trackpad works over (what the app shows around the cursor), and the cursor's place in it. */
-    padSnapshot(keepAlong) {
+    /**
+     * The text the trackpad works over (what the app shows around the cursor), and the cursor's
+     * place in it. `keep`: 'fresh' puts the finger's place at the cursor; 'along' keeps how far
+     * along it was (the app shows other text now); 'place' keeps it both ways (the word in
+     * progress was just committed, which can change the text before the cursor a little).
+     */
+    padSnapshot(keep) {
       const p = this.pad;
       const before = this.textBefore(false, LINE_CONTEXT);
       p.text = before + this.textAfter(LINE_CONTEXT);
       p.index = charCount(before);
       p.lines = padLines(p.text, p.width);
+      p.edges = graphemeEdges(p.text);
+      p.edges[p.index] = true;
       p.line = padLineOf(p.lines, p.index);
       const line = p.lines[p.line];
-      if (!keepAlong) p.vx = Math.min(p.index, line[1]) - line[0];
-      p.vy = p.line;
-      p.cols = Math.max(8, Math.floor(p.width));
-      for (const l of p.lines) p.cols = Math.max(p.cols, l[1] - l[0]);
+      if (keep === 'fresh') p.vx = Math.min(p.index, line[1]) - line[0];
+      if (keep !== 'place') {
+        p.vy = p.line;
+        p.up = true;
+        p.down = true;
+      }
+      p.back = 0;
       // Some apps show a keyboard only the paragraph the cursor is in: pushing on past the first
       // or last line steps into the next paragraph (and then the app shows it).
       p.reveal = this.ic.mayHideParagraphs() && p.text.indexOf('\n') < 0;
-      p.tried = false;
+      p.asked = 0;
     }
 
     /** The finger moved `cols` characters along and `lines` lines (fractions of either). */
     onTrackpadMove(cols, lines) {
       const p = this.pad;
       if (p === null) return;
+      // (Until the cursor first moves, the app's text is checked here as at any key.)
       this.ic.beginBatchEdit();
       try {
+        const sure = !this.ic.unsure();
+        if (p.asked !== 0 && sure) {
+          // The app answered a step past the first or last line without showing anything more
+          // (had it, padSnapshot would have taken that in): that's the start or end of the text.
+          if (p.asked < 0) p.up = false;
+          else p.down = false;
+          p.asked = 0;
+        }
+        if (cols !== 0) this.padAlong(p, cols);
         const n = p.lines.length;
-        const edge = p.reveal ? PAD_REVEAL_EDGE : PAD_EDGE;
-        p.vx = Math.max(0, Math.min(p.cols, p.vx + cols));
-        p.vy = Math.max(-edge, Math.min(n - 1 + edge, p.vy + lines));
-        if (p.reveal && (p.vy < -PAD_REVEAL || p.vy > n - 1 + PAD_REVEAL)) {
-          if (!p.tried) {
-            p.tried = true;
+        const up = p.reveal && p.up;
+        const down = p.reveal && p.down;
+        p.vy = Math.max(-(up ? PAD_REVEAL_EDGE : PAD_EDGE), Math.min(n - 1 + (down ? PAD_REVEAL_EDGE : PAD_EDGE), p.vy + lines));
+        // Still waiting for the app to show where a step past the edge went.
+        if (p.asked !== 0) return;
+        const side = !sure ? 0 : up && p.vy < -PAD_REVEAL ? -1 : down && p.vy > n - 1 + PAD_REVEAL ? 1 : 0;
+        if (side !== 0) {
+          if (!p.moved) this.padFirstMove();
+          p.asked = side;
+          if (side < 0) {
+            this.ic.moveCursor(-(p.index + 1));
+            p.index = 0;
+          } else {
             const end = charCount(p.text);
-            if (p.vy < 0) {
-              this.ic.moveCursor(-(p.index + 1));
-              p.index = 0;
-            } else {
-              this.ic.moveCursor(end - p.index + 1);
-              p.index = end;
-            }
+            this.ic.moveCursor(end - p.index + 1);
+            p.index = end;
           }
         } else {
-          p.tried = false;
-          if (Math.abs(p.vy - p.line) > PAD_STICK) p.line = Math.max(0, Math.min(n - 1, Math.round(p.vy)));
-          const line = p.lines[p.line];
-          const target = line[0] + Math.min(line[1] - line[0], Math.round(p.vx));
+          let target = this.padTarget(p);
+          if (target !== p.index && !p.moved) {
+            this.padFirstMove();
+            target = this.padTarget(p);
+          }
           if (target !== p.index) {
             this.ic.moveCursor(target - p.index);
             p.index = target;
           }
         }
-        this.updateShift();
       } finally {
         this.ic.endBatchEdit();
       }
+      this.updateShift();
+    }
+
+    /**
+     * Sideways: along the cursor's line, never past its ends, so coming back answers at once. A
+     * place remembered from a longer line (past this line's end) is kept through small wobbles
+     * and let go of once the finger has clearly gone left.
+     */
+    padAlong(p, cols) {
+      const line = p.lines[p.line];
+      const len = line[1] - line[0];
+      if (p.vx > len) {
+        p.back = Math.min(0, p.back + cols);
+        if (p.back > -PAD_BACK) return;
+        cols = p.back;
+        p.back = 0;
+        p.vx = len;
+      }
+      p.vx = Math.max(0, Math.min(len, p.vx + cols));
+    }
+
+    /** Where the cursor goes for the finger's place: the nearest spot on the place's line, never
+     *  inside a character made of several (one not passed yet is crossed whole once it is). */
+    padTarget(p) {
+      if (Math.abs(p.vy - p.line) > PAD_STICK) {
+        const l = Math.max(0, Math.min(p.lines.length - 1, Math.round(p.vy)));
+        if (l !== p.line) {
+          p.line = l;
+          p.back = 0;
+        }
+      }
+      const line = p.lines[p.line];
+      let t = line[0] + Math.min(line[1] - line[0], Math.round(p.vx));
+      if (t > p.index) {
+        while (!p.edges[t]) t--;
+      } else {
+        while (!p.edges[t]) t++;
+      }
+      return t;
+    }
+
+    /**
+     * The cursor is about to move for the first time this drag: the word in progress is committed
+     * (on the app's text as checked when this move began), and from here the field takes the
+     * keyboard's own picture of where the cursor is over an app that shows the moves late (see
+     * ProxyTarget). The text is taken again, as the commit can change it a little.
+     */
+    padFirstMove() {
+      this.pad.moved = true;
+      this.leaveSpot();
+      this.ic.setDragging(true);
+      this.padSnapshot('place');
     }
 
     /** The finger left the trackpad: back into the word the cursor stopped after, if any. */
     onTrackpadEnd() {
       if (this.pad === null) return;
+      const moved = this.pad.moved;
       this.pad = null;
       this.ic.setDragging(false);
-      this.onCursorMoveEnd();
+      // A hold that never moved the cursor changes nothing.
+      if (!moved) return;
+      // The app's text is checked first (it isn't while dragging).
+      this.ic.beginBatchEdit();
+      try {
+        this.onCursorMoveEnd();
+      } finally {
+        this.ic.endBatchEdit();
+      }
     }
 
     /** The space bar let go after moving the cursor: back into the word there, if any. */
@@ -3444,6 +3564,7 @@ var Trail = (function () {
     MAX_PAIRS,
     padLines,
     padLineOf,
+    graphemeEdges,
     capsAtEnd,
   };
 })();
