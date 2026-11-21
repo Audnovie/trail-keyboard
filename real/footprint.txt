@@ -1,0 +1,611 @@
+Sat Nov 21 22:57:45 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:57:52 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:57:57 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:02 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:07 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:22 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:35 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:39 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:48 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:58:59 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:59:35 UTC 2026 no TrailKeyboard process
+Sat Nov 21 22:59:46 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 251664 410538576 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 49 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+9824 KB        0 B      1072 KB          5    MALLOC_SMALL
+7648 KB        0 B          0 B          6    CoreAnimation
+6936 KB      32 KB          0 B        940    __DATA
+5975 KB      16 KB          0 B        970    __DATA_CONST
+1606 KB        0 B          0 B          1    page table
+ 914 KB        0 B          0 B       1008    unused dyld shared cache area
+ 720 KB        0 B          0 B         48    stack
+ 208 KB        0 B          0 B          8    MALLOC metadata
+ 176 KB        0 B          0 B          1    MALLOC_TINY
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          3    CG raster data
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      13 MB          0 B         14    mapped file
+    0 B    6176 KB          0 B        984    __TEXT
+    0 B    1552 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  49 MB      21 MB      1072 KB       4161    TOTAL
+
+Auxiliary data:
+    phys_footprint: 49 MB
+    phys_footprint_peak: 50 MB
+
+Sat Nov 21 23:00:12 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 266128 410515584 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 48 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  13 MB        0 B      3680 KB          6    MALLOC_SMALL
+7002 KB      32 KB          0 B        940    __DATA
+6348 KB      16 KB          0 B        970    __DATA_CONST
+2368 KB        0 B          0 B         49    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 939 KB        0 B          0 B       1008    unused dyld shared cache area
+ 304 KB        0 B          0 B         12    stack
+ 224 KB        0 B          0 B          8    MALLOC metadata
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B          0 B          1    MALLOC_TINY
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      18 MB          0 B         15    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1552 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  48 MB      25 MB      3680 KB       4175    TOTAL
+
+Auxiliary data:
+    phys_footprint: 48 MB
+    phys_footprint_peak: 55 MB
+
+Sat Nov 21 23:00:18 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 280288 410526064 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 57 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  18 MB        0 B      3136 KB          7    MALLOC_SMALL
+  16 MB        0 B          0 B         71    dyld private memory
+7488 KB        0 B      2400 KB        204    CoreAnimation
+7018 KB      32 KB          0 B        940    __DATA
+6348 KB      16 KB          0 B        970    __DATA_CONST
+1590 KB        0 B          0 B          1    page table
+ 939 KB        0 B          0 B       1008    unused dyld shared cache area
+ 224 KB        0 B        32 KB         10    stack
+ 224 KB        0 B        16 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B          0 B          1    MALLOC_TINY
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      20 MB          0 B         15    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1552 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  57 MB      28 MB      5584 KB       4329    TOTAL
+
+Auxiliary data:
+    phys_footprint: 57 MB
+    phys_footprint_peak: 58 MB
+
+Sat Nov 21 23:00:26 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 288208 410530752 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 62 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  22 MB        0 B      3744 KB          9    MALLOC_SMALL
+  16 MB        0 B          0 B         71    dyld private memory
+7536 KB        0 B      2304 KB        203    CoreAnimation
+7018 KB      32 KB          0 B        940    __DATA
+6348 KB      16 KB          0 B        970    __DATA_CONST
+1606 KB        0 B          0 B          1    page table
+ 939 KB        0 B          0 B       1008    unused dyld shared cache area
+ 256 KB        0 B        16 KB          8    MALLOC metadata
+ 224 KB        0 B        64 KB         10    stack
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B          0 B          1    MALLOC_TINY
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      24 MB          0 B         15    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1552 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  62 MB      31 MB      6128 KB       4330    TOTAL
+
+Auxiliary data:
+    phys_footprint: 62 MB
+    phys_footprint_peak: 63 MB
+
+Sat Nov 21 23:00:33 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 284944 410522528 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 54 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B      4608 KB          7    MALLOC_SMALL
+  16 MB        0 B          0 B         71    dyld private memory
+7018 KB      32 KB          0 B        940    __DATA
+6348 KB      16 KB          0 B        970    __DATA_CONST
+5392 KB        0 B      4464 KB        202    CoreAnimation
+1590 KB        0 B          0 B          1    page table
+ 939 KB        0 B          0 B       1008    unused dyld shared cache area
+ 256 KB        0 B        32 KB         10    stack
+ 240 KB        0 B        32 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B          0 B          1    MALLOC_TINY
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      26 MB          0 B         15    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1552 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  54 MB      34 MB      9136 KB       4327    TOTAL
+
+Auxiliary data:
+    phys_footprint: 54 MB
+    phys_footprint_peak: 63 MB
+
+Sat Nov 21 23:00:41 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 278704 410519568 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 56 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  19 MB        0 B       400 KB          7    MALLOC_SMALL
+  16 MB        0 B          0 B         71    dyld private memory
+7018 KB      32 KB          0 B        940    __DATA
+6348 KB      16 KB          0 B        970    __DATA_CONST
+5200 KB        0 B      2256 KB        152    CoreAnimation
+1590 KB        0 B          0 B          1    page table
+ 939 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B          0 B          8    MALLOC metadata
+ 208 KB        0 B        32 KB          8    stack
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B          0 B          1    MALLOC_TINY
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      26 MB          0 B         15    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1552 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  56 MB      34 MB      2688 KB       4275    TOTAL
+
+Auxiliary data:
+    phys_footprint: 56 MB
+    phys_footprint_peak: 63 MB
+
+Sat Nov 21 23:00:46 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 288880 410527328 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 56 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      6000 KB          7    MALLOC_SMALL
+8768 KB        0 B      4160 KB         94    CoreAnimation
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+1606 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B        64 KB         12    stack
+ 240 KB        0 B          0 B          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      27 MB          0 B         16    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1536 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  56 MB      34 MB        10 MB       4222    TOTAL
+
+Auxiliary data:
+    phys_footprint: 56 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:00:52 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 295248 410534768 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 55 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  17 MB        0 B      6320 KB          8    MALLOC_SMALL
+  16 MB        0 B          0 B         71    dyld private memory
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4976 KB        0 B        11 MB        239    CoreAnimation
+1622 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 256 KB        0 B        32 KB         12    stack
+ 256 KB        0 B          0 B          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      28 MB          0 B         16    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1536 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  55 MB      35 MB        17 MB       4368    TOTAL
+
+Auxiliary data:
+    phys_footprint: 55 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:00:58 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 290016 410528800 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 55 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  17 MB        0 B      6320 KB          8    MALLOC_SMALL
+  16 MB        0 B          0 B         71    dyld private memory
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4976 KB        0 B      6272 KB        221    CoreAnimation
+1622 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 256 KB        0 B          0 B          8    MALLOC metadata
+ 208 KB        0 B        32 KB         10    stack
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      28 MB          0 B         16    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1536 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  55 MB      35 MB        12 MB       4348    TOTAL
+
+Auxiliary data:
+    phys_footprint: 55 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:01:04 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 283808 410521936 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 52 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      7440 KB          7    MALLOC_SMALL
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4096 KB        0 B      4624 KB        102    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B        16 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B        64 KB         10    stack
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      28 MB          0 B         16    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1536 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  52 MB      35 MB        12 MB       4228    TOTAL
+
+Auxiliary data:
+    phys_footprint: 52 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:01:10 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 282272 410521936 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 52 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      7440 KB          7    MALLOC_SMALL
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4096 KB        0 B      4624 KB        102    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B        16 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 176 KB        0 B        64 KB         10    stack
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      28 MB          0 B         16    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1536 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  52 MB      35 MB        12 MB       4228    TOTAL
+
+Auxiliary data:
+    phys_footprint: 52 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:01:15 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 280336 410521376 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 51 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      7376 KB          7    MALLOC_SMALL
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4096 KB        0 B      4624 KB        102    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B        16 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 160 KB        0 B        32 KB          8    stack
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      28 MB          0 B         16    mapped file
+    0 B    6304 KB          0 B        984    __TEXT
+    0 B    1536 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  51 MB      35 MB        12 MB       4226    TOTAL
+
+Auxiliary data:
+    phys_footprint: 52 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:01:21 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 272416 410521376 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 52 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      5872 KB          7    MALLOC_SMALL
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4096 KB        0 B      4624 KB        102    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B        16 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 160 KB        0 B          0 B          8    stack
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      26 MB          0 B         16    mapped file
+    0 B    6176 KB          0 B        984    __TEXT
+    0 B    1088 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  52 MB      33 MB        10 MB       4226    TOTAL
+
+Auxiliary data:
+    phys_footprint: 52 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:01:26 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 258416 410521376 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 52 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      3904 KB          7    MALLOC_SMALL
+7047 KB      32 KB          0 B        940    __DATA
+6378 KB      16 KB          0 B        970    __DATA_CONST
+4096 KB        0 B      2784 KB        102    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 961 KB        0 B          0 B       1008    unused dyld shared cache area
+ 240 KB        0 B        16 KB          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 160 KB        0 B          0 B          8    stack
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      25 MB          0 B         16    mapped file
+    0 B    6032 KB          0 B        984    __TEXT
+    0 B     848 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  52 MB      31 MB      6704 KB       4226    TOTAL
+
+Auxiliary data:
+    phys_footprint: 52 MB
+    phys_footprint_peak: 64 MB
+
+Sat Nov 21 23:01:33 UTC 2026
+  PID    RSS      VSZ COMMAND
+55707 256928 410518256 /Users/runner/Library/Developer/CoreSimulator/Devices/6478AFFB-AE17-412A-A1E5-51BCFFD300B6/data/Containers/Bundle/Application/C33D2C06-FA23-4289-8CD8-E4091451AB2B/Trail.app/PlugIns/TrailKeyboard.appex/TrailKeyboard
+======================================================================
+TrailKeyboard [55707]: 64-bit    Footprint: 51 MB (16384 bytes per page)
+======================================================================
+
+  Dirty      Clean  Reclaimable    Regions    Category
+    ---        ---          ---        ---    ---
+  16 MB        0 B          0 B         71    dyld private memory
+  15 MB        0 B      3744 KB          7    MALLOC_SMALL
+7047 KB      32 KB          0 B        940    __DATA
+6413 KB      16 KB          0 B        970    __DATA_CONST
+3504 KB        0 B      2176 KB        102    CoreAnimation
+1606 KB        0 B          0 B          1    page table
+ 973 KB        0 B          0 B       1008    unused dyld shared cache area
+ 304 KB        0 B        32 KB         12    stack
+ 240 KB        0 B          0 B          8    MALLOC metadata
+ 192 KB        0 B          0 B          1    MALLOC_TINY
+ 192 KB        0 B          0 B          8    CG raster data
+ 155 KB        0 B          0 B         14    __DATA_DIRTY
+ 128 KB        0 B          0 B          1    Accelerate image backing stores
+  52 KB        0 B          0 B          3    __TPRO_CONST
+  48 KB        0 B          0 B          1    Activity Tracing
+  32 KB        0 B          0 B          1    __AUTH_CONST
+  32 KB        0 B          0 B          3    untagged (VM_ALLOCATE)
+  32 KB        0 B          0 B          1    MALLOC_NANO
+  16 KB        0 B          0 B          1    Foundation
+  16 KB        0 B          0 B          1    os_alloc_once
+    0 B      21 MB          0 B         13    mapped file
+    0 B    6048 KB          0 B        984    __TEXT
+    0 B     832 KB          0 B         73    __LINKEDIT
+    0 B        0 B          0 B          1    __FONT_DATA
+    ---        ---          ---        ---    ---
+  51 MB      28 MB      5952 KB       4227    TOTAL
+
+Auxiliary data:
+    phys_footprint: 51 MB
+    phys_footprint_peak: 64 MB
+
